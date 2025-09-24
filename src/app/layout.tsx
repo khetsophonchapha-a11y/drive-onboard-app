@@ -3,11 +3,26 @@ import './globals.css';
 import { AuthProvider } from '@/components/auth-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
+import { Poppins, PT_Sans } from 'next/font/google';
 
 export const metadata: Metadata = {
   title: 'DriveOnboard',
   description: 'Driver Onboarding Platform',
 };
+
+const fontHeading = Poppins({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-headline',
+  weight: ['400', '500', '600', '700'],
+});
+
+const fontBody = PT_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-body',
+  weight: ['400', '700'],
+});
 
 export default function RootLayout({
   children,
@@ -16,13 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
-      </head>
-      <body className={cn('font-body antialiased', 'min-h-screen bg-background')}>
+      <body className={cn('antialiased min-h-screen bg-background', fontHeading.variable, fontBody.variable, 'font-body')}>
         <AuthProvider>
           {children}
           <Toaster />
