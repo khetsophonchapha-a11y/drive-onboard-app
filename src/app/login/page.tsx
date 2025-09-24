@@ -18,8 +18,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { Logo } from "@/components/logo";
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  email: z.string().email({ message: "อีเมลไม่ถูกต้อง" }),
+  password: z.string().min(6, { message: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" }),
 });
 
 export default function LoginPage() {
@@ -45,8 +45,8 @@ export default function LoginPage() {
           <div className="mb-4 flex justify-center">
             <Logo />
           </div>
-          <CardTitle className="text-2xl font-headline">Admin Login</CardTitle>
-          <CardDescription>Enter your credentials to access the dashboard.</CardDescription>
+          <CardTitle className="text-2xl font-headline">เข้าสู่ระบบแอดมิน</CardTitle>
+          <CardDescription>กรอกข้อมูลเพื่อเข้าสู่แดชบอร์ด</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -56,7 +56,7 @@ export default function LoginPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>อีเมล</FormLabel>
                     <FormControl>
                       <Input placeholder="admin@example.com" {...field} />
                     </FormControl>
@@ -69,7 +69,7 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>รหัสผ่าน</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="••••••••" {...field} />
                     </FormControl>
@@ -78,7 +78,7 @@ export default function LoginPage() {
                 )}
               />
               <Button type="submit" className="w-full">
-                Log In
+                เข้าสู่ระบบ
               </Button>
             </form>
           </Form>

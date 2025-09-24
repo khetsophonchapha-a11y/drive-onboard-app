@@ -18,7 +18,6 @@ import {
   XCircle,
   FileClock,
   FileQuestion,
-  TriangleAlert,
   Sparkles,
   Loader2,
   Upload,
@@ -64,6 +63,21 @@ const statusColors: Record<DocumentStatus, string> = {
   rejected: "text-destructive",
 };
 
+const statusText: Record<Application["status"], string> = {
+  incomplete: "เอกสารไม่ครบ",
+  pending: "รอตรวจสอบ",
+  approved: "อนุมัติ",
+  rejected: "ปฏิเสธ",
+};
+
+const docStatusText: Record<DocumentStatus, string> = {
+  missing: 'ไม่มีไฟล์',
+  uploaded: 'อัปโหลดแล้ว',
+  'pending review': 'รอตรวจสอบ',
+  approved: 'อนุมัติ',
+  rejected: 'ปฏิเสธ'
+}
+
 const statusVariantMap: Record<Application["status"], "default" | "secondary" | "success" | "destructive"> = {
   incomplete: "secondary",
   pending: "default",
@@ -105,8 +119,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
       console.error("Failed to analyze form:", error);
       toast({
         variant: "destructive",
-        title: "Analysis Failed",
-        description: "Could not analyze the form. Please try again.",
+        title: "การวิเคราะห์ล้มเหลว",
+        description: "ไม่สามารถวิเคราะห์ฟอร์มได้ กรุณาลองใหม่",
       });
     } finally {
       setIsAnalyzing(false);
@@ -121,7 +135,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   const renderDetail = (label: string, value: string | number | undefined) => (
     <div className="grid grid-cols-3 gap-2 text-sm">
       <dt className="font-medium text-muted-foreground">{label}</dt>
-      <dd className="col-span-2">{value || <span className="text-muted-foreground/70">Not provided</span>}</dd>
+      <dd className="col-span-2">{value || <span className="text-muted-foreground/70">ไม่ได้กรอก</span>}</dd>
     </div>
   );
   
@@ -133,61 +147,61 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             <CardHeader>
               <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="font-headline text-2xl">{application.applicant.fullName || "Unnamed Applicant"}</CardTitle>
-                    <CardDescription>Application ID: {application.id}</CardDescription>
+                    <CardTitle className="font-headline text-2xl">{application.applicant.fullName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
+                    <CardDescription>รหัสใบสมัคร: {application.id}</CardDescription>
                   </div>
-                  <Badge variant={statusVariantMap[application.status]} className="capitalize text-base">{application.status}</Badge>
+                  <Badge variant={statusVariantMap[application.status]} className="capitalize text-base">{statusText[application.status]}</Badge>
               </div>
             </CardHeader>
           </Card>
           
           <Tabs defaultValue="documents">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="applicant">Applicant</TabsTrigger>
-              <TabsTrigger value="vehicle">Vehicle</TabsTrigger>
-              <TabsTrigger value="guarantor">Guarantor</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
+              <TabsTrigger value="applicant">ผู้สมัคร</TabsTrigger>
+              <TabsTrigger value="vehicle">ยานพาหนะ</TabsTrigger>
+              <TabsTrigger value="guarantor">ผู้ค้ำประกัน</TabsTrigger>
+              <TabsTrigger value="documents">เอกสาร</TabsTrigger>
             </TabsList>
             <TabsContent value="applicant">
               <Card>
-                <CardHeader><CardTitle className="font-headline">Applicant Information</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  {renderDetail("Full Name", application.applicant.fullName)}
-                  {renderDetail("Email", application.applicant.email)}
-                  {renderDetail("Phone", application.applicant.phone)}
-                  {renderDetail("Address", application.applicant.address)}
-                  {renderDetail("Date of Birth", application.applicant.dateOfBirth)}
+                  {renderDetail("ชื่อ-นามสกุล", application.applicant.fullName)}
+                  {renderDetail("อีเมล", application.applicant.email)}
+                  {renderDetail("เบอร์โทรศัพท์", application.applicant.phone)}
+                  {renderDetail("ที่อยู่", application.applicant.address)}
+                  {renderDetail("วันเกิด", application.applicant.dateOfBirth)}
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="vehicle">
               <Card>
-                <CardHeader><CardTitle className="font-headline">Vehicle Information</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  {renderDetail("Make", application.vehicle.make)}
-                  {renderDetail("Model", application.vehicle.model)}
-                  {renderDetail("Year", application.vehicle.year)}
-                  {renderDetail("License Plate", application.vehicle.licensePlate)}
-                  {renderDetail("VIN", application.vehicle.vin)}
+                  {renderDetail("ยี่ห้อ", application.vehicle.make)}
+                  {renderDetail("รุ่น", application.vehicle.model)}
+                  {renderDetail("ปี", application.vehicle.year)}
+                  {renderDetail("ป้ายทะเบียน", application.vehicle.licensePlate)}
+                  {renderDetail("เลขตัวถัง (VIN)", application.vehicle.vin)}
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="guarantor">
                <Card>
-                <CardHeader><CardTitle className="font-headline">Guarantor Information</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  {renderDetail("Full Name", application.guarantor.fullName)}
-                  {renderDetail("Email", application.guarantor.email)}
-                  {renderDetail("Phone", application.guarantor.phone)}
-                  {renderDetail("Address", application.guarantor.address)}
+                  {renderDetail("ชื่อ-นามสกุล", application.guarantor.fullName)}
+                  {renderDetail("อีเมล", application.guarantor.email)}
+                  {renderDetail("เบอร์โทรศัพท์", application.guarantor.phone)}
+                  {renderDetail("ที่อยู่", application.guarantor.address)}
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="documents">
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-headline">Document Verification</CardTitle>
-                  <CardDescription>Review and approve/reject submitted documents.</CardDescription>
+                  <CardTitle className="font-headline">ตรวจสอบเอกสาร</CardTitle>
+                  <CardDescription>ตรวจสอบและอนุมัติ/ปฏิเสธเอกสารที่ส่งมา</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {allDocuments.map((doc: Document) => {
@@ -198,7 +212,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                             <h4 className="font-semibold">{doc.type}</h4>
                             <div className={`flex items-center gap-2 text-sm font-medium ${statusColors[doc.status]}`}>
                                 <Icon className="h-4 w-4" />
-                                <span className="capitalize">{doc.status}</span>
+                                <span className="capitalize">{docStatusText[doc.status]}</span>
                             </div>
                         </div>
 
@@ -209,18 +223,18 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                             </div>
                             <div className="flex-1 space-y-2">
                                 <Select defaultValue={doc.quality || 'clear'}>
-                                    <SelectTrigger><SelectValue placeholder="Assess quality..." /></SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder="ประเมินคุณภาพ..." /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="clear">Clear</SelectItem>
-                                        <SelectItem value="blurry">Blurry</SelectItem>
-                                        <SelectItem value="incomplete">Incomplete</SelectItem>
-                                        <SelectItem value="incorrect">Incorrect Document</SelectItem>
+                                        <SelectItem value="clear">ชัดเจน</SelectItem>
+                                        <SelectItem value="blurry">เบลอ</SelectItem>
+                                        <SelectItem value="incomplete">ไม่สมบูรณ์</SelectItem>
+                                        <SelectItem value="incorrect">เอกสารไม่ถูกต้อง</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <Textarea placeholder="Add verification notes..." defaultValue={doc.notes} />
+                                <Textarea placeholder="เพิ่มบันทึกการตรวจสอบ..." defaultValue={doc.notes} />
                                 <div className="flex gap-2 pt-2">
-                                    <Button size="sm" variant="success">Approve</Button>
-                                    <Button size="sm" variant="destructive">Reject</Button>
+                                    <Button size="sm" variant="success">อนุมัติ</Button>
+                                    <Button size="sm" variant="destructive">ปฏิเสธ</Button>
                                 </div>
                             </div>
                           </div>
@@ -229,8 +243,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                         {doc.status === 'missing' && (
                            <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
                                <div className="text-center text-muted-foreground">
-                                   <p className="font-medium">No document uploaded.</p>
-                                   <Button size="sm" variant="outline" className="mt-2"><Upload className="mr-2 h-4 w-4"/>Request Upload</Button>
+                                   <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
+                                   <Button size="sm" variant="outline" className="mt-2"><Upload className="mr-2 h-4 w-4"/>ขอให้อัปโหลด</Button>
                                </div>
                            </div>
                         )}
@@ -243,12 +257,12 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                       {isAnalyzing ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Analyzing...
+                          กำลังวิเคราะห์...
                         </>
                       ) : (
                         <>
                           <Sparkles className="mr-2 h-4 w-4" />
-                          AI Incompleteness Analysis
+                          วิเคราะห์ความไม่สมบูรณ์ด้วย AI
                         </>
                       )}
                     </Button>
@@ -263,19 +277,19 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 font-headline text-2xl">
               <Sparkles className="h-6 w-6 text-primary" />
-              AI Form Analysis Report
+              รายงานการวิเคราะห์ฟอร์มด้วย AI
             </DialogTitle>
             <DialogDescription>
-              Analysis of missing or incorrect information based on submitted data.
+              การวิเคราะห์ข้อมูลที่ขาดหายไปหรือไม่ถูกต้องจากข้อมูลที่ส่งมา
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto p-1 pr-4 space-y-4">
             <div>
-              <h3 className="font-semibold text-lg mb-2">Analysis Summary</h3>
+              <h3 className="font-semibold text-lg mb-2">สรุปผลการวิเคราะห์</h3>
               <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-md">{analysisResult?.analysis}</p>
             </div>
             <div>
-              <h3 className="font-semibold text-lg mb-2">Instructions for Applicant</h3>
+              <h3 className="font-semibold text-lg mb-2">คำแนะนำสำหรับผู้สมัคร</h3>
               <div className="text-sm border p-3 rounded-md prose-sm prose-p:my-1 prose-ul:my-1">
                 <p>{analysisResult?.instructions}</p>
               </div>

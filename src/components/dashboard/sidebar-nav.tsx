@@ -29,12 +29,12 @@ export function SidebarNav() {
   const menuItems = [
     {
       href: "/dashboard",
-      label: "Dashboard",
+      label: "แดชบอร์ด",
       icon: LayoutDashboard,
     },
     {
       href: "/dashboard/applications",
-      label: "Applications",
+      label: "ใบสมัคร",
       icon: FileText,
     },
   ];
@@ -48,7 +48,7 @@ export function SidebarNav() {
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-              <Link href={item.href} passHref>
+              <Link href={item.href}>
                 <SidebarMenuButton
                   isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                   tooltip={item.label}

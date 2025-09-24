@@ -16,25 +16,25 @@ export function OverviewCards() {
 
   const cardData = [
     {
-      title: "Total Applications",
+      title: "ใบสมัครทั้งหมด",
       value: totalApplications,
       icon: Users,
       color: "text-primary",
     },
     {
-      title: "Pending Review",
+      title: "รอตรวจสอบ",
       value: pendingApplications,
       icon: FileClock,
       color: "text-amber-500",
     },
     {
-      title: "Approved",
+      title: "อนุมัติแล้ว",
       value: approvedApplications,
       icon: CheckCircle,
       color: "text-success",
     },
     {
-      title: "Rejected",
+      title: "ปฏิเสธ",
       value: rejectedApplications,
       icon: XCircle,
       color: "text-destructive",

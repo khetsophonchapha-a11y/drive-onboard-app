@@ -4,31 +4,31 @@ export const mockApplications: Application[] = [
   {
     id: 'app-001',
     applicant: {
-      fullName: 'John Doe',
-      email: 'john.doe@example.com',
-      phone: '123-456-7890',
-      address: '123 Main St, Anytown, USA',
+      fullName: 'สมชาย ใจดี',
+      email: 'somchai.jd@example.com',
+      phone: '081-234-5678',
+      address: '123 ถ.สุขุมวิท, คลองเตย, กรุงเทพฯ 10110',
       dateOfBirth: '1990-05-15',
     },
     vehicle: {
       make: 'Toyota',
-      model: 'Camry',
+      model: 'Vios',
       year: 2021,
-      licensePlate: 'ABC-1234',
+      licensePlate: '1กข 1234',
       vin: '1234567890ABCDEFG',
     },
     guarantor: {
-      fullName: 'Jane Smith',
-      email: 'jane.smith@example.com',
-      phone: '098-765-4321',
-      address: '456 Oak Ave, Anytown, USA',
+      fullName: 'สมศรี มีสุข',
+      email: 'somsri.ms@example.com',
+      phone: '089-876-5432',
+      address: '456 ถ.รัชดา, ห้วยขวาง, กรุงเทพฯ 10310',
     },
     status: 'pending',
     documents: [
-      { id: '1', type: "Driver's License", status: 'pending review', fileName: 'license.pdf', fileUrl: 'https://picsum.photos/seed/doc1/600/400', uploadedAt: '2023-10-26T10:00:00Z' },
-      { id: '2', type: 'Vehicle Registration', status: 'pending review', fileName: 'registration.pdf', fileUrl: 'https://picsum.photos/seed/doc2/600/400', uploadedAt: '2023-10-26T10:05:00Z' },
-      { id: '3', type: 'Proof of Insurance', status: 'missing' },
-      { id: '4', type: 'Proof of Address', status: 'approved', fileName: 'utility_bill.jpg', fileUrl: 'https://picsum.photos/seed/doc5/600/400', uploadedAt: '2023-10-25T14:00:00Z' }
+      { id: 'doc-drivers-license', type: "สำเนาใบขับขี่", status: 'pending review', fileName: 'license.pdf', fileUrl: 'https://picsum.photos/seed/doc1/600/400', uploadedAt: '2023-10-26T10:00:00Z' },
+      { id: 'doc-car-reg', type: 'สำเนารถ', status: 'pending review', fileName: 'registration.pdf', fileUrl: 'https://picsum.photos/seed/doc2/600/400', uploadedAt: '2023-10-26T10:05:00Z' },
+      { id: 'doc-insurance', type: 'ประกันรถยนต์', status: 'missing' },
+      { id: 'doc-citizen-id', type: 'สำเนาบัตรประชาชน', status: 'approved', fileName: 'citizen_id.jpg', fileUrl: 'https://picsum.photos/seed/doc5/600/400', uploadedAt: '2023-10-25T14:00:00Z' }
     ],
     auditLog: [
       { timestamp: '2023-10-26T10:05:00Z', user: 'Applicant', action: 'Submitted application' },
@@ -40,31 +40,31 @@ export const mockApplications: Application[] = [
   {
     id: 'app-002',
     applicant: {
-      fullName: 'Emily White',
-      email: 'emily.white@example.com',
-      phone: '234-567-8901',
-      address: '789 Pine Rd, Anytown, USA',
+      fullName: 'เอมิกา ขาวสะอาด',
+      email: 'emika.k@example.com',
+      phone: '082-345-6789',
+      address: '789 ถ.พหลโยธิน, จตุจักร, กรุงเทพฯ 10900',
       dateOfBirth: '1985-11-20',
     },
     vehicle: {
       make: 'Honda',
       model: 'CR-V',
       year: 2022,
-      licensePlate: 'XYZ-5678',
+      licensePlate: '9กฬ 5678',
       vin: 'HIJKLMNO123456789',
     },
     guarantor: {
-      fullName: 'Michael Brown',
-      email: 'michael.brown@example.com',
-      phone: '109-876-5432',
-      address: '101 Maple Ln, Anytown, USA',
+      fullName: 'ไมเคิล บราวน์',
+      email: 'michael.b@example.com',
+      phone: '083-456-7890',
+      address: '101 ถ.ลาดพร้าว, วังทองหลาง, กรุงเทพฯ 10310',
     },
     status: 'approved',
     documents: [
-      { id: '1', type: "Driver's License", status: 'approved', fileName: 'license.jpg', fileUrl: 'https://picsum.photos/seed/doc1/600/400', uploadedAt: '2023-10-24T09:00:00Z' },
-      { id: '2', type: 'Vehicle Registration', status: 'approved', fileName: 'registration.png', fileUrl: 'https://picsum.photos/seed/doc2/600/400', uploadedAt: '2023-10-24T09:05:00Z' },
-      { id: '3', type: 'Proof of Insurance', status: 'approved', fileName: 'insurance.pdf', fileUrl: 'https://picsum.photos/seed/doc3/600/400', uploadedAt: '2023-10-24T09:10:00Z' },
-       { id: '4', type: 'Proof of Address', status: 'approved', fileName: 'utility_bill.jpg', fileUrl: 'https://picsum.photos/seed/doc5/600/400', uploadedAt: '2023-10-25T14:00:00Z' }
+      { id: 'doc-drivers-license', type: "สำเนาใบขับขี่", status: 'approved', fileName: 'license.jpg', fileUrl: 'https://picsum.photos/seed/doc1/600/400', uploadedAt: '2023-10-24T09:00:00Z' },
+      { id: 'doc-car-reg', type: 'สำเนารถ', status: 'approved', fileName: 'registration.png', fileUrl: 'https://picsum.photos/seed/doc2/600/400', uploadedAt: '2023-10-24T09:05:00Z' },
+      { id: 'doc-insurance', type: 'ประกันรถยนต์', status: 'approved', fileName: 'insurance.pdf', fileUrl: 'https://picsum.photos/seed/doc3/600/400', uploadedAt: '2023-10-24T09:10:00Z' },
+      { id: 'doc-citizen-id', type: 'สำเนาบัตรประชาชน', status: 'approved', fileName: 'utility_bill.jpg', fileUrl: 'https://picsum.photos/seed/doc5/600/400', uploadedAt: '2023-10-25T14:00:00Z' }
     ],
     auditLog: [
        { timestamp: '2023-10-24T09:10:00Z', user: 'Applicant', action: 'Submitted application' },
@@ -76,30 +76,30 @@ export const mockApplications: Application[] = [
     {
     id: 'app-003',
     applicant: {
-      fullName: 'David Green',
-      email: 'david.green@example.com',
-      phone: '345-678-9012',
-      address: '321 Birch St, Othertown, USA',
+      fullName: 'เดวิด เขียว',
+      email: 'david.k@example.com',
+      phone: '084-567-8901',
+      address: '321 ถ.เพชรบุรี, ราชเทวี, กรุงเทพฯ 10400',
       dateOfBirth: '1992-02-10',
     },
     vehicle: {
       make: 'Ford',
       model: 'F-150',
       year: 2020,
-      licensePlate: 'DEF-456',
+      licensePlate: '2ฒผ 456',
       vin: 'PQRSTUVWX987654321',
     },
     guarantor: {
-      fullName: 'Sarah Black',
-      email: 'sarah.black@example.com',
-      phone: '543-210-9876',
-      address: '654 Elm St, Othertown, USA',
+      fullName: 'สาระ ดำ',
+      email: 'sara.d@example.com',
+      phone: '085-678-9012',
+      address: '654 ถ.พระราม 9, ห้วยขวาง, กรุงเทพฯ 10310',
     },
     status: 'rejected',
     documents: [
-      { id: '1', type: "Driver's License", status: 'approved', fileName: 'license.pdf', fileUrl: 'https://picsum.photos/seed/doc1/600/400', uploadedAt: '2023-10-22T12:00:00Z' },
-      { id: '2', type: 'Vehicle Registration', status: 'rejected', quality: 'blurry', notes: 'Image is too blurry to read.', fileName: 'rego.jpg', fileUrl: 'https://picsum.photos/seed/doc2/600/400', uploadedAt: '2023-10-22T12:05:00Z' },
-      { id: '3', type: 'Proof of Insurance', status: 'missing' }
+      { id: 'doc-drivers-license', type: "สำเนาใบขับขี่", status: 'approved', fileName: 'license.pdf', fileUrl: 'https://picsum.photos/seed/doc1/600/400', uploadedAt: '2023-10-22T12:00:00Z' },
+      { id: 'doc-car-reg', type: 'สำเนารถ', status: 'rejected', quality: 'blurry', notes: 'รูปไม่ชัดเจน อ่านไม่ออก', fileName: 'rego.jpg', fileUrl: 'https://picsum.photos/seed/doc2/600/400', uploadedAt: '2023-10-22T12:05:00Z' },
+      { id: 'doc-insurance', type: 'ประกันรถยนต์', status: 'missing' }
     ],
     auditLog: [
       { timestamp: '2023-10-22T12:05:00Z', user: 'Applicant', action: 'Submitted application' },
@@ -114,7 +114,7 @@ export const mockApplications: Application[] = [
     applicant: {
       fullName: '', // Incomplete data
       email: 'chris.blue@example.com',
-      phone: '456-789-0123',
+      phone: '086-789-0123',
       address: '',
       dateOfBirth: '1995-07-30',
     },
@@ -133,9 +133,9 @@ export const mockApplications: Application[] = [
     },
     status: 'incomplete',
     documents: [
-        { id: '1', type: "Driver's License", status: 'missing' },
-        { id: '2', type: 'Vehicle Registration', status: 'missing' },
-        { id: '3', type: 'Proof of Insurance', status: 'missing' }
+        { id: 'doc-drivers-license', type: "สำเนาใบขับขี่", status: 'missing' },
+        { id: 'doc-car-reg', type: 'สำเนารถ', status: 'missing' },
+        { id: 'doc-insurance', type: 'ประกันรถยนต์', status: 'missing' }
     ],
     auditLog: [
        { timestamp: '2023-10-27T14:00:00Z', user: 'Applicant', action: 'Started application' }

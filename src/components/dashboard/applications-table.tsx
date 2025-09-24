@@ -17,6 +17,8 @@ import type { Application, ApplicationStatus } from "@/lib/types";
 import { ArrowUpDown, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { th } from "date-fns/locale";
+import { Card } from "@/components/ui/card";
 
 type ApplicationsTableProps = {
   applications: Application[];
@@ -27,6 +29,13 @@ const statusVariantMap: Record<ApplicationStatus, "default" | "secondary" | "suc
   pending: "default",
   approved: "success",
   rejected: "destructive",
+};
+
+const statusText: Record<ApplicationStatus, string> = {
+  incomplete: "เอกสารไม่ครบ",
+  pending: "รอตรวจสอบ",
+  approved: "อนุมัติ",
+  rejected: "ปฏิเสธ",
 };
 
 export function ApplicationsTable({ applications }: ApplicationsTableProps) {
@@ -83,21 +92,21 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-2">
         <Input
-          placeholder="Search by name..."
+          placeholder="ค้นหาด้วยชื่อ..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
           <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Filter by status" />
+            <SelectValue placeholder="กรองตามสถานะ" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="incomplete">Incomplete</SelectItem>
+            <SelectItem value="all">ทุกสถานะ</SelectItem>
+            <SelectItem value="pending">{statusText.pending}</SelectItem>
+            <SelectItem value="approved">{statusText.approved}</SelectItem>
+            <SelectItem value="rejected">{statusText.rejected}</SelectItem>
+            <SelectItem value="incomplete">{statusText.incomplete}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -107,20 +116,20 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
             <TableRow>
               <TableHead>
                 <Button variant="ghost" onClick={() => handleSort('applicant.fullName')}>
-                  Applicant <ArrowUpDown className="ml-2 h-4 w-4" />
+                  ผู้สมัคร <ArrowUpDown className="ml-2 h-4 w-4" />
                 </Button>
               </TableHead>
               <TableHead>
                  <Button variant="ghost" onClick={() => handleSort('status')}>
-                  Status <ArrowUpDown className="ml-2 h-4 w-4" />
+                  สถานะ <ArrowUpDown className="ml-2 h-4 w-4" />
                 </Button>
               </TableHead>
               <TableHead className="hidden md:table-cell">
                 <Button variant="ghost" onClick={() => handleSort('createdAt')}>
-                  Date Submitted <ArrowUpDown className="ml-2 h-4 w-4" />
+                  วันที่ส่ง <ArrowUpDown className="ml-2 h-4 w-4" />
                 </Button>
               </TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right">จัดการ</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -128,13 +137,13 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
               <TableRow key={app.id}>
                 <TableCell className="font-medium">{app.applicant.fullName || 'N/A'}</TableCell>
                 <TableCell>
-                  <Badge variant={statusVariantMap[app.status]} className="capitalize">{app.status}</Badge>
+                  <Badge variant={statusVariantMap[app.status]} className="capitalize">{statusText[app.status]}</Badge>
                 </TableCell>
-                <TableCell className="hidden md:table-cell">{format(new Date(app.createdAt), "PPP")}</TableCell>
+                <TableCell className="hidden md:table-cell">{format(new Date(app.createdAt), "PPP", { locale: th })}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/applications/${app.id}`)}>
                     <Eye className="h-4 w-4" />
-                    <span className="sr-only">View Application</span>
+                    <span className="sr-only">ดูใบสมัคร</span>
                   </Button>
                 </TableCell>
               </TableRow>
@@ -145,6 +154,3 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
     </div>
   );
 }
-
-// Add Card to table
-import { Card } from "@/components/ui/card";

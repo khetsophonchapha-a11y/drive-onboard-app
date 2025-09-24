@@ -23,8 +23,8 @@ const AnalyzeIncompleteFormInputSchema = z.object({
 export type AnalyzeIncompleteFormInput = z.infer<typeof AnalyzeIncompleteFormInputSchema>;
 
 const AnalyzeIncompleteFormOutputSchema = z.object({
-  analysis: z.string().describe('The analysis of why the form is incomplete.'),
-  instructions: z.string().describe('Specific instructions for the applicant to complete the form accurately.'),
+  analysis: z.string().describe('การวิเคราะห์ว่าทำไมฟอร์มถึงไม่สมบูรณ์ (ภาษาไทย)'),
+  instructions: z.string().describe('คำแนะนำที่เฉพาะเจาะจงสำหรับผู้สมัครเพื่อกรอกฟอร์มให้ถูกต้อง (ภาษาไทย)'),
 });
 export type AnalyzeIncompleteFormOutput = z.infer<typeof AnalyzeIncompleteFormOutputSchema>;
 
@@ -42,13 +42,16 @@ const prompt = ai.definePrompt({
   output: {
     schema: AnalyzeIncompleteFormOutputSchema,
   },
-  prompt: `You are an expert AI assistant specializing in analyzing incomplete application forms.  You are provided the application schema, the filled in form data, and document uploads from the user.  You will:
+  prompt: `คุณคือผู้ช่วย AI ผู้เชี่ยวชาญด้านการวิเคราะห์แบบฟอร์มใบสมัครที่ไม่สมบูรณ์ คุณจะได้รับข้อมูล 3 ส่วน: schema ของฟอร์มใบสมัคร, ข้อมูลที่ผู้สมัครกรอก, และไฟล์เอกสารที่อัปโหลดมา
+หน้าที่ของคุณคือ:
 
-1.  Analyze the application form schema.
-2.  Inspect the filled in form data, and determine what is missing and incorrect.
-3.  Analyze the document uploads from the user, and use them to augment the analysis in step 2.
-4.  Provide a detailed analysis of why the form is incomplete.
-5.  Based on the analysis, generate specific instructions for the applicant to complete the application accurately.
+1.  วิเคราะห์ schema ของฟอร์มใบสมัครเพื่อทำความเข้าใจโครงสร้างและข้อกำหนดทั้งหมด
+2.  ตรวจสอบข้อมูลที่ผู้สมัครกรอก (Filled Form Data) เทียบกับ schema เพื่อระบุว่ามีข้อมูลใดขาดหายไปหรือไม่ถูกต้อง
+3.  วิเคราะห์รูปภาพเอกสารที่อัปโหลดมา (Uploaded Documents) เพื่อตรวจสอบว่ามีข้อมูลที่สามารถนำมาเติมเต็มส่วนที่ขาดในข้อ 2 ได้หรือไม่ และตรวจสอบคุณภาพของเอกสาร
+4.  สรุปผลการวิเคราะห์เป็น "บทวิเคราะห์" (analysis) ที่ชัดเจนถึงสาเหตุที่ทำให้ใบสมัครนี้ยังไม่สมบูรณ์
+5.  จากบทวิเคราะห์ในข้อ 4 ให้สร้าง "คำแนะนำ" (instructions) ที่สุภาพและเป็นขั้นตอนสำหรับผู้สมัคร เพื่อให้พวกเขาสามารถกลับไปแก้ไขและส่งเอกสารให้ครบถ้วนถูกต้อง
+
+สำคัญ: ผลลัพธ์ทั้งหมด (analysis และ instructions) จะต้องเป็นภาษาไทยเท่านั้น
 
 Application Form Schema: {{{applicationFormSchema}}}
 Filled Form Data: {{{filledFormData}}}

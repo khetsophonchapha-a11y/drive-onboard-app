@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils';
 import { Poppins, PT_Sans } from 'next/font/google';
 
 export const metadata: Metadata = {
-  title: 'DriveOnboard',
-  description: 'Driver Onboarding Platform',
+  title: 'DriveOnboard | ระบบสมัครงานคนขับ',
+  description: 'แพลตฟอร์มสำหรับจัดการและตรวจสอบเอกสารผู้สมัครพนักงานขับรถ',
 };
 
 const fontHeading = Poppins({

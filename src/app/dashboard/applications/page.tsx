@@ -8,9 +8,9 @@ export default function ApplicationsPage() {
   return (
     <div className="space-y-6">
        <div>
-        <h1 className="text-3xl font-bold font-headline tracking-tight">Applications</h1>
+        <h1 className="text-3xl font-bold font-headline tracking-tight">ใบสมัครทั้งหมด</h1>
         <p className="text-muted-foreground">
-          Manage and review all driver applications.
+          จัดการและตรวจสอบใบสมัครพนักงานขับรถทั้งหมด
         </p>
       </div>
       <ApplicationsTable applications={applications} />

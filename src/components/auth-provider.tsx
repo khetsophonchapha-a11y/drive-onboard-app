@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   const login = (email: string) => {
-    const newUser: User = { email, name: "Admin User", avatarUrl: "https://picsum.photos/seed/admin/100/100" };
+    const newUser: User = { email, name: "ผู้ดูแลระบบ", avatarUrl: "https://picsum.photos/seed/admin/100/100" };
     localStorage.setItem("driveonboard_user", JSON.stringify(newUser));
     setUser(newUser);
     router.push("/dashboard");
