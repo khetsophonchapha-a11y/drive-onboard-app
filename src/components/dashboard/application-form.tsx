@@ -94,7 +94,7 @@ export function ApplicationForm() {
     setIsSubmitting(false);
     router.push("/dashboard/applications");
   }
-
+  
   const handleFileChange = (file: File | null, index: number) => {
     if (file) {
       const currentDocument = form.getValues(`documents.${index}`);
@@ -126,7 +126,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.dateOfBirth" render={({ field }) => (
-                  <FormItem><FormLabel>วันเกิด</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>วันเกิด</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></Form-Item>
                 )} />
                 <FormField control={form.control} name="applicant.address" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -150,7 +150,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.licensePlate" render={({ field }) => (
-                  <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage>
                 )} />
                 <FormField control={form.control} name="vehicle.vin" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>เลขตัวถัง (VIN)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -251,3 +251,5 @@ export function ApplicationForm() {
     </Card>
   );
 }
+
+    
