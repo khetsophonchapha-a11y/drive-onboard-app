@@ -1,3 +1,46 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "doc-license",
+      "description": "Driver's License",
+      "imageUrl": "https://images.unsplash.com/photo-1613826488523-b537c0cab318?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxkb2N1bWVudCUyMGxpY2Vuc2V8ZW58MHx8fHwxNzU4NjYxMjI1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "document license"
+    },
+    {
+      "id": "doc-registration",
+      "description": "Vehicle Registration",
+      "imageUrl": "https://images.unsplash.com/photo-1662106522792-357c3abf663c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxkb2N1bWVudCUyMHJlZ2lzdHJhdGlvbnxlbnwwfHx8fDE3NTg3MjEzMjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "document registration"
+    },
+    {
+      "id": "doc-insurance",
+      "description": "Proof of Insurance",
+      "imageUrl": "https://images.unsplash.com/photo-1747037941864-74595e4ff56d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxkb2N1bWVudCUyMGluc3VyYW5jZXxlbnwwfHx8fDE3NTg3MjEzMjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "document insurance"
+    },
+    {
+      "id": "doc-guarantor-id",
+      "description": "Guarantor ID",
+      "imageUrl": "https://images.unsplash.com/photo-1695041712957-45634f4fa759?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxkb2N1bWVudCUyMGlkfGVufDB8fHx8MTc1ODY5MTU3NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "document id"
+    },
+    {
+      "id": "doc-proof-of-address",
+      "description": "Proof of Address",
+      "imageUrl": "https://images.unsplash.com/photo-1659938603286-a0a5586b839b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxkb2N1bWVudCUyMHV0aWxpdHklMjBiaWxsfGVufDB8fHx8MTc1ODcyMTMyMnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "document utility bill"
+    },
+    {
+      "id": "user-avatar-1",
+      "description": "User Avatar 1",
+      "imageUrl": "https://images.unsplash.com/photo-1535643302794-19c3804b874b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NTg2OTE2MTR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "user-avatar-2",
+      "description": "User Avatar 2",
+      "imageUrl": "https://images.unsplash.com/photo-1535643302794-19c3804b874b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NTg2OTE2MTR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    }
+  ]
 }
