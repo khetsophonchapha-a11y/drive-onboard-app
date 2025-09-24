@@ -78,7 +78,19 @@ export function ApplicationForm() {
     name: "documents"
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  const handleFileChange = (file: File | null, index: number) => {
+    if (file) {
+      const currentDocument = form.getValues(`documents.${index}`);
+      updateDocument(index, { ...currentDocument, file: file });
+    }
+  };
+
+  const removeFile = (index: number) => {
+    const currentDocument = form.getValues(`documents.${index}`);
+    updateDocument(index, { ...currentDocument, file: null });
+  };
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     console.log("Form values:", values);
     
@@ -93,18 +105,6 @@ export function ApplicationForm() {
     
     setIsSubmitting(false);
     router.push("/dashboard/applications");
-  }
-  
-  const handleFileChange = (file: File | null, index: number) => {
-    if (file) {
-      const currentDocument = form.getValues(`documents.${index}`);
-      updateDocument(index, { ...currentDocument, file: file });
-    }
-  };
-
-  const removeFile = (index: number) => {
-    const currentDocument = form.getValues(`documents.${index}`);
-    updateDocument(index, { ...currentDocument, file: null });
   };
 
   return (
@@ -126,7 +126,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.dateOfBirth" render={({ field }) => (
-                  <FormItem><FormLabel>วันเกิด</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></Form-Item>
+                  <FormItem><FormLabel>วันเกิด</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.address" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -150,7 +150,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.licensePlate" render={({ field }) => (
-                  <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage>
+                  <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.vin" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>เลขตัวถัง (VIN)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -168,7 +168,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>ชื่อ-นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage>
+                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.email" render={({ field }) => (
                   <FormItem><FormLabel>อีเมล (ผู้ค้ำ) <span className="text-muted-foreground/80">(ถ้ามี)</span></FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
@@ -251,5 +251,3 @@ export function ApplicationForm() {
     </Card>
   );
 }
-
-    
