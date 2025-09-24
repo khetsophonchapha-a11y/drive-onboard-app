@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Application, ApplicationStatus } from "@/lib/types";
-import { ArrowUpDown, Eye } from "lucide-react";
+import { ArrowUpDown, Eye, PlusCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -109,6 +109,10 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
             <SelectItem value="incomplete">{statusText.incomplete}</SelectItem>
           </SelectContent>
         </Select>
+        <Button onClick={() => router.push('/dashboard/applications/new')} className="ml-auto">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            สร้างใบสมัครใหม่
+        </Button>
       </div>
       <Card>
         <Table>
