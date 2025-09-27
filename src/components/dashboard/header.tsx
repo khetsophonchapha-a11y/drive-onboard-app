@@ -32,8 +32,12 @@ export function Header() {
             </BreadcrumbLink>
           </BreadcrumbItem>
           {pathSegments.slice(1).map((segment, index) => {
+            // Since the applications page is merged with the dashboard, we don't need a breadcrumb for it.
+            if (segment === 'applications') return null;
+
             const href = `/${pathSegments.slice(0, index + 2).join('/')}`;
             const isLast = index === pathSegments.length - 2;
+            
             return (
               <React.Fragment key={href}>
                 <BreadcrumbSeparator />
