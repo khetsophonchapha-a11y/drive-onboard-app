@@ -55,6 +55,7 @@ const statusText: Record<ApplicationStatus, string> = {
 
 export const columns: ColumnDef<Application>[] = [
     {
+        id: "applicant.fullName",
         accessorKey: "applicant.fullName",
         header: "ผู้สมัคร",
         cell: ({ row }) => <div>{row.original.applicant.fullName}</div>,
