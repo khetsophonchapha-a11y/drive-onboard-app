@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -13,7 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon, X } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon, X, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { DateRange } from "react-day-picker"
 
@@ -42,6 +43,18 @@ import type { Application, ApplicationStatus } from "@/lib/types";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+
 
 const statusVariantMap: Record<ApplicationStatus, "default" | "secondary" | "success" | "destructive"> = {
   incomplete: "secondary",
@@ -57,7 +70,43 @@ const statusText: Record<ApplicationStatus, string> = {
   rejected: "ปฏิเสธ",
 };
 
-export const columns: ColumnDef<Application>[] = [
+type ApplicationsTableProps = {
+  applications: Application[];
+  onDelete: (applicationId: string) => void;
+};
+
+export function ApplicationsTable({ applications, onDelete }: ApplicationsTableProps) {
+  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  )
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState({})
+  const [date, setDate] = React.useState<DateRange | undefined>()
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [applicationToDelete, setApplicationToDelete] = React.useState<Application | null>(null);
+  const { toast } = useToast();
+
+  const handleOpenDeleteDialog = (application: Application) => {
+    setApplicationToDelete(application);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (applicationToDelete) {
+      onDelete(applicationToDelete.id);
+      toast({
+        title: "ลบใบสมัครสำเร็จ",
+        description: `ใบสมัครของ ${applicationToDelete.applicant.firstName} ได้ถูกลบแล้ว`,
+      });
+      setIsDeleteDialogOpen(false);
+      setApplicationToDelete(null);
+    }
+  };
+
+  const columns: ColumnDef<Application>[] = [
     {
         id: "applicantName",
         accessorFn: row => `${row.applicant.firstName} ${row.applicant.lastName}`,
@@ -98,34 +147,27 @@ export const columns: ColumnDef<Application>[] = [
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(application.id)}>
-                            คัดลอก ID
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                         <Link href={`/dashboard/applications/${application.id}`} passHref>
                             <DropdownMenuItem>ดูใบสมัคร</DropdownMenuItem>
                         </Link>
+                         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(application.id)}>
+                            คัดลอก ID
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                            onClick={() => handleOpenDeleteDialog(application)}
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>ลบใบสมัคร</span>
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             );
         },
     },
-];
+  ];
 
-
-type ApplicationsTableProps = {
-  applications: Application[];
-};
-
-export function ApplicationsTable({ applications }: ApplicationsTableProps) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
-  const [date, setDate] = React.useState<DateRange | undefined>()
 
   const table = useReactTable({
     data: applications,
@@ -299,6 +341,27 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
           </Button>
         </div>
       </div>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ยืนยันการลบใบสมัคร</AlertDialogTitle>
+            <AlertDialogDescription>
+              คุณแน่ใจหรือไม่ว่าต้องการลบใบสมัครของ{" "}
+              <span className="font-semibold">{[applicationToDelete?.applicant.firstName, applicationToDelete?.applicant.lastName].filter(Boolean).join(" ")}</span>? 
+              การกระทำนี้ไม่สามารถย้อนกลับได้
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className={cn(buttonVariants({ variant: "destructive" }))}
+            >
+              ยืนยันการลบ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
