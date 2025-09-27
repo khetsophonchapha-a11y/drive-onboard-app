@@ -32,6 +32,23 @@ async function md5Base64(file: File) {
   return btoa(bin);
 }
 
+// Helper function for safer fetching with better error messages
+async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  try {
+    const response = await fetch(input, init);
+    if (!response.ok) {
+      // Try to get more specific error from response body
+      const bodyText = await response.text().catch(() => 'Could not read response body');
+      throw new Error(`Request failed: ${response.status} ${response.statusText}. Body: ${bodyText}`);
+    }
+    return response;
+  } catch (error: any) {
+    console.error('Fetch error:', error);
+    // Re-throw the error to be caught by the calling function
+    throw error;
+  }
+}
+
 const applicantSchema = z.object({
   firstName: z.string().min(1, "กรุณากรอกชื่อจริง"),
   lastName: z.string().min(1, "กรุณากรอกนามสกุล"),
@@ -79,8 +96,6 @@ const formSchema = z.object({
     documents: z.array(documentSchema),
 });
 
-type UploadState = z.infer<typeof documentUploadSchema>;
-
 export function ApplicationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
@@ -120,9 +135,9 @@ export function ApplicationForm() {
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 10 }});
       const md5 = await md5Base64(file);
 
-      // 1. Get pre-signed URL
+      // 1. Get pre-signed URL using safeFetch
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 20 }});
-      const signResponse = await fetch('/api/r2/sign-put-applicant', {
+      const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -136,17 +151,16 @@ export function ApplicationForm() {
       });
       
       const responseBody = await signResponse.json();
-      if (!signResponse.ok) {
-        // Here we catch the error from the signing server and display it
-        throw new Error(responseBody.error || 'Failed to get pre-signed URL');
+      if (responseBody.error) {
+          throw new Error(responseBody.error);
       }
       
       const { url, key } = responseBody;
 
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 40 }});
 
-      // 2. Upload file to R2
-      const uploadResponse = await fetch(url, {
+      // 2. Upload file to R2 using safeFetch
+      await safeFetch(url, {
         method: 'PUT',
         body: file,
         headers: {
@@ -155,11 +169,6 @@ export function ApplicationForm() {
         },
       });
 
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        console.error("R2 Upload Error:", errorText);
-        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`);
-      }
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 100 }});
 
 
@@ -198,7 +207,6 @@ export function ApplicationForm() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
 
-    // Filter for only successfully uploaded files
     const uploadedDocuments = values.documents
         .filter(doc => doc.upload.status === 'success' && doc.upload.r2Key)
         .map(doc => ({
@@ -214,7 +222,6 @@ export function ApplicationForm() {
 
     console.log("Form submission data:", submissionData);
 
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     toast({
@@ -224,8 +231,6 @@ export function ApplicationForm() {
     });
 
     setIsSubmitting(false);
-    // In a real scenario, you might redirect to a "thank you" page
-    // For now, redirecting to dashboard
     router.push("/dashboard");
   };
 
@@ -410,3 +415,5 @@ export function ApplicationForm() {
     </Card>
   );
 }
+
+    
