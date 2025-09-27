@@ -49,7 +49,6 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
     return response;
 }
 
-
 const applicantSchema = z.object({
   firstName: z.string().min(1, "กรุณากรอกชื่อจริง"),
   lastName: z.string().min(1, "กรุณากรอกนามสกุล"),
@@ -76,13 +75,14 @@ const guarantorSchema = z.object({
 });
 
 const documentUploadSchema = z.object({
-  status: z.enum(['pending', 'uploading', 'success', 'error']),
+  status: z.enum(['pending', 'selected', 'uploading', 'success', 'error']),
   progress: z.number(),
-  file: z.any().optional(),
+  file: z.instanceof(File).nullable(),
   r2Key: z.string().optional(),
   fileName: z.string().optional(),
   errorMessage: z.string().optional(),
 });
+
 
 const documentSchema = z.object({
     id: z.string(),
@@ -99,6 +99,7 @@ const formSchema = z.object({
 
 export function ApplicationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionProgress, setSubmissionProgress] = useState(0);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -120,97 +121,99 @@ export function ApplicationForm() {
     name: "documents"
   });
 
-  const handleFileChange = async (file: File | null, index: number) => {
+  const handleFileChange = (file: File | null, index: number) => {
     if (!file) return;
-
     const currentDocument = form.getValues(`documents.${index}`);
-    // This is a temporary ID. A real application would likely save a draft
-    // of the application first and get a persistent ID.
-    const applicationId = 'temp-' + Date.now(); 
-
     updateDocument(index, {
         ...currentDocument,
-        upload: { status: 'uploading', progress: 5, file: file, errorMessage: undefined }
+        upload: { 
+            status: 'selected', 
+            progress: 0, 
+            file: file, 
+            fileName: file.name,
+            errorMessage: undefined 
+        }
     });
-
-    let md5, key, url;
-
-    try {
-      // Step 1: Get a pre-signed URL from our API
-      updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 10 }});
-      md5 = await md5Base64(file);
-      
-      updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 20 }});
-      
-      const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          applicationId: applicationId,
-          docType: currentDocument.type,
-          fileName: file.name,
-          mime: file.type,
-          size: file.size,
-          md5: md5,
-        }),
-      });
-      
-      const responseBody = await signResponse.json();
-      url = responseBody.url;
-      key = responseBody.key;
-
-      // Step 2: Upload the file to R2 using the pre-signed URL
-      updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 40 }});
-      
-      await safeFetch(url, {
-          method: 'PUT',
-          body: file,
-          headers: {
-            'Content-Type': file.type,
-            'Content-MD5': md5,
-          },
-      });
-
-      updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 100 }});
-
-      // Step 3: Mark as success
-      updateDocument(index, {
-          ...currentDocument,
-          upload: {
-              status: 'success',
-              progress: 100,
-              file: file,
-              r2Key: key,
-              fileName: file.name,
-              errorMessage: undefined
-          }
-      });
-
-    } catch (error: any) {
-        console.error("Upload process failed:", error);
-        updateDocument(index, {
-            ...form.getValues(`documents.${index}`),
-            upload: {
-                status: 'error',
-                progress: 0,
-                file: file,
-                errorMessage: `Upload failed: ${error.message}`
-            }
-        });
-        return;
-    }
   };
-
 
   const removeFile = (index: number) => {
     const currentDocument = form.getValues(`documents.${index}`);
-    updateDocument(index, { ...currentDocument, upload: { status: 'pending', progress: 0, file: null, r2Key: undefined, fileName: undefined, errorMessage: undefined } });
+    updateDocument(index, { 
+        ...currentDocument, 
+        upload: { 
+            status: 'pending', 
+            progress: 0, 
+            file: null, 
+            r2Key: undefined, 
+            fileName: undefined, 
+            errorMessage: undefined 
+        } 
+    });
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    
+    setSubmissionProgress(0);
+
+    const applicationId = 'temp-' + Date.now();
+    const uploadedDocuments: { type: string, r2Key?: string, fileName?: string, status: string }[] = [];
+    const filesToUpload = values.documents.filter(doc => doc.upload.status === 'selected' && doc.upload.file);
+    const totalFiles = filesToUpload.length;
+    let filesUploadedCount = 0;
+
     try {
+        // Step 1: Upload all selected files
+        for (let i = 0; i < values.documents.length; i++) {
+            const doc = values.documents[i];
+            if (doc.upload.status === 'selected' && doc.upload.file) {
+                const file = doc.upload.file;
+                try {
+                    updateDocument(i, { ...doc, upload: { ...doc.upload, status: 'uploading', progress: 10 } });
+                    
+                    const md5 = await md5Base64(file);
+                    updateDocument(i, { ...doc, upload: { ...doc.upload, status: 'uploading', progress: 20 } });
+                    
+                    const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          applicationId: applicationId,
+                          docType: doc.type,
+                          fileName: file.name,
+                          mime: file.type,
+                          size: file.size,
+                          md5: md5,
+                        }),
+                    });
+                    const { url, key } = await signResponse.json();
+
+                    updateDocument(i, { ...doc, upload: { ...doc.upload, status: 'uploading', progress: 40 } });
+                    
+                    await safeFetch(url, {
+                        method: 'PUT',
+                        body: file,
+                        headers: { 'Content-Type': file.type, 'Content-MD5': md5 },
+                    });
+
+                    updateDocument(i, { ...doc, upload: { ...doc.upload, status: 'success', progress: 100, r2Key: key } });
+                    uploadedDocuments.push({ type: doc.type, r2Key: key, fileName: file.name, status: 'uploaded' });
+                    
+                    filesUploadedCount++;
+                    setSubmissionProgress((filesUploadedCount / totalFiles) * 50); // Uploading is 50% of the process
+
+                } catch (uploadError: any) {
+                    updateDocument(i, { ...doc, upload: { ...doc.upload, status: 'error', errorMessage: uploadError.message } });
+                    throw new Error(`ไม่สามารถอัปโหลดไฟล์ "${doc.type}" ได้: ${uploadError.message}`);
+                }
+            } else if (doc.upload.status === 'success' && doc.upload.r2Key) {
+                // Add already uploaded files from a previous attempt if any
+                uploadedDocuments.push({ type: doc.type, r2Key: doc.upload.r2Key, fileName: doc.upload.fileName, status: 'uploaded' });
+            }
+        }
+        
+        // Step 2: Submit the application form data
+        setSubmissionProgress(75); // Submitting is 25% of the process
+
         const submissionData = {
             applicant: values.applicant,
             vehicle: values.vehicle,
@@ -218,14 +221,7 @@ export function ApplicationForm() {
               ...values.guarantor,
               fullName: `${values.guarantor.firstName} ${values.guarantor.lastName}`.trim()
             },
-            documents: values.documents
-                .filter(doc => doc.upload.status === 'success' && doc.upload.r2Key)
-                .map(doc => ({
-                    type: doc.type,
-                    r2Key: doc.upload.r2Key,
-                    fileName: doc.upload.fileName,
-                    status: 'uploaded', 
-                })),
+            documents: uploadedDocuments,
         };
 
         const response = await safeFetch('/api/applications', {
@@ -234,18 +230,18 @@ export function ApplicationForm() {
             body: JSON.stringify(submissionData)
         });
 
-        const newApplication = await response.json();
+        await response.json();
+        setSubmissionProgress(100);
 
         toast({
           title: "ส่งใบสมัครสำเร็จ",
-          description: `ใบสมัครสำหรับ ${values.applicant.firstName} ${values.applicant.lastName} ได้รับการส่งเรียบร้อยแล้ว`,
+          description: `ใบสมัครสำหรับ ${values.applicant.firstName} ได้รับการส่งเรียบร้อยแล้ว`,
           variant: "default"
         });
 
         router.push("/dashboard");
 
-    } catch(error: any) {
-        console.error("Failed to submit application:", error);
+    } catch (error: any) {
         toast({
             variant: "destructive",
             title: "ส่งใบสมัครล้มเหลว",
@@ -255,6 +251,7 @@ export function ApplicationForm() {
         setIsSubmitting(false);
     }
   };
+
 
   return (
     <Card>
@@ -347,6 +344,7 @@ export function ApplicationForm() {
                   const isSuccess = uploadState.status === 'success';
                   const isError = uploadState.status === 'error';
                   const isPending = uploadState.status === 'pending';
+                  const isSelected = uploadState.status === 'selected';
 
                   return (
                   <div key={field.id} className="border rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -361,18 +359,18 @@ export function ApplicationForm() {
                       </div>
 
                       {isPending && <p className="text-sm text-muted-foreground">ยังไม่ได้เลือกไฟล์</p>}
+                      
+                      {(isSelected || isSuccess) && (
+                        <div className="flex items-center gap-2 text-sm text-green-600 mt-1">
+                          <FileCheck className="w-4 h-4" />
+                          <span className="truncate max-w-xs">{uploadState.fileName}</span>
+                        </div>
+                      )}
 
                       {isUploading && (
                         <div className="mt-2">
                           <Progress value={uploadState.progress} className="w-full h-2" />
                           <p className="text-sm text-muted-foreground mt-1">กำลังอัปโหลด... {uploadState.progress}%</p>
-                        </div>
-                      )}
-
-                      {isSuccess && (
-                        <div className="flex items-center gap-2 text-sm text-green-600 mt-1">
-                          <FileCheck className="w-4 h-4" />
-                          <span className="truncate max-w-xs">{uploadState.fileName}</span>
                         </div>
                       )}
 
@@ -393,16 +391,16 @@ export function ApplicationForm() {
                       render={() => (
                         <FormItem>
                           <FormControl>
-                            <Button asChild variant="outline" disabled={isUploading}>
+                            <Button asChild variant="outline" disabled={isUploading || isSubmitting}>
                               <label className="cursor-pointer">
-                                {isSuccess || isError ? <X className="mr-2 h-4 w-4" /> : <FileUp className="mr-2 h-4 w-4" />}
-                                {isSuccess ? 'เปลี่ยนไฟล์' : isError ? 'ลองใหม่' : 'เลือกไฟล์'}
+                                {isSuccess || isSelected || isError ? <X className="mr-2 h-4 w-4" /> : <FileUp className="mr-2 h-4 w-4" />}
+                                {isSuccess || isSelected ? 'เปลี่ยนไฟล์' : isError ? 'ลองใหม่' : 'เลือกไฟล์'}
                                 <Input
                                   type="file"
                                   className="hidden"
                                   accept="image/jpeg,image/png,application/pdf"
                                   onChange={(e) => handleFileChange(e.target.files?.[0] ?? null, index)}
-                                  disabled={isUploading}
+                                  disabled={isUploading || isSubmitting}
                                 />
                               </label>
                             </Button>
@@ -417,8 +415,16 @@ export function ApplicationForm() {
             </div>
 
           </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" size="lg" disabled={isSubmitting || documentFields.some(f => f.upload.status === 'uploading')}>
+          <CardFooter className="flex-col items-end gap-4">
+             {isSubmitting && (
+                <div className="w-full text-center">
+                    <Progress value={submissionProgress} className="w-full h-2 mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                        {submissionProgress < 100 ? `กำลังส่งใบสมัคร... ${Math.round(submissionProgress)}%` : 'ส่งใบสมัครสำเร็จ!'}
+                    </p>
+                </div>
+            )}
+            <Button type="submit" size="lg" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
