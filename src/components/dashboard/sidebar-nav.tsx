@@ -47,10 +47,8 @@ export function SidebarNav() {
                   isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                   tooltip={item.label}
                 >
-                  <div>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </div>
+                  <item.icon />
+                  <span>{item.label}</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
