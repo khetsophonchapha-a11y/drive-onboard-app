@@ -50,7 +50,8 @@ const vehicleSchema = z.object({
 });
 
 const guarantorSchema = z.object({
-    fullName: z.string().min(1, "กรุณากรอกชื่อ-นามสกุลผู้ค้ำ"),
+    firstName: z.string().min(1, "กรุณากรอกชื่อจริงผู้ค้ำ"),
+    lastName: z.string().min(1, "กรุณากรอกนามสกุลผู้ค้ำ"),
     phone: z.string().min(1, "กรุณากรอกเบอร์โทรศัพท์ผู้ค้ำ"),
     email: z.string().email("รูปแบบอีเมลไม่ถูกต้อง").optional().or(z.literal('')),
     address: z.string().optional(),
@@ -90,7 +91,7 @@ export function ApplicationForm() {
     defaultValues: {
       applicant: { firstName: "", lastName: "", email: "", phone: "", address: "", dateOfBirth: "" },
       vehicle: { make: "", model: "", year: undefined, licensePlate: "", vin: "" },
-      guarantor: { fullName: "", phone: "", email: "", address: "" },
+      guarantor: { firstName: "", lastName: "", phone: "", email: "", address: "" },
       documents: requiredDocumentsSchema.map(doc => ({ 
         ...doc, 
         upload: { status: 'pending', progress: 0, file: null } 
@@ -146,7 +147,7 @@ export function ApplicationForm() {
       const uploadResponse = await fetch(url, {
         method: 'PUT',
         body: file,
-        headers: { 
+        headers: {
           'Content-Type': file.type,
           'Content-MD5': md5,
         },
@@ -266,7 +267,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>ยี่ห้อรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.model" render={({ field }) => (
-                  <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
+                  <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></Message /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.year" render={({ field }) => (
                   <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
@@ -275,7 +276,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.vin" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>เลขตัวถัง (VIN)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
+                  <FormItem className="md:col-span-2"><FormLabel>เลขตัวถัง (VIN)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></Message /></FormItem>
                 )} />
               </div>
             </div>
@@ -286,8 +287,11 @@ export function ApplicationForm() {
             <div className="space-y-4">
               <CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle>
               <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="guarantor.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={form.control} name="guarantor.firstName" render={({ field }) => (
+                  <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="guarantor.lastName" render={({ field }) => (
+                  <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.phone" render={({ field }) => (
                   <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -401,5 +405,3 @@ export function ApplicationForm() {
     </Card>
   );
 }
-
-    
