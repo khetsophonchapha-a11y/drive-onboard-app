@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon, X } from "lucide-react"
 import Link from "next/link"
 import { DateRange } from "react-day-picker"
 
@@ -39,7 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge";
 import type { Application, ApplicationStatus } from "@/lib/types";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -143,8 +143,11 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
   })
 
   React.useEffect(() => {
-    if (date?.from && date?.to) {
-        table.getColumn('createdAt')?.setFilterValue([date.from, date.to]);
+    if (date?.from) {
+      // If only `from` is selected, filter from that day to now.
+      // If `to` is also selected, filter between `from` and `to`.
+      const toDate = date.to ? date.to : new Date();
+      table.getColumn('createdAt')?.setFilterValue([date.from, toDate]);
     } else {
         table.getColumn('createdAt')?.setFilterValue(undefined);
     }
@@ -162,49 +165,61 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
           }
           className="max-w-sm"
         />
-        <Popover>
-            <PopoverTrigger asChild>
-                <Button
-                id="date"
-                variant={"outline"}
-                className={cn(
-                    "w-[300px] justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                )}
-                >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date?.from ? (
-                    date.to ? (
-                    <>
-                        {format(date.from, "LLL dd, y", { locale: th })} -{" "}
-                        {format(date.to, "LLL dd, y", { locale: th })}
-                    </>
-                    ) : (
-                    format(date.from, "LLL dd, y", { locale: th })
-                    )
-                ) : (
-                    <span>เลือกช่วงวันที่</span>
-                )}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={date?.from}
-                selected={date}
-                onSelect={setDate}
-                numberOfMonths={2}
-                locale={th}
-                />
-            </PopoverContent>
-        </Popover>
+        <div className="relative">
+          <Popover>
+              <PopoverTrigger asChild>
+                  <Button
+                  id="date"
+                  variant={"outline"}
+                  className={cn(
+                      "w-[300px] justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                  )}
+                  >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date?.from ? (
+                      date.to ? (
+                      <>
+                          {format(date.from, "LLL dd, y", { locale: th })} -{" "}
+                          {format(date.to, "LLL dd, y", { locale: th })}
+                      </>
+                      ) : (
+                      format(date.from, "LLL dd, y", { locale: th })
+                      )
+                  ) : (
+                      <span>เลือกช่วงวันที่</span>
+                  )}
+                  </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={date?.from}
+                  selected={date}
+                  onSelect={setDate}
+                  numberOfMonths={2}
+                  locale={th}
+                  />
+              </PopoverContent>
+          </Popover>
+          {date && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => setDate(undefined)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
         <Button asChild className="ml-auto">
-            <Link href="/apply">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              สร้างใบสมัครใหม่
-            </Link>
-          </Button>
+          <Link href="/apply">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            สร้างใบสมัครใหม่
+          </Link>
+        </Button>
       </div>
       <div className="rounded-md border">
         <Table>
