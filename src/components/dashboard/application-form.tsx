@@ -25,7 +25,8 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 
 const applicantSchema = z.object({
-  fullName: z.string().min(1, "กรุณากรอกชื่อ-นามสกุล"),
+  firstName: z.string().min(1, "กรุณากรอกชื่อจริง"),
+  lastName: z.string().min(1, "กรุณากรอกนามสกุล"),
   email: z.string().email("รูปแบบอีเมลไม่ถูกต้อง"),
   phone: z.string().min(1, "กรุณากรอกเบอร์โทรศัพท์"),
   address: z.string().min(1, "กรุณากรอกที่อยู่"),
@@ -79,7 +80,7 @@ export function ApplicationForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      applicant: { fullName: "", email: "", phone: "", address: "", dateOfBirth: "" },
+      applicant: { firstName: "", lastName: "", email: "", phone: "", address: "", dateOfBirth: "" },
       vehicle: { make: "", model: "", year: undefined, licensePlate: "", vin: "" },
       guarantor: { fullName: "", phone: "", email: "", address: "" },
       documents: requiredDocumentsSchema.map(doc => ({ 
@@ -194,7 +195,7 @@ export function ApplicationForm() {
 
     toast({
       title: "บันทึกใบสมัครสำเร็จ",
-      description: `ใบสมัครสำหรับ ${values.applicant.fullName} ถูกสร้างเรียบร้อยแล้ว`,
+      description: `ใบสมัครสำหรับ ${values.applicant.firstName} ${values.applicant.lastName} ถูกสร้างเรียบร้อยแล้ว`,
       variant: "default"
     });
     
@@ -213,8 +214,11 @@ export function ApplicationForm() {
             <div className="space-y-4">
               <CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle>
               <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="applicant.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={form.control} name="applicant.firstName" render={({ field }) => (
+                  <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="applicant.lastName" render={({ field }) => (
+                  <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.email" render={({ field }) => (
                   <FormItem><FormLabel>อีเมล</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>

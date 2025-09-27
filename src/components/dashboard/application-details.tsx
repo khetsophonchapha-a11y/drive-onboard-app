@@ -90,6 +90,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   const [analysisResult, setAnalysisResult] = useState<{ analysis: string; instructions: string } | null>(null);
   const [isAnalysisDialogOpen, setIsAnalysisDialogOpen] = useState(false);
   const { toast } = useToast();
+  const applicantName = [application.applicant.firstName, application.applicant.lastName].filter(Boolean).join(" ");
+
 
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
@@ -145,7 +147,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           <CardHeader>
             <div className="flex justify-between items-start">
                 <div>
-                  <CardTitle className="font-headline text-2xl">{application.applicant.fullName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
+                  <CardTitle className="font-headline text-2xl">{applicantName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
                   <CardDescription>รหัสใบสมัคร: {application.id}</CardDescription>
                 </div>
                 <Badge variant={statusVariantMap[application.status]} className="capitalize text-base">{statusText[application.status]}</Badge>
@@ -156,7 +158,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         <Card>
           <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {renderDetail("ชื่อ-นามสกุล", application.applicant.fullName)}
+            {renderDetail("ชื่อจริง", application.applicant.firstName)}
+            {renderDetail("นามสกุล", application.applicant.lastName)}
             {renderDetail("อีเมล", application.applicant.email)}
             {renderDetail("เบอร์โทรศัพท์", application.applicant.phone)}
             {renderDetail("ที่อยู่", application.applicant.address)}

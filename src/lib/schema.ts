@@ -6,13 +6,14 @@ export const applicationFormSchema = {
     applicant: {
       type: 'object',
       properties: {
-        fullName: { type: 'string', description: "ชื่อ-นามสกุล" },
+        firstName: { type: 'string', description: "ชื่อจริง" },
+        lastName: { type: 'string', description: "นามสกุล" },
         email: { type: 'string', format: 'email', description: "อีเมล" },
         phone: { type: 'string', description: "เบอร์โทรศัพท์" },
         address: { type: 'string', description: "ที่อยู่" },
         dateOfBirth: { type: 'string', format: 'date', description: "วันเกิด" },
       },
-      required: ['fullName', 'email', 'phone', 'address', 'dateOfBirth'],
+      required: ['firstName', 'lastName', 'email', 'phone', 'address', 'dateOfBirth'],
     },
     vehicle: {
       type: 'object',

@@ -4,7 +4,8 @@ export const mockApplications: Application[] = [
   {
     id: 'app-001',
     applicant: {
-      fullName: 'สมชาย ใจดี',
+      firstName: 'สมชาย',
+      lastName: 'ใจดี',
       email: 'somchai.jd@example.com',
       phone: '081-234-5678',
       address: '123 ถ.สุขุมวิท, คลองเตย, กรุงเทพฯ 10110',
@@ -40,7 +41,8 @@ export const mockApplications: Application[] = [
   {
     id: 'app-002',
     applicant: {
-      fullName: 'เอมิกา ขาวสะอาด',
+      firstName: 'เอมิกา',
+      lastName: 'ขาวสะอาด',
       email: 'emika.k@example.com',
       phone: '082-345-6789',
       address: '789 ถ.พหลโยธิน, จตุจักร, กรุงเทพฯ 10900',
@@ -76,7 +78,8 @@ export const mockApplications: Application[] = [
     {
     id: 'app-003',
     applicant: {
-      fullName: 'เดวิด เขียว',
+      firstName: 'เดวิด',
+      lastName: 'เขียว',
       email: 'david.k@example.com',
       phone: '084-567-8901',
       address: '321 ถ.เพชรบุรี, ราชเทวี, กรุงเทพฯ 10400',
@@ -112,7 +115,8 @@ export const mockApplications: Application[] = [
   {
     id: 'app-004',
     applicant: {
-      fullName: '', // Incomplete data
+      firstName: '',
+      lastName: '', 
       email: 'chris.blue@example.com',
       phone: '086-789-0123',
       address: '',

@@ -59,10 +59,14 @@ const statusText: Record<ApplicationStatus, string> = {
 
 export const columns: ColumnDef<Application>[] = [
     {
-        id: "applicant.fullName",
-        accessorKey: "applicant.fullName",
+        id: "applicantName",
+        accessorFn: row => `${row.applicant.firstName} ${row.applicant.lastName}`,
         header: "ผู้สมัคร",
-        cell: ({ row }) => <div>{row.original.applicant.fullName}</div>,
+        cell: ({ row }) => {
+            const firstName = row.original.applicant.firstName;
+            const lastName = row.original.applicant.lastName;
+            return <div>{[firstName, lastName].filter(Boolean).join(" ")}</div>
+        },
     },
     {
         accessorKey: "status",
@@ -159,9 +163,9 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
       <div className="flex items-center py-4 gap-2">
         <Input
           placeholder="ค้นหาชื่อผู้สมัคร..."
-          value={(table.getColumn("applicant.fullName")?.getFilterValue() as string) ?? ""}
+          value={(table.getColumn("applicantName")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
-            table.getColumn("applicant.fullName")?.setFilterValue(event.target.value)
+            table.getColumn("applicantName")?.setFilterValue(event.target.value)
           }
           className="max-w-sm"
         />

@@ -14,7 +14,8 @@ export type Document = {
 };
 
 export type Applicant = {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   address: string;
