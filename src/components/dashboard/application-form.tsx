@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -125,7 +124,9 @@ export function ApplicationForm() {
     if (!file) return;
 
     const currentDocument = form.getValues(`documents.${index}`);
-    const applicationId = 'temp-' + Date.now(); // In a real app, you'd get this after saving a draft.
+    // This is a temporary ID. A real application would likely save a draft
+    // of the application first and get a persistent ID.
+    const applicationId = 'temp-' + Date.now(); 
 
     updateDocument(index, {
         ...currentDocument,
@@ -135,12 +136,12 @@ export function ApplicationForm() {
     let md5, key, url;
 
     try {
-      // 0. Calculate MD5
+      // Step 1: Get a pre-signed URL from our API
       updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 10 }});
       md5 = await md5Base64(file);
-
-      // 1. Get pre-signed URL
+      
       updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 20 }});
+      
       const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,57 +156,38 @@ export function ApplicationForm() {
       });
       
       const responseBody = await signResponse.json();
-      if (responseBody.error) {
-          throw new Error(`Server error on signing: ${responseBody.error}`);
-      }
-      
       url = responseBody.url;
       key = responseBody.key;
 
-    } catch (error: any) {
-        console.error("Error getting pre-signed URL:", error);
-        updateDocument(index, {
-            ...form.getValues(`documents.${index}`),
-            upload: {
-                status: 'error',
-                progress: 0,
-                file: file,
-                errorMessage: `Failed to get upload URL: ${error.message}`
-            }
-        });
-        return;
-    }
-    
-    try {
-        updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 40 }});
-
-        // 2. Upload file to R2
-        await safeFetch(url, {
-            method: 'PUT',
-            body: file,
-            headers: {
+      // Step 2: Upload the file to R2 using the pre-signed URL
+      updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 40 }});
+      
+      await safeFetch(url, {
+          method: 'PUT',
+          body: file,
+          headers: {
             'Content-Type': file.type,
             'Content-MD5': md5,
-            },
-        });
-        updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 100 }});
+          },
+      });
 
+      updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 100 }});
 
-        // 3. Mark as success
-        updateDocument(index, {
-            ...currentDocument,
-            upload: {
-                status: 'success',
-                progress: 100,
-                file: file,
-                r2Key: key,
-                fileName: file.name,
-                errorMessage: undefined
-            }
-        });
+      // Step 3: Mark as success
+      updateDocument(index, {
+          ...currentDocument,
+          upload: {
+              status: 'success',
+              progress: 100,
+              file: file,
+              r2Key: key,
+              fileName: file.name,
+              errorMessage: undefined
+          }
+      });
 
     } catch (error: any) {
-        console.error("Error uploading to R2:", error);
+        console.error("Upload process failed:", error);
         updateDocument(index, {
             ...form.getValues(`documents.${index}`),
             upload: {
@@ -215,8 +197,10 @@ export function ApplicationForm() {
                 errorMessage: `Upload failed: ${error.message}`
             }
         });
+        return;
     }
   };
+
 
   const removeFile = (index: number) => {
     const currentDocument = form.getValues(`documents.${index}`);
@@ -225,35 +209,51 @@ export function ApplicationForm() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-
-    // This is where you would send the final data to your backend to create the application record.
-    // For now, it just shows a success toast and redirects.
     
-    // Example submission data structure:
-    const submissionData = {
-        applicant: values.applicant,
-        vehicle: values.vehicle,
-        guarantor: values.guarantor,
-        documents: values.documents
-            .filter(doc => doc.upload.status === 'success' && doc.upload.r2Key)
-            .map(doc => ({
-                type: doc.type,
-                r2Key: doc.upload.r2Key,
-                fileName: doc.upload.fileName,
-            })),
-    };
+    try {
+        const submissionData = {
+            applicant: values.applicant,
+            vehicle: values.vehicle,
+            guarantor: {
+              ...values.guarantor,
+              fullName: `${values.guarantor.firstName} ${values.guarantor.lastName}`.trim()
+            },
+            documents: values.documents
+                .filter(doc => doc.upload.status === 'success' && doc.upload.r2Key)
+                .map(doc => ({
+                    type: doc.type,
+                    r2Key: doc.upload.r2Key,
+                    fileName: doc.upload.fileName,
+                    status: 'uploaded', 
+                })),
+        };
 
-    // TODO: Replace this with an actual API call to your backend
-    console.log("Final submission data:", submissionData);
+        const response = await safeFetch('/api/applications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(submissionData)
+        });
 
-    toast({
-      title: "ส่งใบสมัครสำเร็จ",
-      description: `ใบสมัครสำหรับ ${values.applicant.firstName} ${values.applicant.lastName} ได้รับการส่งเรียบร้อยแล้ว`,
-      variant: "default"
-    });
+        const newApplication = await response.json();
 
-    setIsSubmitting(false);
-    router.push("/dashboard");
+        toast({
+          title: "ส่งใบสมัครสำเร็จ",
+          description: `ใบสมัครสำหรับ ${values.applicant.firstName} ${values.applicant.lastName} ได้รับการส่งเรียบร้อยแล้ว`,
+          variant: "default"
+        });
+
+        router.push("/dashboard");
+
+    } catch(error: any) {
+        console.error("Failed to submit application:", error);
+        toast({
+            variant: "destructive",
+            title: "ส่งใบสมัครล้มเหลว",
+            description: error.message || "เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่อีกครั้ง",
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   return (
@@ -437,5 +437,3 @@ export function ApplicationForm() {
     </Card>
   );
 }
-
-    
