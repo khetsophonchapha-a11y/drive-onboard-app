@@ -24,6 +24,14 @@ import { FileUp, FileCheck, X, Send, Loader2, AlertCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 
+async function md5Base64(file: File) {
+  const SparkMD5 = (await import('spark-md5')).default;
+  const buf = await file.arrayBuffer();
+  const hash = new SparkMD5.ArrayBuffer().append(buf).end();
+  const bin = hash.match(/.{2}/g)!.map(h => String.fromCharCode(parseInt(h, 16))).join("");
+  return btoa(bin);
+}
+
 const applicantSchema = z.object({
   firstName: z.string().min(1, "กรุณากรอกชื่อจริง"),
   lastName: z.string().min(1, "กรุณากรอกนามสกุล"),
@@ -107,6 +115,10 @@ export function ApplicationForm() {
     });
 
     try {
+      // 0. Calculate MD5
+      updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 10 }});
+      const md5 = await md5Base64(file);
+
       // 1. Get pre-signed URL
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 20 }});
       const signResponse = await fetch('/api/r2/sign-put-applicant', {
@@ -118,25 +130,31 @@ export function ApplicationForm() {
           fileName: file.name,
           mime: file.type,
           size: file.size,
+          md5: md5,
         }),
       });
 
-      const signResponseData = await signResponse.json();
-
       if (!signResponse.ok) {
-        throw new Error(signResponseData.error || 'ไม่สามารถขอ URL สำหรับอัปโหลดได้');
+        const errorData = await signResponse.json();
+        throw new Error(errorData.error || 'ไม่สามารถขอ URL สำหรับอัปโหลดได้');
       }
-      const { url, key } = signResponseData;
+
+      const { url, key } = await signResponse.json();
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 40 }});
 
       // 2. Upload file to R2
       const uploadResponse = await fetch(url, {
         method: 'PUT',
         body: file,
-        headers: { 'Content-Type': file.type },
+        headers: { 
+          'Content-Type': file.type,
+          'Content-MD5': md5,
+        },
       });
 
       if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error("R2 Upload Error:", errorText);
         throw new Error('การอัปโหลดไฟล์ล้มเหลว');
       }
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 100 }});
@@ -156,6 +174,7 @@ export function ApplicationForm() {
       });
 
     } catch (error: any) {
+      console.error("Upload process error:", error);
       updateDocument(index, { 
           ...currentDocument, 
           upload: { 
@@ -247,7 +266,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>ยี่ห้อรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.model" render={({ field }) => (
-                  <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.year" render={({ field }) => (
                   <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
@@ -256,7 +275,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.vin" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>เลขตัวถัง (VIN)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem className="md:col-span-2"><FormLabel>เลขตัวถัง (VIN)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
                 )} />
               </div>
             </div>
@@ -382,3 +401,5 @@ export function ApplicationForm() {
     </Card>
   );
 }
+
+    

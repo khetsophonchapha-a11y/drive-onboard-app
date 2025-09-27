@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     
     return NextResponse.json({ url, key });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("[R2 Sign PUT Error]", error);
     if (error instanceof z.ZodError) {
         return NextResponse.json({ error: "Invalid request body", details: error.issues }, { status: 400 });
@@ -52,3 +52,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Could not create upload URL. Reason: ${errorMessage}` }, { status: 500 });
   }
 }
+
+    
