@@ -34,13 +34,22 @@ async function md5Base64(file: File) {
 
 // Helper function for safer fetching with better error messages
 async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
-  const response = await fetch(input, init);
-  if (!response.ok) {
-    const bodyText = await response.text().catch(() => 'Could not read response body');
-    throw new Error(`Request failed with status ${response.status}: ${bodyText}`);
-  }
-  return response;
+    const response = await fetch(input, init);
+    if (!response.ok) {
+        let errorMessage = `Request failed with status ${response.status} (${response.statusText})`;
+        try {
+            const errorBody = await response.json();
+            if (errorBody.error) {
+                 errorMessage += `: ${errorBody.error}`
+            }
+        } catch (e) {
+            // response body is not json, just use status text
+        }
+        throw new Error(errorMessage);
+    }
+    return response;
 }
+
 
 const applicantSchema = z.object({
   firstName: z.string().min(1, "กรุณากรอกชื่อจริง"),
@@ -217,26 +226,29 @@ export function ApplicationForm() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
 
-    const uploadedDocuments = values.documents
-        .filter(doc => doc.upload.status === 'success' && doc.upload.r2Key)
-        .map(doc => ({
-            type: doc.type,
-            r2Key: doc.upload.r2Key,
-            fileName: doc.upload.fileName,
-        }));
-
+    // This is where you would send the final data to your backend to create the application record.
+    // For now, it just shows a success toast and redirects.
+    
+    // Example submission data structure:
     const submissionData = {
-        ...values,
-        documents: uploadedDocuments
-    }
+        applicant: values.applicant,
+        vehicle: values.vehicle,
+        guarantor: values.guarantor,
+        documents: values.documents
+            .filter(doc => doc.upload.status === 'success' && doc.upload.r2Key)
+            .map(doc => ({
+                type: doc.type,
+                r2Key: doc.upload.r2Key,
+                fileName: doc.upload.fileName,
+            })),
+    };
 
-    console.log("Form submission data:", submissionData);
-
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // TODO: Replace this with an actual API call to your backend
+    console.log("Final submission data:", submissionData);
 
     toast({
-      title: "บันทึกใบสมัครสำเร็จ",
-      description: `ใบสมัครสำหรับ ${values.applicant.firstName} ${values.applicant.lastName} ถูกสร้างเรียบร้อยแล้ว`,
+      title: "ส่งใบสมัครสำเร็จ",
+      description: `ใบสมัครสำหรับ ${values.applicant.firstName} ${values.applicant.lastName} ได้รับการส่งเรียบร้อยแล้ว`,
       variant: "default"
     });
 
@@ -425,3 +437,5 @@ export function ApplicationForm() {
     </Card>
   );
 }
+
+    
