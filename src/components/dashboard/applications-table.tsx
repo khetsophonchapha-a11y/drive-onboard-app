@@ -2,27 +2,42 @@
 
 import * as React from "react";
 import {
+  ColumnDef,
+  ColumnFiltersState,
+  SortingState,
+  VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table"
+import { MoreHorizontal, PlusCircle } from "lucide-react"
+import Link from "next/link"
+
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Application, ApplicationStatus } from "@/lib/types";
-import { ArrowUpDown, Eye, PlusCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { Card } from "@/components/ui/card";
-
-type ApplicationsTableProps = {
-  applications: Application[];
-};
 
 const statusVariantMap: Record<ApplicationStatus, "default" | "secondary" | "success" | "destructive"> = {
   incomplete: "secondary",
@@ -38,123 +53,183 @@ const statusText: Record<ApplicationStatus, string> = {
   rejected: "ปฏิเสธ",
 };
 
+export const columns: ColumnDef<Application>[] = [
+    {
+        accessorKey: "applicant.fullName",
+        header: "ผู้สมัคร",
+        cell: ({ row }) => <div>{row.original.applicant.fullName}</div>,
+    },
+    {
+        accessorKey: "status",
+        header: "สถานะ",
+        cell: ({ row }) => {
+            const status = row.getValue("status") as ApplicationStatus;
+            return <Badge variant={statusVariantMap[status]}>{statusText[status]}</Badge>;
+        },
+    },
+    {
+        accessorKey: "createdAt",
+        header: "วันที่ส่ง",
+        cell: ({ row }) => {
+            return <div>{format(new Date(row.getValue("createdAt")), "PPP", { locale: th })}</div>;
+        },
+    },
+    {
+        id: "actions",
+        enableHiding: false,
+        cell: ({ row }) => {
+            const application = row.original;
+            return (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">เปิดเมนู</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(application.id)}>
+                            คัดลอก ID
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <Link href={`/dashboard/applications/${application.id}`} passHref>
+                            <DropdownMenuItem>ดูใบสมัคร</DropdownMenuItem>
+                        </Link>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            );
+        },
+    },
+];
+
+
+type ApplicationsTableProps = {
+  applications: Application[];
+};
+
 export function ApplicationsTable({ applications }: ApplicationsTableProps) {
-  const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<"all" | ApplicationStatus>("all");
-  const [sortConfig, setSortConfig] = React.useState<{ key: keyof Application | 'applicant.fullName'; direction: 'ascending' | 'descending' } | null>({ key: 'createdAt', direction: 'descending' });
-  const router = useRouter();
+  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  )
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState({})
 
-  const handleSort = (key: keyof Application | 'applicant.fullName') => {
-    let direction: 'ascending' | 'descending' = 'ascending';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const filteredApplications = React.useMemo(() => {
-    let filtered = applications.filter((app) =>
-      app.applicant.fullName.toLowerCase().includes(search.toLowerCase())
-    );
-
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((app) => app.status === statusFilter);
-    }
-
-    if (sortConfig !== null) {
-      filtered.sort((a, b) => {
-        const key = sortConfig.key;
-        let aValue: any;
-        let bValue: any;
-        
-        if (key === 'applicant.fullName') {
-            aValue = a.applicant.fullName;
-            bValue = b.applicant.fullName;
-        } else {
-            aValue = a[key as keyof Application];
-            bValue = b[key as keyof Application];
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'ascending' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'ascending' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-
-    return filtered;
-  }, [applications, search, statusFilter, sortConfig]);
+  const table = useReactTable({
+    data: applications,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+    },
+  })
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-2">
+    <div className="w-full">
+      <div className="flex items-center py-4 gap-2">
         <Input
-          placeholder="ค้นหาด้วยชื่อ..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          placeholder="ค้นหาชื่อผู้สมัคร..."
+          value={(table.getColumn("applicant.fullName")?.getFilterValue() as string) ?? ""}
+          onChange={(event) =>
+            table.getColumn("applicant.fullName")?.setFilterValue(event.target.value)
+          }
           className="max-w-sm"
         />
-        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="กรองตามสถานะ" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">ทุกสถานะ</SelectItem>
-            <SelectItem value="pending">{statusText.pending}</SelectItem>
-            <SelectItem value="approved">{statusText.approved}</SelectItem>
-            <SelectItem value="rejected">{statusText.rejected}</SelectItem>
-            <SelectItem value="incomplete">{statusText.incomplete}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button onClick={() => router.push('/dashboard/applications/new')} className="ml-auto">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            สร้างใบสมัครใหม่
-        </Button>
+        <Link href="/apply" passHref>
+          <Button asChild className="ml-auto">
+            <a>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              สร้างใบสมัครใหม่
+            </a>
+          </Button>
+        </Link>
       </div>
-      <Card>
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort('applicant.fullName')}>
-                  ผู้สมัคร <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                 <Button variant="ghost" onClick={() => handleSort('status')}>
-                  สถานะ <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead className="hidden md:table-cell">
-                <Button variant="ghost" onClick={() => handleSort('createdAt')}>
-                  วันที่ส่ง <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead className="text-right">จัดการ</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredApplications.map((app) => (
-              <TableRow key={app.id}>
-                <TableCell className="font-medium">{app.applicant.fullName || 'N/A'}</TableCell>
-                <TableCell>
-                  <Badge variant={statusVariantMap[app.status]} className="capitalize">{statusText[app.status]}</Badge>
-                </TableCell>
-                <TableCell className="hidden md:table-cell">{format(new Date(app.createdAt), "PPP", { locale: th })}</TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/applications/${app.id}`)}>
-                    <Eye className="h-4 w-4" />
-                    <span className="sr-only">ดูใบสมัคร</span>
-                  </Button>
-                </TableCell>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  )
+                })}
               </TableRow>
             ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  ไม่พบข้อมูล
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
-      </Card>
+      </div>
+      <div className="flex items-center justify-end space-x-2 py-4">
+        <div className="flex-1 text-sm text-muted-foreground">
+          {table.getFilteredSelectedRowModel().rows.length} of{" "}
+          {table.getFilteredRowModel().rows.length} row(s) selected.
+        </div>
+        <div className="space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            ก่อนหน้า
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            ถัดไป
+          </Button>
+        </div>
+      </div>
     </div>
-  );
+  )
 }

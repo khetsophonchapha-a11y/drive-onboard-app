@@ -35,13 +35,8 @@ export function SidebarNav() {
     },
     {
       href: "/dashboard/applications",
-      label: "ใบสมัครทั้งหมด",
+      label: "พนักงานทั้งหมด",
       icon: FileText,
-    },
-     {
-      href: "/dashboard/applications/new",
-      label: "สร้างใบสมัครใหม่",
-      icon: PlusCircle,
     },
   ];
 
@@ -58,7 +53,6 @@ export function SidebarNav() {
                 <SidebarMenuButton
                   isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href) && item.href.length > 10)}
                   tooltip={item.label}
-                  asChild
                 >
                   <div>
                     <item.icon />
