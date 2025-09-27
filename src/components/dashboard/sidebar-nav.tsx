@@ -12,10 +12,8 @@ import {
 import { Logo } from "@/components/logo";
 import {
   LayoutDashboard,
-  FileText,
   LogOut,
   UserCircle,
-  PlusCircle,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -33,11 +31,6 @@ export function SidebarNav() {
       label: "แดชบอร์ด",
       icon: LayoutDashboard,
     },
-    {
-      href: "/dashboard/applications",
-      label: "พนักงานทั้งหมด",
-      icon: FileText,
-    },
   ];
 
   return (
@@ -51,7 +44,7 @@ export function SidebarNav() {
             <SidebarMenuItem key={item.href}>
               <Link href={item.href}>
                 <SidebarMenuButton
-                  isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href) && item.href.length > 10)}
+                  isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                   tooltip={item.label}
                 >
                   <div>
