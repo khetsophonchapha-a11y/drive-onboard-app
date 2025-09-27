@@ -4,12 +4,12 @@
 import { useState, useEffect } from "react";
 import { OverviewCards } from "@/components/dashboard/overview-cards";
 import { ApplicationsTable } from "@/components/dashboard/applications-table";
-import type { Application, ApplicationStatus } from "@/lib/types";
+import type { AppRow, VerificationStatus } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [statusFilter, setStatusFilter] = useState<VerificationStatus | "all">("all");
+  const [applications, setApplications] = useState<AppRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,8 +33,7 @@ export default function DashboardPage() {
     fetchApplications();
   }, []);
 
-
-  const handleStatusFilter = (status: ApplicationStatus | "all") => {
+  const handleStatusFilter = (status: VerificationStatus | "all") => {
     setStatusFilter(status);
   };
   
@@ -43,27 +42,17 @@ export default function DashboardPage() {
     : applications.filter(app => app.status === statusFilter);
 
   const handleDeleteApplication = async (applicationId: string) => {
-    // Optimistically remove from UI
-    setApplications(apps => apps.filter(app => app.id !== applicationId));
+    // This is a placeholder. In a real app, you would call a DELETE API endpoint.
+    // This endpoint would need to:
+    // 1. Delete all files in the `applications/{appId}` folder in R2.
+    // 2. Delete the `manifest.json`.
+    // 3. Remove the entry from `index.json`.
+    console.log(`TODO: Implement deletion for ${applicationId}`);
     
-    try {
-        const res = await fetch(`/api/applications/${applicationId}`, {
-            method: 'DELETE',
-        });
-
-        if (!res.ok) {
-            // Revert optimistic update if API call fails
-            // You might want to refetch the data to be sure
-            throw new Error('Failed to delete application');
-        }
-        // No need to do anything on success as it's already removed from UI
-    } catch (error) {
-        console.error(error);
-        // Optionally, show a toast notification for the error
-        // And revert the UI change
-        // For simplicity, we'll just log the error here
-    }
+    // For now, just remove from the UI optimistically.
+    setApplications(apps => apps.filter(app => app.appId !== applicationId));
   };
+
 
   if (error) {
     return <div className="text-destructive">Error: {error}</div>;

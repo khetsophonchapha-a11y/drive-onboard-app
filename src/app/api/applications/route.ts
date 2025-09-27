@@ -1,59 +1,39 @@
+// src/app/api/applications/route.ts
+import { r2 } from '@/app/api/r2/_client';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { NextRequest, NextResponse } from 'next/server';
 
-import { NextResponse } from 'next/server';
-import type { Application } from '@/lib/types';
-
-// This is a mock database. In a real application, you would use a real database
-// like Firestore, PostgreSQL, etc.
-const mockDb: Application[] = [];
-
-// GET all applications
-export async function GET() {
+// Helper to get a JSON object from R2
+async function getJson(bucket: string, key: string): Promise<any | null> {
   try {
-    // In a real app, you'd fetch from your database
-    return NextResponse.json(mockDb);
-  } catch (error) {
-    console.error("Error fetching applications:", error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+    const response = await r2.send(command);
+    const str = await response.Body?.transformToString();
+    if (!str) return null;
+    return JSON.parse(str);
+  } catch (error: any) {
+    if (error.name === 'NoSuchKey') {
+      return null;
+    }
+    throw error;
   }
 }
 
-// POST a new application
-export async function POST(req: Request) {
+export async function GET(_req: NextRequest) {
+  const bucket = process.env.R2_BUCKET;
+  if (!bucket) {
+    console.error('R2_BUCKET environment variable is not set.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   try {
-    const body = await req.json();
+    const indexKey = 'applications/index.json';
+    const applicationIndex = await getJson(bucket, indexKey);
 
-    // Basic validation (in a real app, use Zod or similar)
-    if (!body.applicant || !body.applicant.firstName) {
-        return NextResponse.json({ error: 'Invalid application data' }, { status: 400 });
-    }
-
-    const newApplication: Application = {
-      id: `app-${Date.now()}`,
-      status: body.documents?.length > 0 ? 'pending' : 'incomplete',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      applicant: body.applicant,
-      vehicle: body.vehicle,
-      guarantor: body.guarantor,
-      documents: body.documents.map((doc: any) => ({
-        id: `doc-${Date.now()}-${Math.random()}`,
-        uploadedAt: new Date().toISOString(),
-        ...doc,
-      })),
-      auditLog: [
-        {
-          timestamp: new Date().toISOString(),
-          user: 'Applicant',
-          action: 'Submitted application',
-        },
-      ],
-    };
-    
-    mockDb.unshift(newApplication); // Add to the beginning of the array
-
-    return NextResponse.json(newApplication, { status: 201 });
+    // If index.json doesn't exist, return an empty array, which is a valid state.
+    return NextResponse.json(applicationIndex || []);
   } catch (error) {
-    console.error("Error creating application:", error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('[Applications GET Error]', error);
+    return NextResponse.json({ error: 'Failed to retrieve application list.' }, { status: 500 });
   }
 }

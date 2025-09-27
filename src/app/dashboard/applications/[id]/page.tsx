@@ -1,38 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams, notFound } from "next/navigation";
 import { ApplicationDetails } from "@/components/dashboard/application-details";
-import type { Application } from "@/lib/types";
-import { notFound } from "next/navigation";
+import type { Manifest } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type PageProps = {
-  params: {
-    id: string;
-  };
-};
-
-export default function ApplicationDetailPage({ params }: PageProps) {
-  const [application, setApplication] = useState<Application | null>(null);
+export default function ApplicationDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
+  
+  const [application, setApplication] = useState<Manifest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!params.id) return;
+    if (!id) return;
 
     const fetchApplication = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/applications/${params.id}`);
+        const res = await fetch(`/api/applications/${id}`);
         if (res.status === 404) {
           notFound();
           return;
         }
         if (!res.ok) {
-          throw new Error("Failed to fetch application details");
+          const errorData = await res.json().catch(() => ({ error: 'Failed to fetch application details' }));
+          throw new Error(errorData.error);
         }
-        const data = await res.json();
+        const data: Manifest = await res.json();
         setApplication(data);
       } catch (err: any) {
         setError(err.message);
@@ -42,7 +40,7 @@ export default function ApplicationDetailPage({ params }: PageProps) {
     };
 
     fetchApplication();
-  }, [params.id]);
+  }, [id]);
 
 
   if (isLoading) {
@@ -61,7 +59,7 @@ export default function ApplicationDetailPage({ params }: PageProps) {
   }
   
   if (!application) {
-    notFound();
+     notFound();
   }
 
 

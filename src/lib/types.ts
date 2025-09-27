@@ -1,57 +1,59 @@
-export type ApplicationStatus = 'incomplete' | 'pending' | 'approved' | 'rejected';
-export type DocumentStatus = 'missing' | 'uploaded' | 'pending review' | 'approved' | 'rejected';
-export type DocumentQuality = 'clear' | 'blurry' | 'incomplete' | 'incorrect';
+export type VerificationStatus = 'pending' | 'approved' | 'rejected';
 
-export type Document = {
-  id: string;
-  type: string;
-  status: DocumentStatus;
-  quality?: DocumentQuality;
-  notes?: string;
-  fileName?: string;
-  fileUrl?: string;
-  uploadedAt?: string;
-};
-
-export type Applicant = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  address: string;
-  dateOfBirth: string;
-};
-
-export type Vehicle = {
-  make: string;
-  model: string;
-  year: number;
-  licensePlate: string;
-  vin: string;
-};
-
-export type Guarantor = {
+// Minimal summary for index.json
+export type AppRow = {
+  appId: string;
   fullName: string;
-  email: string;
-  phone: string;
-  address: string;
+  phone?: string;
+  createdAt: string; // ISO
+  status: VerificationStatus;
 };
 
-export type AuditLog = {
-  timestamp: string;
-  user: string;
-  action: string;
-  details?: string;
+// Reference to a file stored in R2
+export type FileRef = {
+  r2Key: string;
+  mime: string;
+  size: number;
+  md5?: string;
 };
 
-export type Application = {
-  id: string;
-  applicant: Applicant;
-  vehicle: Vehicle;
-  guarantor: Guarantor;
-  status: ApplicationStatus;
-  documents: Document[];
-  auditLog: AuditLog[];
-  createdAt: string;
-  updatedAt: string;
+// Full manifest per application, stored in applications/{appId}/manifest.json
+export type Manifest = {
+  appId: string;
+  createdAt: string; // ISO
+  applicant: {
+    fullName: string;
+    phone: string;
+    address?: string;
+    nationalId?: string;
+  };
+  vehicle: {
+    brand?: string;
+    model?: string;
+    plateNo?: string;
+    color?: string;
+    year?: number;
+  };
+  guarantor?: {
+    fullName?: string;
+    phone?: string;
+    address?: string;
+  };
+  docs: {
+    citizenIdCopy?: FileRef;
+    driverLicenseCopy?: FileRef;
+    houseRegCopy?: FileRef;
+    carRegCopy?: FileRef;
+    carPhotos?: FileRef[];
+    kbankBookFirstPage?: FileRef;
+    taxAndPRB?: FileRef;
+    insurance?: { type?: '1' | '2' | '3'; policy?: FileRef };
+    guarantorCitizenIdCopy?: FileRef;
+    guarantorHouseRegCopy?: FileRef;
+  };
+  status: {
+    completeness: 'incomplete' | 'complete';
+    verification: VerificationStatus;
+    notes?: string;
+  };
 };

@@ -1,27 +1,26 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ApplicationStatus, Application } from "@/lib/types";
+import type { VerificationStatus, AppRow } from "@/lib/types";
 import { Users, FileClock, CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type OverviewCardsProps = {
-  onStatusSelect: (status: ApplicationStatus | "all") => void;
-  selectedStatus: ApplicationStatus | "all";
-  applications: Application[];
+  onStatusSelect: (status: VerificationStatus | "all") => void;
+  selectedStatus: VerificationStatus | "all";
+  applications: AppRow[];
 };
 
 export function OverviewCards({ onStatusSelect, selectedStatus, applications }: OverviewCardsProps) {
   const statusCounts = applications.reduce((acc, app) => {
     acc[app.status] = (acc[app.status] || 0) + 1;
     return acc;
-  }, {} as Record<ApplicationStatus, number>);
+  }, {} as Record<VerificationStatus, number>);
 
   const totalApplications = applications.length;
   const pendingApplications = statusCounts.pending || 0;
   const approvedApplications = statusCounts.approved || 0;
   const rejectedApplications = statusCounts.rejected || 0;
-  const incompleteApplications = statusCounts.incomplete || 0;
 
   const cardData = [
     {

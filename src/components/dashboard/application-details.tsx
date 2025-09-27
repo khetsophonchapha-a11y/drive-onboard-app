@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Application, Document, DocumentStatus } from "@/lib/types";
+import type { Manifest, FileRef, VerificationStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,6 +20,7 @@ import {
   Sparkles,
   Loader2,
   Upload,
+  File as FileIcon,
 } from "lucide-react";
 import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,9 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { analyzeIncompleteForm } from "@/ai/flows/analyze-incomplete-forms";
-import { applicationFormSchema, requiredDocumentsSchema } from "@/lib/schema";
-import { getImageAsDataUri } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -41,97 +39,62 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { requiredDocumentsSchema } from "@/lib/schema";
 
 type ApplicationDetailsProps = {
-  application: Application;
+  application: Manifest;
 };
 
-const statusIcons: Record<DocumentStatus, React.ElementType> = {
-  missing: FileQuestion,
-  uploaded: FileClock,
-  "pending review": FileClock,
-  approved: CheckCircle2,
-  rejected: XCircle,
-};
 
-const statusColors: Record<DocumentStatus, string> = {
-  missing: "text-muted-foreground",
-  uploaded: "text-blue-500",
-  "pending review": "text-amber-500",
-  approved: "text-success",
-  rejected: "text-destructive",
-};
-
-const statusText: Record<Application["status"], string> = {
-  incomplete: "เอกสารไม่ครบ",
+const statusText: Record<VerificationStatus, string> = {
   pending: "รอตรวจสอบ",
   approved: "อนุมัติ",
   rejected: "ปฏิเสธ",
 };
 
-const docStatusText: Record<DocumentStatus, string> = {
-  missing: 'ไม่มีไฟล์',
-  uploaded: 'อัปโหลดแล้ว',
-  'pending review': 'รอตรวจสอบ',
-  approved: 'อนุมัติ',
-  rejected: 'ปฏิเสธ'
-}
-
-const statusVariantMap: Record<Application["status"], "default" | "secondary" | "success" | "destructive"> = {
-  incomplete: "secondary",
+const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "success" | "destructive"> = {
   pending: "default",
   approved: "success",
   rejected: "destructive",
 };
 
 export function ApplicationDetails({ application: initialApplication }: ApplicationDetailsProps) {
-  const [application, setApplication] = useState<Application>(initialApplication);
+  const [application, setApplication] = useState<Manifest>(initialApplication);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{ analysis: string; instructions: string } | null>(null);
   const [isAnalysisDialogOpen, setIsAnalysisDialogOpen] = useState(false);
   const { toast } = useToast();
-  const applicantName = [application.applicant.firstName, application.applicant.lastName].filter(Boolean).join(" ");
+  const applicantName = application.applicant.fullName;
 
 
   const handleAnalyze = async () => {
+    // This function needs to be adapted to the new data structure.
+    // It would involve fetching presigned URLs for documents and then calling the AI flow.
     setIsAnalyzing(true);
-    try {
-      const uploadedDocuments = application.documents.filter(doc => doc.fileUrl);
-      const documentDataUris = await Promise.all(
-        uploadedDocuments.map(doc => getImageAsDataUri(doc.fileUrl!))
-      );
-      
-      const filledFormData = JSON.stringify({
-        applicant: application.applicant,
-        vehicle: application.vehicle,
-        guarantor: application.guarantor,
-      });
-
-      const result = await analyzeIncompleteForm({
-        documentDataUris,
-        applicationFormSchema: JSON.stringify(applicationFormSchema),
-        filledFormData,
-      });
-
-      setAnalysisResult(result);
-      setIsAnalysisDialogOpen(true);
-
-    } catch (error) {
-      console.error("Failed to analyze form:", error);
-      toast({
-        variant: "destructive",
-        title: "การวิเคราะห์ล้มเหลว",
-        description: "ไม่สามารถวิเคราะห์ฟอร์มได้ กรุณาลองใหม่",
-      });
-    } finally {
-      setIsAnalyzing(false);
-    }
+    toast({
+      title: "ฟังก์ชันยังไม่พร้อมใช้งาน",
+      description: "การวิเคราะห์ด้วย AI จะถูกนำมาใช้กับโครงสร้างข้อมูลใหม่ในเร็วๆ นี้",
+    });
+    setIsAnalyzing(false);
   };
   
-  const allDocuments = requiredDocumentsSchema.map(reqDoc => {
-    const submittedDoc = application.documents.find(d => d.type === reqDoc.type);
-    return submittedDoc || { id: reqDoc.id, type: reqDoc.type, status: 'missing' };
-  });
+  const getDocRef = (docId: string): FileRef | undefined => {
+    // This is a simplified mapping. A more robust solution would be better.
+    const keyMap: Record<string, keyof Manifest['docs']> = {
+        'doc-citizen-id': 'citizenIdCopy',
+        'doc-drivers-license': 'driverLicenseCopy',
+        'doc-house-reg': 'houseRegCopy',
+        'doc-car-reg': 'carRegCopy',
+        'doc-bank-account': 'kbankBookFirstPage',
+        'doc-tax-act': 'taxAndPRB',
+        'doc-guarantor-citizen-id': 'guarantorCitizenIdCopy',
+        'doc-guarantor-house-reg': 'guarantorHouseRegCopy',
+    };
+    const docKey = keyMap[docId];
+    if (!docKey) return undefined;
+    // This doesn't handle array types like carPhotos or nested ones like insurance
+    return application.docs[docKey] as FileRef | undefined;
+  }
 
   const renderDetail = (label: string, value: string | number | undefined) => (
     <div className="grid grid-cols-3 gap-2 text-sm">
@@ -148,9 +111,9 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="font-headline text-2xl">{applicantName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
-                  <CardDescription>รหัสใบสมัคร: {application.id}</CardDescription>
+                  <CardDescription>รหัสใบสมัคร: {application.appId}</CardDescription>
                 </div>
-                <Badge variant={statusVariantMap[application.status]} className="capitalize text-base">{statusText[application.status]}</Badge>
+                <Badge variant={statusVariantMap[application.status.verification]} className="capitalize text-base">{statusText[application.status.verification]}</Badge>
             </div>
           </CardHeader>
         </Card>
@@ -158,83 +121,76 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         <Card>
           <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {renderDetail("ชื่อจริง", application.applicant.firstName)}
-            {renderDetail("นามสกุล", application.applicant.lastName)}
-            {renderDetail("อีเมล", application.applicant.email)}
+            {renderDetail("ชื่อ-นามสกุล", application.applicant.fullName)}
             {renderDetail("เบอร์โทรศัพท์", application.applicant.phone)}
             {renderDetail("ที่อยู่", application.applicant.address)}
-            {renderDetail("วันเกิด", application.applicant.dateOfBirth)}
+            {renderDetail("เลขบัตรประชาชน", application.applicant.nationalId)}
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader><CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {renderDetail("ยี่ห้อ", application.vehicle.make)}
+            {renderDetail("ยี่ห้อ", application.vehicle.brand)}
             {renderDetail("รุ่น", application.vehicle.model)}
             {renderDetail("ปี", application.vehicle.year)}
-            {renderDetail("ป้ายทะเบียน", application.vehicle.licensePlate)}
-            {renderDetail("เลขตัวถัง (VIN)", application.vehicle.vin)}
+            {renderDetail("ป้ายทะเบียน", application.vehicle.plateNo)}
+            {renderDetail("สี", application.vehicle.color)}
           </CardContent>
         </Card>
         
-         <Card>
-          <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {renderDetail("ชื่อ-นามสกุล", application.guarantor.fullName)}
-            {renderDetail("อีเมล", application.guarantor.email)}
-            {renderDetail("เบอร์โทรศัพท์", application.guarantor.phone)}
-            {renderDetail("ที่อยู่", application.guarantor.address)}
-          </CardContent>
-        </Card>
+         {application.guarantor && (
+            <Card>
+            <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+                {renderDetail("ชื่อ-นามสกุล", application.guarantor.fullName)}
+                {renderDetail("เบอร์โทรศัพท์", application.guarantor.phone)}
+                {renderDetail("ที่อยู่", application.guarantor.address)}
+            </CardContent>
+            </Card>
+         )}
         
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">ตรวจสอบเอกสาร</CardTitle>
-            <CardDescription>ตรวจสอบและอนุมัติ/ปฏิเสธเอกสารที่ส่งมา</CardDescription>
+            <CardDescription>เอกสารที่ผู้สมัครอัปโหลด</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {allDocuments.map((doc: Document) => {
-               const Icon = statusIcons[doc.status];
+            {requiredDocumentsSchema.map((reqDoc) => {
+               const docRef = getDocRef(reqDoc.id);
+               const hasFile = !!docRef;
+
                return (
-                <div key={doc.id} className="border rounded-lg p-4 space-y-4">
+                <div key={reqDoc.id} className="border rounded-lg p-4 space-y-4">
                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold">{doc.type}</h4>
-                      <div className={`flex items-center gap-2 text-sm font-medium ${statusColors[doc.status]}`}>
-                          <Icon className="h-4 w-4" />
-                          <span className="capitalize">{docStatusText[doc.status]}</span>
+                      <h4 className="font-semibold">{reqDoc.type}</h4>
+                      <div className={`flex items-center gap-2 text-sm font-medium ${hasFile ? 'text-blue-500' : 'text-muted-foreground'}`}>
+                          {hasFile ? <FileIcon className="h-4 w-4" /> : <FileQuestion className="h-4 w-4" />}
+                          <span>{hasFile ? 'มีไฟล์' : 'ไม่มีไฟล์'}</span>
                       </div>
                   </div>
 
-                  {doc.status !== 'missing' && doc.fileUrl && (
+                  {hasFile && (
                     <div className="flex flex-col md:flex-row gap-4">
-                       <div className="relative w-full md:w-1/3 aspect-video rounded-md overflow-hidden border">
-                          <Image src={doc.fileUrl} alt={doc.type} fill style={{ objectFit: 'cover' }} data-ai-hint="document" />
+                      {/* Placeholder for image/doc viewer */}
+                      <div className="relative w-full md:w-1/3 aspect-video rounded-md overflow-hidden border bg-muted flex items-center justify-center">
+                          <p className="text-xs text-muted-foreground">Viewer (TODO)</p>
                       </div>
                       <div className="flex-1 space-y-2">
-                          <Select defaultValue={doc.quality || 'clear'}>
-                              <SelectTrigger><SelectValue placeholder="ประเมินคุณภาพ..." /></SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="clear">ชัดเจน</SelectItem>
-                                  <SelectItem value="blurry">เบลอ</SelectItem>
-                                  <SelectItem value="incomplete">ไม่สมบูรณ์</SelectItem>
-                                  <SelectItem value="incorrect">เอกสารไม่ถูกต้อง</SelectItem>
-                              </SelectContent>
-                          </Select>
-                          <Textarea placeholder="เพิ่มบันทึกการตรวจสอบ..." defaultValue={doc.notes} />
+                          <p className="text-xs text-muted-foreground break-all">R2 Key: {docRef.r2Key}</p>
+                          <Textarea placeholder="เพิ่มบันทึกการตรวจสอบ..." />
                           <div className="flex gap-2 pt-2">
-                              <Button size="sm" variant="success">อนุมัติ</Button>
-                              <Button size="sm" variant="destructive">ปฏิเสธ</Button>
+                              <Button size="sm" variant="success">อนุมัติเอกสาร</Button>
+                              <Button size="sm" variant="destructive">ปฏิเสธเอกสาร</Button>
                           </div>
                       </div>
                     </div>
                   )}
 
-                  {doc.status === 'missing' && (
+                  {!hasFile && (
                      <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
                          <div className="text-center text-muted-foreground">
                              <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
-                             <Button size="sm" variant="outline" className="mt-2"><Upload className="mr-2 h-4 w-4"/>ขอให้อัปโหลด</Button>
                          </div>
                      </div>
                   )}
@@ -242,7 +198,14 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
               )
             })}
           </CardContent>
-           <CardFooter>
+           <CardFooter className="flex-col items-start gap-4">
+                <div>
+                    <h4 className="font-semibold">การดำเนินการกับใบสมัคร</h4>
+                    <div className="flex gap-2 pt-2">
+                        <Button variant="success">อนุมัติใบสมัคร</Button>
+                        <Button variant="destructive">ปฏิเสธใบสมัคร</Button>
+                    </div>
+                </div>
               <Button onClick={handleAnalyze} disabled={isAnalyzing}>
                 {isAnalyzing ? (
                   <>
@@ -252,7 +215,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                 ) : (
                   <>
                     <Sparkles className="mr-2 h-4 w-4" />
-                    วิเคราะห์ความไม่สมบูรณ์ด้วย AI
+                    วิเคราะห์ความไม่สมบูรณ์ด้วย AI (เร็วๆนี้)
                   </>
                 )}
               </Button>

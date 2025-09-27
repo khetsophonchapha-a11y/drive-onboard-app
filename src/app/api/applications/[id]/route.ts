@@ -1,63 +1,50 @@
+// src/app/api/applications/[id]/route.ts
+import { r2 } from '@/app/api/r2/_client';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { NextRequest, NextResponse } from 'next/server';
 
-import { NextResponse } from 'next/server';
-import type { Application } from '@/lib/types';
-
-// This is a mock database. In a real application, you would use a real database
-// like Firestore, PostgreSQL, etc.
-// The data needs to be pre-populated for GET to work on refresh.
-// We are assuming the main `/api/applications` POST endpoint has been hit.
-// This is a simplification for this mock setup.
-let mockDb: Application[] = []; 
-
-// Helper to find an application and its index
-const findApplication = (id: string) => {
-    // This is a hack for the mock DB. The main route populates the array.
-    // To make this route work independently, we might need a shared mock DB instance.
-    // For now, we assume the DB is populated.
-    const index = mockDb.findIndex(app => app.id === id);
-    return { application: mockDb[index], index };
-}
-
-// GET a single application by ID
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+// Helper to get a JSON object from R2
+async function getJson(bucket: string, key: string): Promise<any | null> {
   try {
-    const res = await fetch('http://localhost:3000/api/applications');
-    mockDb = await res.json();
-    const { application } = findApplication(params.id);
-
-    if (!application) {
-      return NextResponse.json({ error: 'Application not found' }, { status: 404 });
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+    const response = await r2.send(command);
+    const str = await response.Body?.transformToString();
+    if (!str) return null;
+    return JSON.parse(str);
+  } catch (error: any) {
+    if (error.name === 'NoSuchKey') {
+      return null;
     }
-    return NextResponse.json(application);
-  } catch (error) {
-    console.error(`Error fetching application ${params.id}:`, error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    throw error;
   }
 }
 
-
-// DELETE an application by ID
-export async function DELETE(
-  req: Request,
+export async function GET(
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-   try {
-    const res = await fetch('http://localhost:3000/api/applications');
-    mockDb = await res.json();
-    const { index } = findApplication(params.id);
-    
-    if (index === -1) {
+  const appId = params.id;
+  if (!appId) {
+    return NextResponse.json({ error: 'Application ID is required' }, { status: 400 });
+  }
+
+  const bucket = process.env.R2_BUCKET;
+  if (!bucket) {
+    console.error('R2_BUCKET environment variable is not set.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
+  try {
+    const manifestKey = `applications/${appId}/manifest.json`;
+    const manifest = await getJson(bucket, manifestKey);
+
+    if (!manifest) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    mockDb.splice(index, 1);
-
-    return new NextResponse(null, { status: 204 }); // No Content
+    return NextResponse.json(manifest);
   } catch (error) {
-    console.error(`Error deleting application ${params.id}:`, error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error(`[App ${appId} GET Error]`, error);
+    return NextResponse.json({ error: 'Failed to retrieve application data.' }, { status: 500 });
   }
 }

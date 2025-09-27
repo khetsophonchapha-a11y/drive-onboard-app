@@ -39,7 +39,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge";
-import type { Application, ApplicationStatus } from "@/lib/types";
+import type { AppRow, VerificationStatus } from "@/lib/types";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -56,27 +56,25 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 
-const statusVariantMap: Record<ApplicationStatus, "default" | "secondary" | "success" | "destructive"> = {
-  incomplete: "secondary",
+const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "success" | "destructive"> = {
   pending: "default",
   approved: "success",
   rejected: "destructive",
 };
 
-const statusText: Record<ApplicationStatus, string> = {
-  incomplete: "เอกสารไม่ครบ",
+const statusText: Record<VerificationStatus, string> = {
   pending: "รอตรวจสอบ",
   approved: "อนุมัติ",
   rejected: "ปฏิเสธ",
 };
 
 type ApplicationsTableProps = {
-  applications: Application[];
+  applications: AppRow[];
   onDelete: (applicationId: string) => void;
 };
 
 export function ApplicationsTable({ applications, onDelete }: ApplicationsTableProps) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [sorting, setSorting] = React.useState<SortingState>([{"id": "createdAt", "desc": true}]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
@@ -86,42 +84,37 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
   const [date, setDate] = React.useState<DateRange | undefined>()
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [applicationToDelete, setApplicationToDelete] = React.useState<Application | null>(null);
+  const [applicationToDelete, setApplicationToDelete] = React.useState<AppRow | null>(null);
   const { toast } = useToast();
 
-  const handleOpenDeleteDialog = (application: Application) => {
+  const handleOpenDeleteDialog = (application: AppRow) => {
     setApplicationToDelete(application);
     setIsDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = () => {
     if (applicationToDelete) {
-      onDelete(applicationToDelete.id);
+      onDelete(applicationToDelete.appId);
       toast({
-        title: "ลบใบสมัครสำเร็จ",
-        description: `ใบสมัครของ ${applicationToDelete.applicant.firstName} ได้ถูกลบแล้ว`,
+        title: "ลบใบสมัครสำเร็จ (จำลอง)",
+        description: `ใบสมัครของ ${applicationToDelete.fullName} ได้ถูกลบออกจาก UI แล้ว`,
       });
       setIsDeleteDialogOpen(false);
       setApplicationToDelete(null);
     }
   };
 
-  const columns: ColumnDef<Application>[] = [
+  const columns: ColumnDef<AppRow>[] = [
     {
-        id: "applicantName",
-        accessorFn: row => `${row.applicant.firstName} ${row.applicant.lastName}`,
+        accessorKey: "fullName",
         header: "ผู้สมัคร",
-        cell: ({ row }) => {
-            const firstName = row.original.applicant.firstName;
-            const lastName = row.original.applicant.lastName;
-            return <div>{[firstName, lastName].filter(Boolean).join(" ")}</div>
-        },
+        cell: ({ row }) => <div>{row.getValue("fullName")}</div>,
     },
     {
         accessorKey: "status",
         header: "สถานะ",
         cell: ({ row }) => {
-            const status = row.getValue("status") as ApplicationStatus;
+            const status = row.getValue("status") as VerificationStatus;
             return <Badge variant={statusVariantMap[status]}>{statusText[status]}</Badge>;
         },
     },
@@ -147,10 +140,10 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <Link href={`/dashboard/applications/${application.id}`} passHref>
+                        <Link href={`/dashboard/applications/${application.appId}`} passHref>
                             <DropdownMenuItem>ดูใบสมัคร</DropdownMenuItem>
                         </Link>
-                         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(application.id)}>
+                         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(application.appId)}>
                             คัดลอก ID
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -205,9 +198,9 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
       <div className="flex items-center py-4 gap-2">
         <Input
           placeholder="ค้นหาชื่อผู้สมัคร..."
-          value={(table.getColumn("applicantName")?.getFilterValue() as string) ?? ""}
+          value={(table.getColumn("fullName")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
-            table.getColumn("applicantName")?.setFilterValue(event.target.value)
+            table.getColumn("fullName")?.setFilterValue(event.target.value)
           }
           className="max-w-sm"
         />
@@ -347,8 +340,8 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
             <AlertDialogTitle>ยืนยันการลบใบสมัคร</AlertDialogTitle>
             <AlertDialogDescription>
               คุณแน่ใจหรือไม่ว่าต้องการลบใบสมัครของ{" "}
-              <span className="font-semibold">{[applicationToDelete?.applicant.firstName, applicationToDelete?.applicant.lastName].filter(Boolean).join(" ")}</span>? 
-              การกระทำนี้ไม่สามารถย้อนกลับได้
+              <span className="font-semibold">{applicationToDelete?.fullName}</span>? 
+              การกระทำนี้ไม่สามารถย้อนกลับได้ (ในตอนนี้จะเป็นการลบจากหน้าจอเท่านั้น)
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
