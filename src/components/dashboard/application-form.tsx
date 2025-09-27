@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -19,8 +20,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { requiredDocumentsSchema } from "@/lib/schema";
-import { FileUp, FileCheck, X, Send, Loader2 } from "lucide-react";
+import { FileUp, FileCheck, X, Send, Loader2, AlertCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 
 const applicantSchema = z.object({
   fullName: z.string().min(1, "กรุณากรอกชื่อ-นามสกุล"),
@@ -45,10 +47,19 @@ const guarantorSchema = z.object({
     address: z.string().optional(),
 });
 
+const documentUploadSchema = z.object({
+  status: z.enum(['pending', 'uploading', 'success', 'error']),
+  progress: z.number(),
+  file: z.any().optional(),
+  r2Key: z.string().optional(),
+  fileName: z.string().optional(),
+  errorMessage: z.string().optional(),
+});
+
 const documentSchema = z.object({
     id: z.string(),
     type: z.string(),
-    file: z.any().optional(),
+    upload: documentUploadSchema,
 });
 
 const formSchema = z.object({
@@ -57,6 +68,8 @@ const formSchema = z.object({
     guarantor: guarantorSchema,
     documents: z.array(documentSchema),
 });
+
+type UploadState = z.infer<typeof documentUploadSchema>;
 
 export function ApplicationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,7 +82,10 @@ export function ApplicationForm() {
       applicant: { fullName: "", email: "", phone: "", address: "", dateOfBirth: "" },
       vehicle: { make: "", model: "", year: undefined, licensePlate: "", vin: "" },
       guarantor: { fullName: "", phone: "", email: "", address: "" },
-      documents: requiredDocumentsSchema.map(doc => ({ ...doc, file: null }))
+      documents: requiredDocumentsSchema.map(doc => ({ 
+        ...doc, 
+        upload: { status: 'pending', progress: 0, file: null } 
+      }))
     },
   });
   
@@ -78,21 +94,100 @@ export function ApplicationForm() {
     name: "documents"
   });
 
-  const handleFileChange = (file: File | null, index: number) => {
-    if (file) {
-      const currentDocument = form.getValues(`documents.${index}`);
-      updateDocument(index, { ...currentDocument, file: file });
+  const handleFileChange = async (file: File | null, index: number) => {
+    if (!file) return;
+
+    const currentDocument = form.getValues(`documents.${index}`);
+    const applicationId = 'temp-' + Date.now(); // In a real app, you'd get this after saving a draft.
+
+    updateDocument(index, { 
+        ...currentDocument, 
+        upload: { status: 'uploading', progress: 5, file: file, errorMessage: undefined }
+    });
+
+    try {
+      // 1. Get pre-signed URL
+      updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 20 }});
+      const signResponse = await fetch('/api/r2/sign-put-applicant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: applicationId,
+          docType: currentDocument.type,
+          fileName: file.name,
+          mime: file.type,
+          size: file.size,
+        }),
+      });
+
+      if (!signResponse.ok) {
+        throw new Error('ไม่สามารถขอ URL สำหรับอัปโหลดได้');
+      }
+      const { url, key } = await signResponse.json();
+      updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 40 }});
+
+      // 2. Upload file to R2
+      const uploadResponse = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('การอัปโหลดไฟล์ล้มเหลว');
+      }
+      updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 100 }});
+
+
+      // 3. Mark as success
+      updateDocument(index, { 
+          ...currentDocument, 
+          upload: { 
+              status: 'success', 
+              progress: 100, 
+              file: file,
+              r2Key: key,
+              fileName: file.name,
+              errorMessage: undefined 
+          }
+      });
+
+    } catch (error: any) {
+      updateDocument(index, { 
+          ...currentDocument, 
+          upload: { 
+              status: 'error', 
+              progress: 0, 
+              file: file,
+              errorMessage: error.message || 'เกิดข้อผิดพลาดที่ไม่รู้จัก'
+          }
+      });
     }
   };
 
   const removeFile = (index: number) => {
     const currentDocument = form.getValues(`documents.${index}`);
-    updateDocument(index, { ...currentDocument, file: null });
+    updateDocument(index, { ...currentDocument, upload: { status: 'pending', progress: 0, file: null, r2Key: undefined, fileName: undefined, errorMessage: undefined } });
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    console.log("Form values:", values);
+    
+    // Filter for only successfully uploaded files
+    const uploadedDocuments = values.documents
+        .filter(doc => doc.upload.status === 'success' && doc.upload.r2Key)
+        .map(doc => ({
+            type: doc.type,
+            r2Key: doc.upload.r2Key,
+            fileName: doc.upload.fileName,
+        }));
+        
+    const submissionData = {
+        ...values,
+        documents: uploadedDocuments
+    }
+
+    console.log("Form submission data:", submissionData);
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -104,7 +199,9 @@ export function ApplicationForm() {
     });
     
     setIsSubmitting(false);
-    router.push("/dashboard/applications");
+    // In a real scenario, you might redirect to a "thank you" page
+    // For now, redirecting to dashboard
+    router.push("/dashboard");
   };
 
   return (
@@ -184,39 +281,67 @@ export function ApplicationForm() {
             {/* Documents Section */}
             <div className="space-y-4">
               <CardTitle className="font-headline">อัปโหลดเอกสาร</CardTitle>
-              <CardDescription>กรุณาเซ็นสำเนาถูกต้องและถ่ายรูปให้ชัดเจนก่อนส่ง</CardDescription>
+              <CardDescription>กรุณาเซ็นสำเนาถูกต้องและถ่ายรูปให้ชัดเจนก่อนส่ง (ขนาดไม่เกิน 15MB)</CardDescription>
               <div className="space-y-4 pt-2">
-                {documentFields.map((field, index) => (
+                {documentFields.map((field, index) => {
+                  const uploadState = form.watch(`documents.${index}.upload`);
+                  const isUploading = uploadState.status === 'uploading';
+                  const isSuccess = uploadState.status === 'success';
+                  const isError = uploadState.status === 'error';
+                  const isPending = uploadState.status === 'pending';
+
+                  return (
                   <div key={field.id} className="border rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="font-medium">{field.type}</p>
-                      {form.getValues(`documents.${index}.file`) ? (
-                        <div className="flex items-center gap-2 text-sm text-green-600 mt-1">
-                          <FileCheck className="w-4 h-4" />
-                          <span className="truncate max-w-xs">{(form.getValues(`documents.${index}.file`) as File).name}</span>
+                    <div className="flex-1 w-full">
+                      <div className="flex justify-between items-center">
+                        <p className="font-medium">{field.type}</p>
+                        {!isPending && !isUploading && (
                           <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeFile(index)}>
                             <X className="w-4 h-4"/>
                           </Button>
+                        )}
+                      </div>
+                      
+                      {isPending && <p className="text-sm text-muted-foreground">ยังไม่ได้เลือกไฟล์</p>}
+
+                      {isUploading && (
+                        <div className="mt-2">
+                          <Progress value={uploadState.progress} className="w-full h-2" />
+                          <p className="text-sm text-muted-foreground mt-1">กำลังอัปโหลด... {uploadState.progress}%</p>
                         </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">ยังไม่ได้อัปโหลด</p>
+                      )}
+                      
+                      {isSuccess && (
+                        <div className="flex items-center gap-2 text-sm text-green-600 mt-1">
+                          <FileCheck className="w-4 h-4" />
+                          <span className="truncate max-w-xs">{uploadState.fileName}</span>
+                        </div>
+                      )}
+
+                      {isError && (
+                        <div className="flex items-center gap-2 text-sm text-destructive mt-1">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="truncate max-w-xs">{uploadState.errorMessage}</span>
+                        </div>
                       )}
                     </div>
+                    
                     <FormField
                       control={form.control}
-                      name={`documents.${index}.file`}
-                      render={({ field: { onChange, value, ...rest }}) => (
+                      name={`documents.${index}.upload`}
+                      render={() => (
                         <FormItem>
                           <FormControl>
-                            <Button asChild variant="outline">
+                            <Button asChild variant="outline" disabled={isUploading}>
                               <label className="cursor-pointer">
-                                <FileUp className="mr-2 h-4 w-4" />
-                                อัปโหลด
+                                {isSuccess || isError ? <X className="mr-2 h-4 w-4" /> : <FileUp className="mr-2 h-4 w-4" />}
+                                {isSuccess ? 'เปลี่ยนไฟล์' : isError ? 'ลองใหม่' : 'เลือกไฟล์'}
                                 <Input
                                   type="file"
                                   className="hidden"
+                                  accept="image/jpeg,image/png,application/pdf"
                                   onChange={(e) => handleFileChange(e.target.files?.[0] ?? null, index)}
-                                  {...rest}
+                                  disabled={isUploading}
                                 />
                               </label>
                             </Button>
@@ -226,13 +351,13 @@ export function ApplicationForm() {
                       )}
                     />
                   </div>
-                ))}
+                )})}
               </div>
             </div>
 
           </CardContent>
           <CardFooter className="flex justify-end">
-            <Button type="submit" size="lg" disabled={isSubmitting}>
+            <Button type="submit" size="lg" disabled={isSubmitting || documentFields.some(f => f.upload.status === 'uploading')}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
