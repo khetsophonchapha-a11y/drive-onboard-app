@@ -121,10 +121,12 @@ export function ApplicationForm() {
         }),
       });
 
+      const signResponseData = await signResponse.json();
+
       if (!signResponse.ok) {
-        throw new Error('ไม่สามารถขอ URL สำหรับอัปโหลดได้');
+        throw new Error(signResponseData.error || 'ไม่สามารถขอ URL สำหรับอัปโหลดได้');
       }
-      const { url, key } = await signResponse.json();
+      const { url, key } = signResponseData;
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 40 }});
 
       // 2. Upload file to R2

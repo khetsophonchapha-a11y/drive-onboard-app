@@ -44,11 +44,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url, key });
 
   } catch (error) {
-    console.error("Error signing PUT URL for applicant:", error);
+    console.error("[R2 Sign PUT Error]", error);
     if (error instanceof z.ZodError) {
         return NextResponse.json({ error: "Invalid request body", details: error.issues }, { status: 400 });
     }
-    // Return a more generic error to the client
-    return NextResponse.json({ error: "Could not create upload URL." }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    return NextResponse.json({ error: `Could not create upload URL. Reason: ${errorMessage}` }, { status: 500 });
   }
 }
