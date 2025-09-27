@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -104,9 +105,9 @@ export function ApplicationForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      applicant: { fullName: "", phone: ""},
-      vehicle: {},
-      guarantor: {},
+      applicant: { fullName: "", phone: "", address: "", nationalId: "" },
+      vehicle: { brand: "", model: "", year: undefined, plateNo: "", color: "" },
+      guarantor: { fullName: "", phone: "", address: "" },
       documents: requiredDocumentsSchema.map(doc => ({
         ...doc,
         upload: { status: 'pending', progress: 0, file: null }
@@ -203,6 +204,7 @@ export function ApplicationForm() {
                 return { docType: doc.type, docId: doc.id, r2Key: key, mime: file.type, size: file.size, md5 };
 
              } catch (uploadError: any) {
+                console.error(`Upload error for ${doc.type}:`, uploadError);
                 updateDocument(docIndexInForm, { ...doc, upload: { ...doc.upload, status: 'error', errorMessage: uploadError.message } });
                 throw new Error(`อัปโหลดไฟล์ "${doc.type}" ล้มเหลว`);
              }
@@ -301,7 +303,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.year" render={({ field }) => (
-                  <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.plateNo" render={({ field }) => (
                   <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -436,3 +438,5 @@ export function ApplicationForm() {
     </Card>
   );
 }
+
+    
