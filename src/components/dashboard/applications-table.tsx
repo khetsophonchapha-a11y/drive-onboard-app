@@ -147,14 +147,12 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
           }
           className="max-w-sm"
         />
-        <Link href="/apply" passHref>
-          <Button asChild className="ml-auto">
-            <a>
+        <Button asChild className="ml-auto">
+            <Link href="/apply">
               <PlusCircle className="mr-2 h-4 w-4" />
               สร้างใบสมัครใหม่
-            </a>
+            </Link>
           </Button>
-        </Link>
       </div>
       <div className="rounded-md border">
         <Table>
