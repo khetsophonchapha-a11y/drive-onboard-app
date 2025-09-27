@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     
     const ACCEPT = ["image/jpeg","image/png","application/pdf"]; 
     if (!ACCEPT.includes(mime) || size > 15*1024*1024) {
-      return NextResponse.json({error:"invalid file type or size"},{status:400});
+      return NextResponse.json({error:"Invalid file type or size. Accepted: JPG, PNG, PDF up to 15MB."},{status:400});
     }
 
     const key = `applications/${applicationId}/${docType}/${Date.now()}-${fileName}`;
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid request body", details: error.issues }, { status: 400 });
     }
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    // Make sure to return a JSON response with an 'error' key
     return NextResponse.json({ error: `Could not create upload URL. Reason: ${errorMessage}` }, { status: 500 });
   }
 }

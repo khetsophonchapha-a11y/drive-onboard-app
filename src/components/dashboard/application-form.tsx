@@ -134,13 +134,15 @@ export function ApplicationForm() {
           md5: md5,
         }),
       });
-
+      
       const responseBody = await signResponse.json();
       if (!signResponse.ok) {
-        throw new Error(responseBody.error || 'ไม่สามารถขอ URL สำหรับอัปโหลดได้');
+        // Here we catch the error from the signing server and display it
+        throw new Error(responseBody.error || 'Failed to get pre-signed URL');
       }
-
+      
       const { url, key } = responseBody;
+
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 40 }});
 
       // 2. Upload file to R2
@@ -156,7 +158,7 @@ export function ApplicationForm() {
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
         console.error("R2 Upload Error:", errorText);
-        throw new Error('การอัปโหลดไฟล์ล้มเหลว');
+        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`);
       }
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 100 }});
 
@@ -182,7 +184,7 @@ export function ApplicationForm() {
               status: 'error',
               progress: 0,
               file: file,
-              errorMessage: error.message || 'เกิดข้อผิดพลาดที่ไม่รู้จัก'
+              errorMessage: error.message || 'An unknown error occurred during upload.'
           }
       });
     }
@@ -348,9 +350,12 @@ export function ApplicationForm() {
                       )}
 
                       {isError && (
-                        <div className="flex items-center gap-2 text-sm text-destructive mt-1">
-                          <AlertCircle className="w-4 h-4" />
-                          <span className="truncate max-w-xs">{uploadState.errorMessage}</span>
+                        <div className="flex flex-col gap-1 text-sm text-destructive mt-1">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <span className="font-semibold">การอัปโหลดล้มเหลว</span>
+                          </div>
+                          <p className="pl-6 text-xs break-all">{uploadState.errorMessage}</p>
                         </div>
                       )}
                     </div>
