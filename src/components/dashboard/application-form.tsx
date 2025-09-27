@@ -34,19 +34,12 @@ async function md5Base64(file: File) {
 
 // Helper function for safer fetching with better error messages
 async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
-  try {
-    const response = await fetch(input, init);
-    if (!response.ok) {
-      // Try to get more specific error from response body
-      const bodyText = await response.text().catch(() => 'Could not read response body');
-      throw new Error(`Request failed: ${response.status} ${response.statusText}. Body: ${bodyText}`);
-    }
-    return response;
-  } catch (error: any) {
-    console.error('Fetch error:', error);
-    // Re-throw the error to be caught by the calling function
-    throw error;
+  const response = await fetch(input, init);
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => 'Could not read response body');
+    throw new Error(`Request failed with status ${response.status}: ${bodyText}`);
   }
+  return response;
 }
 
 const applicantSchema = z.object({
@@ -130,13 +123,15 @@ export function ApplicationForm() {
         upload: { status: 'uploading', progress: 5, file: file, errorMessage: undefined }
     });
 
+    let md5, key, url;
+
     try {
       // 0. Calculate MD5
-      updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 10 }});
-      const md5 = await md5Base64(file);
+      updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 10 }});
+      md5 = await md5Base64(file);
 
-      // 1. Get pre-signed URL using safeFetch
-      updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 20 }});
+      // 1. Get pre-signed URL
+      updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 20 }});
       const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -152,50 +147,65 @@ export function ApplicationForm() {
       
       const responseBody = await signResponse.json();
       if (responseBody.error) {
-          throw new Error(responseBody.error);
+          throw new Error(`Server error on signing: ${responseBody.error}`);
       }
       
-      const { url, key } = responseBody;
-
-      updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 40 }});
-
-      // 2. Upload file to R2 using safeFetch
-      await safeFetch(url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-          'Content-MD5': md5,
-        },
-      });
-
-      updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 100 }});
-
-
-      // 3. Mark as success
-      updateDocument(index, {
-          ...currentDocument,
-          upload: {
-              status: 'success',
-              progress: 100,
-              file: file,
-              r2Key: key,
-              fileName: file.name,
-              errorMessage: undefined
-          }
-      });
+      url = responseBody.url;
+      key = responseBody.key;
 
     } catch (error: any) {
-      console.error("Upload process error:", error);
-      updateDocument(index, {
-          ...currentDocument,
-          upload: {
-              status: 'error',
-              progress: 0,
-              file: file,
-              errorMessage: error.message || 'An unknown error occurred during upload.'
-          }
-      });
+        console.error("Error getting pre-signed URL:", error);
+        updateDocument(index, {
+            ...form.getValues(`documents.${index}`),
+            upload: {
+                status: 'error',
+                progress: 0,
+                file: file,
+                errorMessage: `Failed to get upload URL: ${error.message}`
+            }
+        });
+        return;
+    }
+    
+    try {
+        updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 40 }});
+
+        // 2. Upload file to R2
+        await safeFetch(url, {
+            method: 'PUT',
+            body: file,
+            headers: {
+            'Content-Type': file.type,
+            'Content-MD5': md5,
+            },
+        });
+        updateDocument(index, { ...form.getValues(`documents.${index}`), upload: { ...form.getValues(`documents.${index}.upload`), status: 'uploading', progress: 100 }});
+
+
+        // 3. Mark as success
+        updateDocument(index, {
+            ...currentDocument,
+            upload: {
+                status: 'success',
+                progress: 100,
+                file: file,
+                r2Key: key,
+                fileName: file.name,
+                errorMessage: undefined
+            }
+        });
+
+    } catch (error: any) {
+        console.error("Error uploading to R2:", error);
+        updateDocument(index, {
+            ...form.getValues(`documents.${index}`),
+            upload: {
+                status: 'error',
+                progress: 0,
+                file: file,
+                errorMessage: `Upload failed: ${error.message}`
+            }
+        });
     }
   };
 
@@ -415,5 +425,3 @@ export function ApplicationForm() {
     </Card>
   );
 }
-
-    
