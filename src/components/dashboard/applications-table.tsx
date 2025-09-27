@@ -13,8 +13,9 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon } from "lucide-react"
 import Link from "next/link"
+import { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -34,10 +35,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge";
 import type { Application, ApplicationStatus } from "@/lib/types";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { th } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const statusVariantMap: Record<ApplicationStatus, "default" | "secondary" | "success" | "destructive"> = {
   incomplete: "secondary",
@@ -117,6 +121,7 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+  const [date, setDate] = React.useState<DateRange | undefined>()
 
   const table = useReactTable({
     data: applications,
@@ -137,6 +142,15 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
     },
   })
 
+  React.useEffect(() => {
+    if (date?.from && date?.to) {
+        table.getColumn('createdAt')?.setFilterValue([date.from, date.to]);
+    } else {
+        table.getColumn('createdAt')?.setFilterValue(undefined);
+    }
+  }, [date, table]);
+
+
   return (
     <div className="w-full">
       <div className="flex items-center py-4 gap-2">
@@ -148,6 +162,43 @@ export function ApplicationsTable({ applications }: ApplicationsTableProps) {
           }
           className="max-w-sm"
         />
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button
+                id="date"
+                variant={"outline"}
+                className={cn(
+                    "w-[300px] justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                )}
+                >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date?.from ? (
+                    date.to ? (
+                    <>
+                        {format(date.from, "LLL dd, y", { locale: th })} -{" "}
+                        {format(date.to, "LLL dd, y", { locale: th })}
+                    </>
+                    ) : (
+                    format(date.from, "LLL dd, y", { locale: th })
+                    )
+                ) : (
+                    <span>เลือกช่วงวันที่</span>
+                )}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={date?.from}
+                selected={date}
+                onSelect={setDate}
+                numberOfMonths={2}
+                locale={th}
+                />
+            </PopoverContent>
+        </Popover>
         <Button asChild className="ml-auto">
             <Link href="/apply">
               <PlusCircle className="mr-2 h-4 w-4" />
