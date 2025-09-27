@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle2,
@@ -141,136 +140,121 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   
   return (
     <>
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="flex-1 space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="font-headline text-2xl">{application.applicant.fullName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
-                    <CardDescription>รหัสใบสมัคร: {application.id}</CardDescription>
-                  </div>
-                  <Badge variant={statusVariantMap[application.status]} className="capitalize text-base">{statusText[application.status]}</Badge>
-              </div>
-            </CardHeader>
-          </Card>
-          
-          <Tabs defaultValue="documents">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="applicant">ผู้สมัคร</TabsTrigger>
-              <TabsTrigger value="vehicle">ยานพาหนะ</TabsTrigger>
-              <TabsTrigger value="guarantor">ผู้ค้ำประกัน</TabsTrigger>
-              <TabsTrigger value="documents">เอกสาร</TabsTrigger>
-            </TabsList>
-            <TabsContent value="applicant">
-              <Card>
-                <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  {renderDetail("ชื่อ-นามสกุล", application.applicant.fullName)}
-                  {renderDetail("อีเมล", application.applicant.email)}
-                  {renderDetail("เบอร์โทรศัพท์", application.applicant.phone)}
-                  {renderDetail("ที่อยู่", application.applicant.address)}
-                  {renderDetail("วันเกิด", application.applicant.dateOfBirth)}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="vehicle">
-              <Card>
-                <CardHeader><CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  {renderDetail("ยี่ห้อ", application.vehicle.make)}
-                  {renderDetail("รุ่น", application.vehicle.model)}
-                  {renderDetail("ปี", application.vehicle.year)}
-                  {renderDetail("ป้ายทะเบียน", application.vehicle.licensePlate)}
-                  {renderDetail("เลขตัวถัง (VIN)", application.vehicle.vin)}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="guarantor">
-               <Card>
-                <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  {renderDetail("ชื่อ-นามสกุล", application.guarantor.fullName)}
-                  {renderDetail("อีเมล", application.guarantor.email)}
-                  {renderDetail("เบอร์โทรศัพท์", application.guarantor.phone)}
-                  {renderDetail("ที่อยู่", application.guarantor.address)}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="documents">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-headline">ตรวจสอบเอกสาร</CardTitle>
-                  <CardDescription>ตรวจสอบและอนุมัติ/ปฏิเสธเอกสารที่ส่งมา</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {allDocuments.map((doc: Document) => {
-                     const Icon = statusIcons[doc.status];
-                     return (
-                      <div key={doc.id} className="border rounded-lg p-4 space-y-4">
-                         <div className="flex items-center justify-between">
-                            <h4 className="font-semibold">{doc.type}</h4>
-                            <div className={`flex items-center gap-2 text-sm font-medium ${statusColors[doc.status]}`}>
-                                <Icon className="h-4 w-4" />
-                                <span className="capitalize">{docStatusText[doc.status]}</span>
-                            </div>
-                        </div>
-
-                        {doc.status !== 'missing' && doc.fileUrl && (
-                          <div className="flex flex-col md:flex-row gap-4">
-                             <div className="relative w-full md:w-1/3 aspect-video rounded-md overflow-hidden border">
-                                <Image src={doc.fileUrl} alt={doc.type} fill style={{ objectFit: 'cover' }} data-ai-hint="document" />
-                            </div>
-                            <div className="flex-1 space-y-2">
-                                <Select defaultValue={doc.quality || 'clear'}>
-                                    <SelectTrigger><SelectValue placeholder="ประเมินคุณภาพ..." /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="clear">ชัดเจน</SelectItem>
-                                        <SelectItem value="blurry">เบลอ</SelectItem>
-                                        <SelectItem value="incomplete">ไม่สมบูรณ์</SelectItem>
-                                        <SelectItem value="incorrect">เอกสารไม่ถูกต้อง</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Textarea placeholder="เพิ่มบันทึกการตรวจสอบ..." defaultValue={doc.notes} />
-                                <div className="flex gap-2 pt-2">
-                                    <Button size="sm" variant="success">อนุมัติ</Button>
-                                    <Button size="sm" variant="destructive">ปฏิเสธ</Button>
-                                </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {doc.status === 'missing' && (
-                           <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
-                               <div className="text-center text-muted-foreground">
-                                   <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
-                                   <Button size="sm" variant="outline" className="mt-2"><Upload className="mr-2 h-4 w-4"/>ขอให้อัปโหลด</Button>
-                               </div>
-                           </div>
-                        )}
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="font-headline text-2xl">{application.applicant.fullName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
+                  <CardDescription>รหัสใบสมัคร: {application.id}</CardDescription>
+                </div>
+                <Badge variant={statusVariantMap[application.status]} className="capitalize text-base">{statusText[application.status]}</Badge>
+            </div>
+          </CardHeader>
+        </Card>
+        
+        <Card>
+          <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {renderDetail("ชื่อ-นามสกุล", application.applicant.fullName)}
+            {renderDetail("อีเมล", application.applicant.email)}
+            {renderDetail("เบอร์โทรศัพท์", application.applicant.phone)}
+            {renderDetail("ที่อยู่", application.applicant.address)}
+            {renderDetail("วันเกิด", application.applicant.dateOfBirth)}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader><CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {renderDetail("ยี่ห้อ", application.vehicle.make)}
+            {renderDetail("รุ่น", application.vehicle.model)}
+            {renderDetail("ปี", application.vehicle.year)}
+            {renderDetail("ป้ายทะเบียน", application.vehicle.licensePlate)}
+            {renderDetail("เลขตัวถัง (VIN)", application.vehicle.vin)}
+          </CardContent>
+        </Card>
+        
+         <Card>
+          <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {renderDetail("ชื่อ-นามสกุล", application.guarantor.fullName)}
+            {renderDetail("อีเมล", application.guarantor.email)}
+            {renderDetail("เบอร์โทรศัพท์", application.guarantor.phone)}
+            {renderDetail("ที่อยู่", application.guarantor.address)}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline">ตรวจสอบเอกสาร</CardTitle>
+            <CardDescription>ตรวจสอบและอนุมัติ/ปฏิเสธเอกสารที่ส่งมา</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {allDocuments.map((doc: Document) => {
+               const Icon = statusIcons[doc.status];
+               return (
+                <div key={doc.id} className="border rounded-lg p-4 space-y-4">
+                   <div className="flex items-center justify-between">
+                      <h4 className="font-semibold">{doc.type}</h4>
+                      <div className={`flex items-center gap-2 text-sm font-medium ${statusColors[doc.status]}`}>
+                          <Icon className="h-4 w-4" />
+                          <span className="capitalize">{docStatusText[doc.status]}</span>
                       </div>
-                    )
-                  })}
-                </CardContent>
-                 <CardFooter>
-                    <Button onClick={handleAnalyze} disabled={isAnalyzing}>
-                      {isAnalyzing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          กำลังวิเคราะห์...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          วิเคราะห์ความไม่สมบูรณ์ด้วย AI
-                        </>
-                      )}
-                    </Button>
-                 </CardFooter>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+                  </div>
+
+                  {doc.status !== 'missing' && doc.fileUrl && (
+                    <div className="flex flex-col md:flex-row gap-4">
+                       <div className="relative w-full md:w-1/3 aspect-video rounded-md overflow-hidden border">
+                          <Image src={doc.fileUrl} alt={doc.type} fill style={{ objectFit: 'cover' }} data-ai-hint="document" />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                          <Select defaultValue={doc.quality || 'clear'}>
+                              <SelectTrigger><SelectValue placeholder="ประเมินคุณภาพ..." /></SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="clear">ชัดเจน</SelectItem>
+                                  <SelectItem value="blurry">เบลอ</SelectItem>
+                                  <SelectItem value="incomplete">ไม่สมบูรณ์</SelectItem>
+                                  <SelectItem value="incorrect">เอกสารไม่ถูกต้อง</SelectItem>
+                              </SelectContent>
+                          </Select>
+                          <Textarea placeholder="เพิ่มบันทึกการตรวจสอบ..." defaultValue={doc.notes} />
+                          <div className="flex gap-2 pt-2">
+                              <Button size="sm" variant="success">อนุมัติ</Button>
+                              <Button size="sm" variant="destructive">ปฏิเสธ</Button>
+                          </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {doc.status === 'missing' && (
+                     <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
+                         <div className="text-center text-muted-foreground">
+                             <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
+                             <Button size="sm" variant="outline" className="mt-2"><Upload className="mr-2 h-4 w-4"/>ขอให้อัปโหลด</Button>
+                         </div>
+                     </div>
+                  )}
+                </div>
+              )
+            })}
+          </CardContent>
+           <CardFooter>
+              <Button onClick={handleAnalyze} disabled={isAnalyzing}>
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    กำลังวิเคราะห์...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    วิเคราะห์ความไม่สมบูรณ์ด้วย AI
+                  </>
+                )}
+              </Button>
+           </CardFooter>
+        </Card>
       </div>
        <Dialog open={isAnalysisDialogOpen} onOpenChange={setIsAnalysisDialogOpen}>
         <DialogContent className="max-w-2xl">
