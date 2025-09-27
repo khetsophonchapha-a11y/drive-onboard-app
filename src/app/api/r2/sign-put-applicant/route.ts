@@ -18,6 +18,10 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    if (!process.env.R2_BUCKET) {
+      throw new Error("R2_BUCKET environment variable is not set");
+    }
+
     const { applicationId, docType, fileName, mime, size, md5 } = Body.parse(await req.json());
     await assertApplicantOwner(applicationId, req); // ตรวจว่าเป็นเจ้าของจริง
     
@@ -29,7 +33,7 @@ export async function POST(req: NextRequest) {
     const key = `applications/${applicationId}/${docType}/${Date.now()}-${fileName}`;
     
     const cmd = new PutObjectCommand({ 
-        Bucket: process.env.R2_BUCKET!, 
+        Bucket: process.env.R2_BUCKET, 
         Key: key, 
         ContentType: mime,
         ...(md5 ? { ContentMD5: md5 } : {}) 
@@ -44,6 +48,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof z.ZodError) {
         return NextResponse.json({ error: "Invalid request body", details: error.issues }, { status: 400 });
     }
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    // Return a more generic error to the client
+    return NextResponse.json({ error: "Could not create upload URL." }, { status: 500 });
   }
 }
