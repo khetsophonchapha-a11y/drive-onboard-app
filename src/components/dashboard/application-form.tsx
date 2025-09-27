@@ -92,13 +92,13 @@ export function ApplicationForm() {
       applicant: { firstName: "", lastName: "", email: "", phone: "", address: "", dateOfBirth: "" },
       vehicle: { make: "", model: "", year: undefined, licensePlate: "", vin: "" },
       guarantor: { firstName: "", lastName: "", phone: "", email: "", address: "" },
-      documents: requiredDocumentsSchema.map(doc => ({ 
-        ...doc, 
-        upload: { status: 'pending', progress: 0, file: null } 
+      documents: requiredDocumentsSchema.map(doc => ({
+        ...doc,
+        upload: { status: 'pending', progress: 0, file: null }
       }))
     },
   });
-  
+
   const { fields: documentFields, update: updateDocument } = useFieldArray({
     control: form.control,
     name: "documents"
@@ -110,8 +110,8 @@ export function ApplicationForm() {
     const currentDocument = form.getValues(`documents.${index}`);
     const applicationId = 'temp-' + Date.now(); // In a real app, you'd get this after saving a draft.
 
-    updateDocument(index, { 
-        ...currentDocument, 
+    updateDocument(index, {
+        ...currentDocument,
         upload: { status: 'uploading', progress: 5, file: file, errorMessage: undefined }
     });
 
@@ -135,12 +135,12 @@ export function ApplicationForm() {
         }),
       });
 
+      const responseBody = await signResponse.json();
       if (!signResponse.ok) {
-        const errorData = await signResponse.json();
-        throw new Error(errorData.error || 'ไม่สามารถขอ URL สำหรับอัปโหลดได้');
+        throw new Error(responseBody.error || 'ไม่สามารถขอ URL สำหรับอัปโหลดได้');
       }
 
-      const { url, key } = await signResponse.json();
+      const { url, key } = responseBody;
       updateDocument(index, { ...currentDocument, upload: { ...currentDocument.upload, status: 'uploading', progress: 40 }});
 
       // 2. Upload file to R2
@@ -162,25 +162,25 @@ export function ApplicationForm() {
 
 
       // 3. Mark as success
-      updateDocument(index, { 
-          ...currentDocument, 
-          upload: { 
-              status: 'success', 
-              progress: 100, 
+      updateDocument(index, {
+          ...currentDocument,
+          upload: {
+              status: 'success',
+              progress: 100,
               file: file,
               r2Key: key,
               fileName: file.name,
-              errorMessage: undefined 
+              errorMessage: undefined
           }
       });
 
     } catch (error: any) {
       console.error("Upload process error:", error);
-      updateDocument(index, { 
-          ...currentDocument, 
-          upload: { 
-              status: 'error', 
-              progress: 0, 
+      updateDocument(index, {
+          ...currentDocument,
+          upload: {
+              status: 'error',
+              progress: 0,
               file: file,
               errorMessage: error.message || 'เกิดข้อผิดพลาดที่ไม่รู้จัก'
           }
@@ -195,7 +195,7 @@ export function ApplicationForm() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    
+
     // Filter for only successfully uploaded files
     const uploadedDocuments = values.documents
         .filter(doc => doc.upload.status === 'success' && doc.upload.r2Key)
@@ -204,14 +204,14 @@ export function ApplicationForm() {
             r2Key: doc.upload.r2Key,
             fileName: doc.upload.fileName,
         }));
-        
+
     const submissionData = {
         ...values,
         documents: uploadedDocuments
     }
 
     console.log("Form submission data:", submissionData);
-    
+
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -220,7 +220,7 @@ export function ApplicationForm() {
       description: `ใบสมัครสำหรับ ${values.applicant.firstName} ${values.applicant.lastName} ถูกสร้างเรียบร้อยแล้ว`,
       variant: "default"
     });
-    
+
     setIsSubmitting(false);
     // In a real scenario, you might redirect to a "thank you" page
     // For now, redirecting to dashboard
@@ -267,7 +267,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>ยี่ห้อรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.model" render={({ field }) => (
-                  <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></Message /></FormItem>
+                  <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.year" render={({ field }) => (
                   <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
@@ -276,13 +276,13 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.vin" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>เลขตัวถัง (VIN)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></Message /></FormItem>
+                  <FormItem className="md:col-span-2"><FormLabel>เลขตัวถัง (VIN)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
             </div>
 
             <Separator />
-            
+
             {/* Guarantor Section */}
             <div className="space-y-4">
               <CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle>
@@ -304,7 +304,7 @@ export function ApplicationForm() {
                 )} />
               </div>
             </div>
-            
+
             <Separator />
 
             {/* Documents Section */}
@@ -330,7 +330,7 @@ export function ApplicationForm() {
                           </Button>
                         )}
                       </div>
-                      
+
                       {isPending && <p className="text-sm text-muted-foreground">ยังไม่ได้เลือกไฟล์</p>}
 
                       {isUploading && (
@@ -339,7 +339,7 @@ export function ApplicationForm() {
                           <p className="text-sm text-muted-foreground mt-1">กำลังอัปโหลด... {uploadState.progress}%</p>
                         </div>
                       )}
-                      
+
                       {isSuccess && (
                         <div className="flex items-center gap-2 text-sm text-green-600 mt-1">
                           <FileCheck className="w-4 h-4" />
@@ -354,7 +354,7 @@ export function ApplicationForm() {
                         </div>
                       )}
                     </div>
-                    
+
                     <FormField
                       control={form.control}
                       name={`documents.${index}.upload`}
