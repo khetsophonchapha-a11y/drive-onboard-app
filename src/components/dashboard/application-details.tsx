@@ -102,12 +102,14 @@ function DocumentGroup({
     isEditMode,
     onFileUpload,
     onFileDelete,
+    onFileReplace,
     files = []
 }: {
     docSchema: typeof requiredDocumentsSchema[0];
     isEditMode: boolean;
     onFileUpload: (docId: string, file: File) => void;
     onFileDelete: (docId: string, r2Key: string) => void;
+    onFileReplace: (docId: string, file: File, oldR2Key: string) => void;
     files: FileRef[];
 }) {
     const hasFile = files.length > 0;
@@ -132,6 +134,24 @@ function DocumentGroup({
                             </div>
                             {isEditMode && (
                                 <div className="flex gap-2 pt-1 justify-end">
+                                    {!allowMultiple && (
+                                        <Button asChild size="sm" variant="outline" type="button">
+                                             <label className="cursor-pointer">
+                                                <Pencil className="h-4 w-4 mr-1" /> เปลี่ยนไฟล์
+                                                <Input
+                                                    type="file"
+                                                    className="hidden"
+                                                    accept="image/jpeg,image/png,application/pdf"
+                                                    onChange={(e) => {
+                                                        if (e.target.files?.[0]) {
+                                                            onFileReplace(docSchema.id, e.target.files[0], docRef.r2Key);
+                                                            e.target.value = '';
+                                                        }
+                                                    }}
+                                                />
+                                            </label>
+                                        </Button>
+                                    )}
                                     <Button size="sm" variant="destructive" type="button" onClick={() => onFileDelete(docSchema.id, docRef.r2Key)}>
                                         <Trash2 className="h-4 w-4 mr-1" /> ลบ
                                     </Button>
@@ -188,6 +208,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     control,
     reset,
     setValue,
+    getValues,
     formState: { isDirty },
   } = form;
 
@@ -197,106 +218,103 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     }
     setIsEditMode(!isEditMode);
   };
+  
+  const uploadAndGetRef = async (docId: string, file: File): Promise<FileRef> => {
+     const docSchema = requiredDocumentsSchema.find(d => d.id === docId);
+     if (!docSchema) throw new Error("Document schema not found");
 
-  const handleFileUpload = async (docId: string, file: File) => {
-        const docSchema = requiredDocumentsSchema.find(d => d.id === docId);
-        if (!docSchema) return;
+     toast({ title: 'กำลังอัปโหลด...', description: file.name });
+     
+     try {
+         const md5 = await md5Base64(file);
+         
+         const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
+             method: 'POST', headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+                 applicationId: initialApplication.appId, docType: docSchema.type, fileName: file.name,
+                 mime: file.type, size: file.size, md5,
+             }),
+         });
+         const { url, key } = await signResponse.json();
 
-        toast({ title: 'กำลังอัปโหลด...', description: file.name });
-        
-        try {
-            const md5 = await md5Base64(file);
-            
-            const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    applicationId: initialApplication.appId, docType: docSchema.type, fileName: file.name,
-                    mime: file.type, size: file.size, md5,
-                }),
-            });
-            const { url, key } = await signResponse.json();
+         await safeFetch(url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type, 'Content-MD5': md5 } });
+         
+         const newFileRef: FileRef = { r2Key: key, mime: file.type, size: file.size, md5 };
+         toast({ title: 'อัปโหลดไฟล์สำเร็จ!', description: file.name, variant: 'default' });
 
-            await safeFetch(url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type, 'Content-MD5': md5 } });
-            
-            const newFileRef: FileRef = { r2Key: key, mime: file.type, size: file.size, md5 };
+         return newFileRef;
 
-            // Update form state
-            switch (docId) {
-                case 'doc-car-photo':
-                    const currentPhotos = form.getValues('docs.carPhotos') || [];
-                    setValue('docs.carPhotos', [...currentPhotos, newFileRef], { shouldDirty: true });
-                    break;
-                case 'doc-insurance':
-                    setValue('docs.insurance.policy', newFileRef, { shouldDirty: true });
-                    break;
-                 case 'doc-citizen-id':
-                    setValue('docs.citizenIdCopy', newFileRef, { shouldDirty: true });
-                    break;
-                case 'doc-drivers-license':
-                    setValue('docs.driverLicenseCopy', newFileRef, { shouldDirty: true });
-                    break;
-                case 'doc-house-reg':
-                    setValue('docs.houseRegCopy', newFileRef, { shouldDirty: true });
-                    break;
-                case 'doc-car-reg':
-                    setValue('docs.carRegCopy', newFileRef, { shouldDirty: true });
-                    break;
-                case 'doc-bank-account':
-                    setValue('docs.kbankBookFirstPage', newFileRef, { shouldDirty: true });
-                    break;
-                case 'doc-tax-act':
-                    setValue('docs.taxAndPRB', newFileRef, { shouldDirty: true });
-                    break;
-                case 'doc-guarantor-citizen-id':
-                    setValue('docs.guarantorCitizenIdCopy', newFileRef, { shouldDirty: true });
-                    break;
-                case 'doc-guarantor-house-reg':
-                    setValue('docs.guarantorHouseRegCopy', newFileRef, { shouldDirty: true });
-                    break;
-            }
-
-            toast({ title: 'อัปโหลดไฟล์สำเร็จ!', description: file.name, variant: 'default' });
-
-        } catch (error: any) {
-             toast({ variant: 'destructive', title: 'อัปโหลดล้มเหลว', description: error.message });
-        }
-    };
-
-    const handleFileDelete = (docId: string, r2Key: string) => {
-        switch (docId) {
+     } catch (error: any) {
+          toast({ variant: 'destructive', title: 'อัปโหลดล้มเหลว', description: error.message });
+          throw error; // re-throw to be caught by caller
+     }
+  }
+  
+  const updateDocsState = (docId: string, fileRef: FileRef | FileRef[] | undefined) => {
+       switch (docId) {
             case 'doc-car-photo':
-                const currentPhotos = form.getValues('docs.carPhotos') || [];
-                setValue('docs.carPhotos', currentPhotos.filter(p => p.r2Key !== r2Key), { shouldDirty: true });
+                setValue('docs.carPhotos', fileRef as FileRef[] | undefined, { shouldDirty: true });
                 break;
             case 'doc-insurance':
-                setValue('docs.insurance.policy', undefined, { shouldDirty: true });
-                break;
+                 setValue('docs.insurance.policy', fileRef as FileRef | undefined, { shouldDirty: true });
+                 break;
             case 'doc-citizen-id':
-                setValue('docs.citizenIdCopy', undefined, { shouldDirty: true });
+                setValue('docs.citizenIdCopy', fileRef as FileRef | undefined, { shouldDirty: true });
                 break;
             case 'doc-drivers-license':
-                setValue('docs.driverLicenseCopy', undefined, { shouldDirty: true });
+                setValue('docs.driverLicenseCopy', fileRef as FileRef | undefined, { shouldDirty: true });
                 break;
             case 'doc-house-reg':
-                setValue('docs.houseRegCopy', undefined, { shouldDirty: true });
+                setValue('docs.houseRegCopy', fileRef as FileRef | undefined, { shouldDirty: true });
                 break;
             case 'doc-car-reg':
-                setValue('docs.carRegCopy', undefined, { shouldDirty: true });
+                setValue('docs.carRegCopy', fileRef as FileRef | undefined, { shouldDirty: true });
                 break;
             case 'doc-bank-account':
-                setValue('docs.kbankBookFirstPage', undefined, { shouldDirty: true });
+                setValue('docs.kbankBookFirstPage', fileRef as FileRef | undefined, { shouldDirty: true });
                 break;
             case 'doc-tax-act':
-                setValue('docs.taxAndPRB', undefined, { shouldDirty: true });
+                setValue('docs.taxAndPRB', fileRef as FileRef | undefined, { shouldDirty: true });
                 break;
             case 'doc-guarantor-citizen-id':
-                setValue('docs.guarantorCitizenIdCopy', undefined, { shouldDirty: true });
+                setValue('docs.guarantorCitizenIdCopy', fileRef as FileRef | undefined, { shouldDirty: true });
                 break;
             case 'doc-guarantor-house-reg':
-                setValue('docs.guarantorHouseRegCopy', undefined, { shouldDirty: true });
+                setValue('docs.guarantorHouseRegCopy', fileRef as FileRef | undefined, { shouldDirty: true });
                 break;
         }
-        toast({ title: 'ลบไฟล์สำเร็จ', description: 'ไฟล์จะถูกลบออกเมื่อคุณบันทึกการเปลี่ยนแปลง' });
+  }
+
+
+  const handleFileUpload = async (docId: string, file: File) => {
+        try {
+            const newFileRef = await uploadAndGetRef(docId, file);
+            if (docId === 'doc-car-photo') {
+                const currentPhotos = getValues('docs.carPhotos') || [];
+                updateDocsState(docId, [...currentPhotos, newFileRef]);
+            } else {
+                updateDocsState(docId, newFileRef);
+            }
+        } catch (error) {
+            console.error("File upload process failed", error);
+        }
+    };
+    
+  const handleFileReplace = async (docId: string, file: File, oldR2Key: string) => {
+        // For single-file docs, replacing is just a delete and upload
+        handleFileDelete(docId, oldR2Key);
+        await handleFileUpload(docId, file);
+    };
+
+
+    const handleFileDelete = (docId: string, r2Key: string) => {
+        if (docId === 'doc-car-photo') {
+            const currentPhotos = getValues('docs.carPhotos') || [];
+            updateDocsState(docId, currentPhotos.filter(p => p.r2Key !== r2Key));
+        } else {
+            updateDocsState(docId, undefined);
+        }
+        toast({ title: 'ลบไฟล์สำเร็จ', description: 'การเปลี่ยนแปลงจะถูกบันทึกเมื่อคุณกดปุ่ม "บันทึกการเปลี่ยนแปลง"' });
     };
 
 
@@ -465,6 +483,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                     files={getDocRefs(reqDoc.id)}
                     onFileUpload={handleFileUpload}
                     onFileDelete={handleFileDelete}
+                    onFileReplace={handleFileReplace}
                 />
             ))}
           </CardContent>
