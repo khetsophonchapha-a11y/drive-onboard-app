@@ -109,7 +109,6 @@ export function DocumentViewer({ fileRef, previewUrl }: DocumentViewerProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full w-full gap-2 p-2">
         <FileIcon className="h-8 w-8 text-muted-foreground" />
-        <p className="text-sm text-center text-muted-foreground">ไม่สามารถแสดงตัวอย่างได้</p>
         <Button asChild size="sm">
             <a href={url} download={fileName}>
                 <Download className="mr-2 h-4 w-4" />
