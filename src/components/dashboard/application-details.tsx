@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { requiredDocumentsSchema } from "@/lib/schema";
+import { DocumentViewer } from "@/components/dashboard/document-viewer";
 
 type ApplicationDetailsProps = {
   application: Manifest;
@@ -133,11 +134,10 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                       </div>
                   </div>
 
-                  {hasFile && (
+                  {hasFile && docRef && (
                     <div className="flex flex-col md:flex-row gap-4">
-                      {/* Placeholder for image/doc viewer */}
-                      <div className="relative w-full md:w-1/3 aspect-video rounded-md overflow-hidden border bg-muted flex items-center justify-center">
-                          <p className="text-xs text-muted-foreground">Viewer (TODO)</p>
+                      <div className="relative w-full md:w-1/3 aspect-video rounded-md overflow-hidden border bg-muted">
+                        <DocumentViewer fileRef={docRef} />
                       </div>
                       <div className="flex-1 space-y-2">
                           <p className="text-xs text-muted-foreground break-all">R2 Key: {docRef.r2Key}</p>
