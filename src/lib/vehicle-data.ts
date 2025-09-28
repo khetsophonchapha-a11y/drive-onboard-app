@@ -1,16 +1,18 @@
 
 export const carBrands = [
-  { name: 'Toyota', models: ['Vios', 'Yaris', 'Corolla Altis', 'Camry', 'Fortuner', 'Hilux Revo', 'Innova', 'C-HR'] },
-  { name: 'Honda', models: ['City', 'Jazz', 'Civic', 'Accord', 'CR-V', 'HR-V', 'BR-V'] },
-  { name: 'Isuzu', models: ['D-Max', 'MU-X'] },
-  { name: 'Mitsubishi', models: ['Mirage', 'Attrage', 'Triton', 'Pajero Sport', 'Xpander'] },
-  { name: 'Nissan', models: ['March', 'Almera', 'Sylphy', 'Teana', 'Navara', 'Terra', 'Kicks'] },
-  { name: 'Ford', models: ['Ranger', 'Everest'] },
-  { name: 'Mazda', models: ['Mazda2', 'Mazda3', 'CX-3', 'CX-30', 'CX-5', 'CX-8', 'BT-50'] },
-  { name: 'Suzuki', models: ['Swift', 'Ciaz', 'Ertiga', 'Carry', 'XL7'] },
-  { name: 'MG', models: ['MG3', 'MG5', 'MG ZS', 'MG HS', 'Extender'] },
-  { name: 'GWM', models: ['Haval H6', 'Haval Jolion', 'Ora Good Cat'] },
-  { name: 'BYD', models: ['ATTO 3', 'Dolphin', 'Seal'] },
+  { name: 'Isuzu', models: ['D-Max', 'MU-X', 'Elf (N-Series)', 'Forward (F-Series)', 'Giga'] },
+  { name: 'Toyota', models: ['Hilux Revo', 'Fortuner', 'Hiace', 'Commuter', 'Vios', 'Yaris', 'Corolla Altis', 'Camry'] },
+  { name: 'Mitsubishi', models: ['Triton', 'Pajero Sport', 'Mirage', 'Attrage', 'Xpander'] },
+  { name: 'Ford', models: ['Ranger', 'Everest', 'Transit'] },
+  { name: 'Nissan', models: ['Navara', 'Urvan', 'Terra', 'Almera', 'Kicks'] },
+  { name: 'Hino', models: ['300 Series', '500 Series', '700 Series'] },
+  { name: 'Mitsubishi Fuso', models: ['Canter', 'Fighter'] },
+  { name: 'Honda', models: ['City', 'Civic', 'Accord', 'CR-V', 'HR-V'] },
+  { name: 'Mazda', models: ['BT-50', 'Mazda2', 'Mazda3', 'CX-5'] },
+  { name: 'Suzuki', models: ['Carry', 'Swift', 'Ciaz', 'Ertiga'] },
+  { name: 'MG', models: ['Extender', 'MG5', 'MG ZS', 'MG HS'] },
+  { name: 'GWM', models: ['Poer Sahar', 'Haval H6', 'Haval Jolion', 'Ora Good Cat'] },
+  { name: 'BYD', models: ['T3', 'ATTO 3', 'Dolphin', 'Seal'] },
 ];
 
 export const carColors = [
