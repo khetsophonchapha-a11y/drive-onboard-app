@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { Manifest, FileRef, VerificationStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,10 +34,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ManifestSchema, FileRefSchema } from "@/lib/types";
-import * as z from 'zod';
+import { ManifestSchema } from "@/lib/types";
 
 import { requiredDocumentsSchema } from "@/lib/schema";
 import { DocumentViewer } from "@/components/dashboard/document-viewer";
@@ -57,6 +56,17 @@ import { Separator } from "../ui/separator";
 
 type ApplicationDetailsProps = {
   application: Manifest;
+};
+
+type TempFile = {
+    docId: string;
+    file: File;
+    objectUrl: string; // For client-side preview
+};
+
+type FileChanges = {
+    toUpload: TempFile[];
+    toDelete: string[]; // r2Keys
 };
 
 const statusText: Record<VerificationStatus, string> = {
@@ -100,17 +110,15 @@ async function md5Base64(file: File) {
 function DocumentGroup({
     docSchema,
     isEditMode,
+    files, // Combined existing and temp files for display
     onFileUpload,
     onFileDelete,
-    onFileReplace,
-    files = []
 }: {
     docSchema: typeof requiredDocumentsSchema[0];
     isEditMode: boolean;
-    onFileUpload: (docId: string, file: File) => void;
-    onFileDelete: (docId: string, r2Key: string) => void;
-    onFileReplace: (docId: string, file: File, oldR2Key: string) => void;
-    files: FileRef[];
+    files: { type: 'existing' | 'temp', ref: FileRef | TempFile, displayUrl: string }[];
+    onFileUpload: (docId: string, file: File, replaceKey?: string) => void;
+    onFileDelete: (docId: string, key: string) => void;
 }) {
     const hasFile = files.length > 0;
     const allowMultiple = docSchema.id === 'doc-car-photo';
@@ -127,10 +135,17 @@ function DocumentGroup({
 
             {hasFile ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {files.map((docRef) => (
-                        <div key={docRef.r2Key} className="flex flex-col gap-2">
-                            <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted">
-                                <DocumentViewer fileRef={docRef} />
+                    {files.map((fileItem) => (
+                        <div key={fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl} className="flex flex-col gap-2">
+                             <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted">
+                                <DocumentViewer
+                                    fileRef={{
+                                        r2Key: fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).file.name,
+                                        mime: fileItem.type === 'existing' ? fileItem.ref.mime : (fileItem.ref as TempFile).file.type,
+                                        size: fileItem.type === 'existing' ? fileItem.ref.size : (fileItem.ref as TempFile).file.size,
+                                    }}
+                                    previewUrl={fileItem.displayUrl}
+                                />
                             </div>
                             {isEditMode && (
                                 <div className="flex gap-2 pt-1 justify-end">
@@ -144,7 +159,8 @@ function DocumentGroup({
                                                     accept="image/jpeg,image/png,application/pdf"
                                                     onChange={(e) => {
                                                         if (e.target.files?.[0]) {
-                                                            onFileReplace(docSchema.id, e.target.files[0], docRef.r2Key);
+                                                            const keyToDelete = fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl;
+                                                            onFileUpload(docSchema.id, e.target.files[0], keyToDelete);
                                                             e.target.value = '';
                                                         }
                                                     }}
@@ -152,7 +168,7 @@ function DocumentGroup({
                                             </label>
                                         </Button>
                                     )}
-                                    <Button size="sm" variant="destructive" type="button" onClick={() => onFileDelete(docSchema.id, docRef.r2Key)}>
+                                    <Button size="sm" variant="destructive" type="button" onClick={() => onFileDelete(docSchema.id, fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl)}>
                                         <Trash2 className="h-4 w-4 mr-1" /> ลบ
                                     </Button>
                                 </div>
@@ -198,6 +214,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   const applicantName = initialApplication.applicant.fullName;
   const { toast } = useToast();
 
+  const [fileChanges, setFileChanges] = useState<FileChanges>({ toUpload: [], toDelete: [] });
+
   const form = useForm<Manifest>({
     resolver: zodResolver(ManifestSchema),
     defaultValues: initialApplication,
@@ -207,128 +225,190 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     handleSubmit,
     control,
     reset,
-    setValue,
-    getValues,
     formState: { isDirty },
   } = form;
 
+   // Revoke object URLs on cleanup
+    useEffect(() => {
+        return () => {
+            fileChanges.toUpload.forEach(tempFile => URL.revokeObjectURL(tempFile.objectUrl));
+        };
+    }, [fileChanges.toUpload]);
+
+
   const handleEditToggle = () => {
     if (isEditMode) {
-      reset(initialApplication); // Reset form to initial values if canceling edit
+      reset(initialApplication); // Reset form to initial values
+      setFileChanges({ toUpload: [], toDelete: [] }); // Reset file changes
     }
     setIsEditMode(!isEditMode);
   };
   
-  const uploadAndGetRef = async (docId: string, file: File): Promise<FileRef> => {
-     const docSchema = requiredDocumentsSchema.find(d => d.id === docId);
-     if (!docSchema) throw new Error("Document schema not found");
+  const handleFileUpload = (docId: string, file: File, replaceKey?: string) => {
+    const objectUrl = URL.createObjectURL(file);
+    const newTempFile: TempFile = { docId, file, objectUrl };
 
-     toast({ title: 'กำลังอัปโหลด...', description: file.name });
-     
-     try {
-         const md5 = await md5Base64(file);
-         
-         const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
-             method: 'POST', headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({
-                 applicationId: initialApplication.appId, docType: docSchema.type, fileName: file.name,
-                 mime: file.type, size: file.size, md5,
-             }),
-         });
-         const { url, key } = await signResponse.json();
+    setFileChanges(prev => {
+        const newUploads = [...prev.toUpload];
+        const newDeletes = [...prev.toDelete];
 
-         await safeFetch(url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type, 'Content-MD5': md5 } });
-         
-         const newFileRef: FileRef = { r2Key: key, mime: file.type, size: file.size, md5 };
-         toast({ title: 'อัปโหลดไฟล์สำเร็จ!', description: file.name, variant: 'default' });
-
-         return newFileRef;
-
-     } catch (error: any) {
-          toast({ variant: 'destructive', title: 'อัปโหลดล้มเหลว', description: error.message });
-          throw error; // re-throw to be caught by caller
-     }
-  }
-  
-  const updateDocsState = (docId: string, fileRef: FileRef | FileRef[] | undefined) => {
-       switch (docId) {
-            case 'doc-car-photo':
-                setValue('docs.carPhotos', fileRef as FileRef[] | undefined, { shouldDirty: true });
-                break;
-            case 'doc-insurance':
-                 setValue('docs.insurance.policy', fileRef as FileRef | undefined, { shouldDirty: true });
-                 break;
-            case 'doc-citizen-id':
-                setValue('docs.citizenIdCopy', fileRef as FileRef | undefined, { shouldDirty: true });
-                break;
-            case 'doc-drivers-license':
-                setValue('docs.driverLicenseCopy', fileRef as FileRef | undefined, { shouldDirty: true });
-                break;
-            case 'doc-house-reg':
-                setValue('docs.houseRegCopy', fileRef as FileRef | undefined, { shouldDirty: true });
-                break;
-            case 'doc-car-reg':
-                setValue('docs.carRegCopy', fileRef as FileRef | undefined, { shouldDirty: true });
-                break;
-            case 'doc-bank-account':
-                setValue('docs.kbankBookFirstPage', fileRef as FileRef | undefined, { shouldDirty: true });
-                break;
-            case 'doc-tax-act':
-                setValue('docs.taxAndPRB', fileRef as FileRef | undefined, { shouldDirty: true });
-                break;
-            case 'doc-guarantor-citizen-id':
-                setValue('docs.guarantorCitizenIdCopy', fileRef as FileRef | undefined, { shouldDirty: true });
-                break;
-            case 'doc-guarantor-house-reg':
-                setValue('docs.guarantorHouseRegCopy', fileRef as FileRef | undefined, { shouldDirty: true });
-                break;
-        }
-  }
-
-
-  const handleFileUpload = async (docId: string, file: File) => {
-        try {
-            const newFileRef = await uploadAndGetRef(docId, file);
-            if (docId === 'doc-car-photo') {
-                const currentPhotos = getValues('docs.carPhotos') || [];
-                updateDocsState(docId, [...currentPhotos, newFileRef]);
-            } else {
-                updateDocsState(docId, newFileRef);
+        // If it's a replacement for a single-file doc
+        if (replaceKey) {
+            // If replacing an existing file, add its r2Key to toDelete
+            if (initialApplication.docs && Object.values(initialApplication.docs).flat().some(f => f && f.r2Key === replaceKey)) {
+                 if (!newDeletes.includes(replaceKey)) {
+                    newDeletes.push(replaceKey);
+                 }
             }
-        } catch (error) {
-            console.error("File upload process failed", error);
+             // Remove the old temp file being replaced, if any
+            const uploadIndex = newUploads.findIndex(f => f.objectUrl === replaceKey);
+            if (uploadIndex > -1) {
+                URL.revokeObjectURL(newUploads[uploadIndex].objectUrl);
+                newUploads.splice(uploadIndex, 1);
+            }
         }
-    };
-    
-  const handleFileReplace = async (docId: string, file: File, oldR2Key: string) => {
-        // For single-file docs, replacing is just a delete and upload
-        handleFileDelete(docId, oldR2Key);
-        await handleFileUpload(docId, file);
-    };
-
-
-    const handleFileDelete = (docId: string, r2Key: string) => {
-        if (docId === 'doc-car-photo') {
-            const currentPhotos = getValues('docs.carPhotos') || [];
-            updateDocsState(docId, currentPhotos.filter(p => p.r2Key !== r2Key));
-        } else {
-            updateDocsState(docId, undefined);
+        
+        const allowMultiple = docId === 'doc-car-photo';
+        if (!allowMultiple) {
+            // For single-file docs, remove any existing temp file for this docId
+            const existingTempIndex = newUploads.findIndex(f => f.docId === docId);
+            if (existingTempIndex > -1) {
+                 URL.revokeObjectURL(newUploads[existingTempIndex].objectUrl);
+                 newUploads.splice(existingTempIndex, 1);
+            }
+             // Also mark the original file for deletion if it exists
+             const originalFile = getOriginalFileForDocId(docId);
+             if (originalFile && !newDeletes.includes(originalFile.r2Key)) {
+                 newDeletes.push(originalFile.r2Key);
+             }
         }
+        
+        newUploads.push(newTempFile);
+        
+        return { toUpload: newUploads, toDelete: newDeletes };
+    });
+    form.trigger(); // Mark form as dirty
+  };
+  
+    const handleFileDelete = (docId: string, key: string) => { // key can be r2Key or objectUrl
+        setFileChanges(prev => {
+            const newUploads = prev.toUpload.filter(f => {
+                if (f.objectUrl === key) {
+                    URL.revokeObjectURL(f.objectUrl);
+                    return false;
+                }
+                return true;
+            });
+            const newDeletes = [...prev.toDelete];
+            
+            // If it's an r2Key and not already marked for deletion, add it
+            if (key.startsWith('applications/') && !newDeletes.includes(key)) {
+                newDeletes.push(key);
+            }
+            
+            return { toUpload: newUploads, toDelete: newDeletes };
+        });
         toast({ title: 'ลบไฟล์สำเร็จ', description: 'การเปลี่ยนแปลงจะถูกบันทึกเมื่อคุณกดปุ่ม "บันทึกการเปลี่ยนแปลง"' });
+        form.trigger(); // Mark form as dirty
     };
 
 
   const onSubmit = async (values: Manifest) => {
       setIsSubmitting(true);
+      
+      const newManifest = JSON.parse(JSON.stringify(values));
+
       try {
+        // Step 1: Upload new files
+        const uploadedFileRefs: Record<string, FileRef | FileRef[]> = {};
+
+        const uploadPromises = fileChanges.toUpload.map(async tempFile => {
+            const { docId, file } = tempFile;
+            toast({ title: 'กำลังอัปโหลด...', description: file.name });
+            try {
+                const md5 = await md5Base64(file);
+                const docSchema = requiredDocumentsSchema.find(d => d.id === docId);
+                if (!docSchema) throw new Error(`Schema not found for ${docId}`);
+
+                const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        applicationId: initialApplication.appId, docType: docSchema.type, fileName: file.name,
+                        mime: file.type, size: file.size, md5,
+                    }),
+                });
+                const { url, key } = await signResponse.json();
+
+                await safeFetch(url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type, 'Content-MD5': md5 } });
+                
+                const newFileRef: FileRef = { r2Key: key, mime: file.type, size: file.size, md5 };
+                toast({ title: 'อัปโหลดสำเร็จ!', description: file.name, variant: 'default' });
+                return { docId, ref: newFileRef };
+            } catch (error: any) {
+                 toast({ variant: 'destructive', title: `อัปโหลด ${file.name} ล้มเหลว`, description: error.message });
+                 throw error;
+            }
+        });
+
+        const uploadResults = await Promise.all(uploadPromises);
+
+        // Step 2: Assemble the new manifest.docs object
+        // Start with existing docs that are NOT marked for deletion
+        if (newManifest.docs) {
+            for (const key in newManifest.docs) {
+                const docKey = key as keyof Manifest['docs'];
+                const docValue = newManifest.docs[docKey];
+                if (Array.isArray(docValue)) { // carPhotos
+                     newManifest.docs[docKey] = docValue.filter(ref => ref && !fileChanges.toDelete.includes(ref.r2Key));
+                } else if (docValue && typeof docValue === 'object' && 'r2Key' in docValue) { // FileRef
+                    if (fileChanges.toDelete.includes(docValue.r2Key)) {
+                         delete newManifest.docs[docKey];
+                    }
+                } else if (docValue && typeof docValue === 'object' && 'policy' in docValue) { // Insurance
+                    if (docValue.policy && fileChanges.toDelete.includes(docValue.policy.r2Key)) {
+                        delete docValue.policy;
+                    }
+                }
+            }
+        }
+        
+
+        // Add the newly uploaded files
+        for (const { docId, ref } of uploadResults) {
+            const docMapping = {
+                'doc-citizen-id': 'citizenIdCopy',
+                'doc-drivers-license': 'driverLicenseCopy',
+                'doc-house-reg': 'houseRegCopy',
+                'doc-car-reg': 'carRegCopy',
+                'doc-bank-account': 'kbankBookFirstPage',
+                'doc-tax-act': 'taxAndPRB',
+                'doc-guarantor-citizen-id': 'guarantorCitizenIdCopy',
+                'doc-guarantor-house-reg': 'guarantorHouseRegCopy',
+            };
+            if (docId === 'doc-car-photo') {
+                if (!newManifest.docs.carPhotos) newManifest.docs.carPhotos = [];
+                newManifest.docs.carPhotos.push(ref);
+            } else if (docId === 'doc-insurance') {
+                if (!newManifest.docs.insurance) newManifest.docs.insurance = {};
+                newManifest.docs.insurance.policy = ref;
+            } else {
+                 const key = docMapping[docId as keyof typeof docMapping];
+                 if (key) {
+                     (newManifest.docs as any)[key] = ref;
+                 }
+            }
+        }
+
+        // Step 3: Submit the final manifest
         await safeFetch('/api/applications/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ appId: values.appId, manifest: values })
+            body: JSON.stringify({ appId: newManifest.appId, manifest: newManifest })
         });
         toast({ title: "บันทึกข้อมูลสำเร็จ!", description: "ข้อมูลใบสมัครได้รับการอัปเดตแล้ว", variant: "default" });
-        setIsEditMode(false); // Exit edit mode on successful submission
-        reset(values); // Update the form's default values to the new state
+        setIsEditMode(false); 
+        reset(newManifest); // Update the form's default values
+        setFileChanges({ toUpload: [], toDelete: [] }); // Clear changes
 
       } catch (error: any) {
         toast({
@@ -354,36 +434,77 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     });
     setTimeout(() => setEditLinkCopied(false), 2000);
   };
+  
+  const getOriginalFileForDocId = (docId: string): FileRef | undefined => {
+        const docs = initialApplication.docs;
+        if (!docs) return undefined;
+        switch (docId) {
+            case 'doc-insurance': return docs.insurance?.policy;
+            case 'doc-citizen-id': return docs.citizenIdCopy;
+            case 'doc-drivers-license': return docs.driverLicenseCopy;
+            case 'doc-house-reg': return docs.houseRegCopy;
+            case 'doc-car-reg': return docs.carRegCopy;
+            case 'doc-bank-account': return docs.kbankBookFirstPage;
+            case 'doc-tax-act': return docs.taxAndPRB;
+            case 'doc-guarantor-citizen-id': return docs.guarantorCitizenIdCopy;
+            case 'doc-guarantor-house-reg': return docs.guarantorHouseRegCopy;
+            default: return undefined;
+        }
+    };
 
- const getDocRefs = (docId: string): FileRef[] => {
-    const docs = form.watch('docs'); // Watch for changes
-    if (!docs) return [];
-    
-    switch (docId) {
-      case 'doc-car-photo':
-        return docs.carPhotos || [];
-      case 'doc-insurance':
-        return docs.insurance?.policy ? [docs.insurance.policy] : [];
-      case 'doc-citizen-id':
-        return docs.citizenIdCopy ? [docs.citizenIdCopy] : [];
-      case 'doc-drivers-license':
-        return docs.driverLicenseCopy ? [docs.driverLicenseCopy] : [];
-      case 'doc-house-reg':
-        return docs.houseRegCopy ? [docs.houseRegCopy] : [];
-      case 'doc-car-reg':
-        return docs.carRegCopy ? [docs.carRegCopy] : [];
-      case 'doc-bank-account':
-        return docs.kbankBookFirstPage ? [docs.kbankBookFirstPage] : [];
-      case 'doc-tax-act':
-        return docs.taxAndPRB ? [docs.taxAndPRB] : [];
-      case 'doc-guarantor-citizen-id':
-        return docs.guarantorCitizenIdCopy ? [docs.guarantorCitizenIdCopy] : [];
-      case 'doc-guarantor-house-reg':
-        return docs.guarantorHouseRegCopy ? [docs.guarantorHouseRegCopy] : [];
-      default:
-        return [];
-    }
-  }
+
+ const getDisplayFiles = useMemo(() => (docId: string) => {
+        const displayFiles: { type: 'existing' | 'temp', ref: FileRef | TempFile, displayUrl: string }[] = [];
+        const tempUploadsForDoc = fileChanges.toUpload.filter(f => f.docId === docId);
+        
+        // Add temp files
+        for (const tempFile of tempUploadsForDoc) {
+            displayFiles.push({ type: 'temp', ref: tempFile, displayUrl: tempFile.objectUrl });
+        }
+
+        // Add existing files that haven't been marked for deletion
+        const addExistingFile = (fileRef: FileRef | undefined) => {
+            if (fileRef && !fileChanges.toDelete.includes(fileRef.r2Key) && !fileChanges.toUpload.some(t => t.docId === docId && docId !== 'doc-car-photo')) {
+                displayFiles.push({ type: 'existing', ref: fileRef, displayUrl: '' }); // displayUrl is empty, DocumentViewer will fetch it
+            }
+        };
+
+        switch (docId) {
+            case 'doc-car-photo':
+                initialApplication.docs?.carPhotos?.forEach(addExistingFile);
+                break;
+            case 'doc-insurance':
+                addExistingFile(initialApplication.docs?.insurance?.policy);
+                break;
+            case 'doc-citizen-id':
+                addExistingFile(initialApplication.docs?.citizenIdCopy);
+                break;
+            case 'doc-drivers-license':
+                addExistingFile(initialApplication.docs?.driverLicenseCopy);
+                break;
+            case 'doc-house-reg':
+                addExistingFile(initialApplication.docs?.houseRegCopy);
+                break;
+            case 'doc-car-reg':
+                addExistingFile(initialApplication.docs?.carRegCopy);
+                break;
+            case 'doc-bank-account':
+                addExistingFile(initialApplication.docs?.kbankBookFirstPage);
+                break;
+            case 'doc-tax-act':
+                addExistingFile(initialApplication.docs?.taxAndPRB);
+                break;
+            case 'doc-guarantor-citizen-id':
+                addExistingFile(initialApplication.docs?.guarantorCitizenIdCopy);
+                break;
+            case 'doc-guarantor-house-reg':
+                addExistingFile(initialApplication.docs?.guarantorHouseRegCopy);
+                break;
+        }
+        
+        return displayFiles;
+    }, [initialApplication.docs, fileChanges]);
+
   
   return (
     <Form {...form}>
@@ -480,10 +601,9 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                     key={reqDoc.id}
                     docSchema={reqDoc}
                     isEditMode={isEditMode}
-                    files={getDocRefs(reqDoc.id)}
+                    files={getDisplayFiles(reqDoc.id)}
                     onFileUpload={handleFileUpload}
                     onFileDelete={handleFileDelete}
-                    onFileReplace={handleFileReplace}
                 />
             ))}
           </CardContent>
@@ -541,7 +661,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                 </div>
            </CardFooter>
         </Card>
-        {isEditMode && isDirty && (
+        {isEditMode && (isDirty || fileChanges.toUpload.length > 0 || fileChanges.toDelete.length > 0) && (
             <div className="flex justify-end gap-2 sticky bottom-4">
                 <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
                 {isSubmitting ? (

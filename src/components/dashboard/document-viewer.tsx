@@ -11,6 +11,7 @@ import Image from 'next/image';
 
 type DocumentViewerProps = {
   fileRef: FileRef;
+  previewUrl?: string; // Optional direct URL for preview (e.g., from object URL)
 };
 
 async function getSignedUrl(r2Key: string): Promise<string> {
@@ -28,12 +29,19 @@ async function getSignedUrl(r2Key: string): Promise<string> {
   return url;
 }
 
-export function DocumentViewer({ fileRef }: DocumentViewerProps) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export function DocumentViewer({ fileRef, previewUrl }: DocumentViewerProps) {
+  const [url, setUrl] = useState<string | null>(previewUrl || null);
+  const [isLoading, setIsLoading] = useState(!previewUrl);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // If a previewUrl is provided, we don't need to fetch a signed URL.
+    if (previewUrl) {
+      setUrl(previewUrl);
+      setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
     const fetchUrl = async () => {
       setIsLoading(true);
@@ -59,7 +67,7 @@ export function DocumentViewer({ fileRef }: DocumentViewerProps) {
     return () => {
       isMounted = false;
     };
-  }, [fileRef.r2Key]);
+  }, [fileRef.r2Key, previewUrl]);
 
   if (isLoading) {
     return <Skeleton className="h-full w-full" />;
@@ -111,3 +119,5 @@ export function DocumentViewer({ fileRef }: DocumentViewerProps) {
     </div>
   );
 }
+
+    
