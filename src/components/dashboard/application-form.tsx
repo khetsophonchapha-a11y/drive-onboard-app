@@ -107,7 +107,7 @@ const formSchema = z.object({
     guarantor: guarantorSchema,
     documents: z.array(documentSchema)
       .refine(
-        (docs) => docs.every(doc => !doc.required || doc.upload.status === 'selected' || doc.upload.status === 'success'),
+        (docs) => docs.filter(d => d.required).every(doc => doc.upload.status === 'selected' || doc.upload.status === 'success'),
         {
           message: 'กรุณาอัปโหลดเอกสารที่จำเป็นให้ครบถ้วน',
         }
@@ -150,10 +150,15 @@ export function ApplicationForm() {
   });
 
   const watchBrand = form.watch('vehicle.brand');
-  const watchModel = form.watch('vehicle.model');
   const watchColor = form.watch('vehicle.color');
 
   const models = carBrands.find(b => b.name === watchBrand)?.models || [];
+
+  useEffect(() => {
+    // When brand changes, reset model
+    form.setValue('vehicle.model', '');
+    form.setValue('vehicle.modelOther', '');
+  }, [watchBrand, form]);
 
   const handleFileChange = (file: File | null, index: number) => {
     if (!file) return;
@@ -341,10 +346,10 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>นามสกุล<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={50} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.nationalId" render={({ field }) => (
-                  <FormItem><FormLabel>เลขบัตรประชาชน<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} placeholder="xxxxxxxxxxxxx" maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เลขบัตรประชาชน<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} placeholder="x-xxxx-xxxxx-xx-x" maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} placeholder="08x-xxx-xxxx" maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เบอร์โทรศัพท์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} placeholder="xxx-xxx-xxxx" maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.address" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ถ้ามี)</FormLabel><FormControl><Input {...field} maxLength={200} /></FormControl><FormMessage /></FormItem>
@@ -365,13 +370,7 @@ export function ApplicationForm() {
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>ยี่ห้อรถ</FormLabel>
-                                <Select onValueChange={(value) => { 
-                                    field.onChange(value);
-                                    form.setValue('vehicle.model', ''); 
-                                    form.setValue('vehicle.modelOther', '');
-                                }} 
-                                value={field.value}
-                                >
+                                <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                     <SelectTrigger><SelectValue placeholder="เลือกยี่ห้อรถ" /></SelectTrigger>
                                 </FormControl>
@@ -399,7 +398,7 @@ export function ApplicationForm() {
                             />
                         )}
                     </div>
-                    <div className={`grid ${watchModel === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
+                    <div className={`grid ${form.watch('vehicle.model') === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
                         <FormField
                             control={form.control}
                             name="vehicle.model"
@@ -419,7 +418,7 @@ export function ApplicationForm() {
                             </FormItem>
                             )}
                         />
-                         {watchModel === 'อื่นๆ' && (
+                         {form.watch('vehicle.model') === 'อื่นๆ' && (
                             <FormField
                                 control={form.control}
                                 name="vehicle.modelOther"
@@ -510,7 +509,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="08x-xxx-xxxx" maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="xxx-xxx-xxxx" maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.address" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={200} /></FormControl><FormMessage /></FormItem>
@@ -575,8 +574,8 @@ export function ApplicationForm() {
                           <FormControl>
                             <Button asChild variant="outline" disabled={uploadState.status === 'uploading' || isSubmitting}>
                               <label className="cursor-pointer">
-                                {uploadState.status === 'pending' ? <FileUp className="mr-2 h-4 w-4" /> : <X className="mr-2 h-4 w-4" />}
-                                {uploadState.status === 'pending' ? 'เลือกไฟล์' : 'เปลี่ยนไฟล์'}
+                                {uploadState.status === 'selected' || uploadState.status === 'success' ? <X className="mr-2 h-4 w-4" /> : <FileUp className="mr-2 h-4 w-4" />}
+                                {uploadState.status === 'selected' || uploadState.status === 'success' ? 'เปลี่ยนไฟล์' : 'เลือกไฟล์'}
                                 <Input
                                   type="file" className="hidden"
                                   accept="image/jpeg,image/png,application/pdf"
@@ -593,6 +592,9 @@ export function ApplicationForm() {
                   </div>
                 )})}
               </div>
+               {form.formState.errors.documents && (
+                    <p className="text-sm font-medium text-destructive">{form.formState.errors.documents.message}</p>
+                )}
             </div>
 
           </CardContent>
