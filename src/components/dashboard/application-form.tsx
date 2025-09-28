@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -127,6 +127,10 @@ export function ApplicationForm() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const [isOtherBrand, setIsOtherBrand] = useState(false);
+  const [isOtherModel, setIsOtherModel] = useState(false);
+  const [isOtherColor, setIsOtherColor] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -147,9 +151,13 @@ export function ApplicationForm() {
   });
 
   const watchBrand = form.watch('vehicle.brand');
-  const watchModel = form.watch('vehicle.model');
-  const watchColor = form.watch('vehicle.color');
   const models = carBrands.find(b => b.name === watchBrand)?.models || [];
+
+  useEffect(() => {
+    if (watchBrand && !carBrands.some(b => b.name === watchBrand) && watchBrand !== 'อื่นๆ') {
+        setIsOtherBrand(true);
+    }
+  }, [watchBrand]);
 
   const handleFileChange = (file: File | null, index: number) => {
     if (!file) return;
@@ -347,7 +355,16 @@ export function ApplicationForm() {
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>ยี่ห้อรถ</FormLabel>
-                        <Select onValueChange={(value) => { field.onChange(value); form.setValue('vehicle.model', ''); }} value={field.value}>
+                        <Select onValueChange={(value) => { 
+                            field.onChange(value); 
+                            form.setValue('vehicle.model', ''); 
+                            setIsOtherBrand(value === 'อื่นๆ');
+                            if (value !== 'อื่นๆ') {
+                                form.setValue('vehicle.brand', value);
+                            }
+                        }} 
+                        value={field.value}
+                        >
                         <FormControl>
                             <SelectTrigger><SelectValue placeholder="เลือกยี่ห้อรถ" /></SelectTrigger>
                         </FormControl>
@@ -360,7 +377,7 @@ export function ApplicationForm() {
                     </FormItem>
                     )}
                 />
-                {watchBrand === 'อื่นๆ' && (
+                {isOtherBrand && (
                     <FormField control={form.control} name="vehicle.brand" render={({ field }) => (
                         <FormItem><FormLabel>ระบุยี่ห้อรถ</FormLabel><FormControl><Input {...field} placeholder="เช่น Wuling" /></FormControl><FormMessage /></FormItem>
                     )} />
@@ -371,9 +388,17 @@ export function ApplicationForm() {
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>รุ่นรถ</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchBrand || watchBrand === 'อื่นๆ'}>
+                        <Select onValueChange={(value) => {
+                            field.onChange(value);
+                            setIsOtherModel(value === 'อื่นๆ');
+                            if (value !== 'อื่นๆ') {
+                                form.setValue('vehicle.model', value);
+                            }
+                        }} 
+                        value={field.value} 
+                        disabled={!watchBrand || isOtherBrand}>
                         <FormControl>
-                            <SelectTrigger><SelectValue placeholder={!watchBrand || watchBrand === 'อื่นๆ' ? 'กรุณาเลือกยี่ห้อก่อน' : 'เลือกรุ่นรถ'} /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder={!watchBrand || isOtherBrand ? 'กรุณาระบุยี่ห้อก่อน' : 'เลือกรุ่นรถ'} /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
                             {models.map(model => <SelectItem key={model} value={model}>{model}</SelectItem>)}
@@ -384,7 +409,7 @@ export function ApplicationForm() {
                     </FormItem>
                     )}
                 />
-                {watchModel === 'อื่นๆ' && (
+                {isOtherModel && (
                     <FormField control={form.control} name="vehicle.model" render={({ field }) => (
                         <FormItem><FormLabel>ระบุรุ่นรถ</FormLabel><FormControl><Input {...field} placeholder="เช่น Air EV" /></FormControl><FormMessage /></FormItem>
                     )} />
@@ -420,7 +445,14 @@ export function ApplicationForm() {
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>สีรถ</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={(value) => {
+                             field.onChange(value);
+                             setIsOtherColor(value === 'อื่นๆ');
+                             if (value !== 'อื่นๆ') {
+                                 form.setValue('vehicle.color', value);
+                             }
+                        }} 
+                        value={field.value}>
                         <FormControl>
                             <SelectTrigger><SelectValue placeholder="เลือกสีรถ" /></SelectTrigger>
                         </FormControl>
@@ -433,7 +465,7 @@ export function ApplicationForm() {
                     </FormItem>
                     )}
                 />
-                 {watchColor === 'อื่นๆ' && (
+                 {isOtherColor && (
                     <FormField control={form.control} name="vehicle.color" render={({ field }) => (
                         <FormItem><FormLabel>ระบุสีรถ</FormLabel><FormControl><Input {...field} placeholder="เช่น สีเขียวมะนาว" /></FormControl><FormMessage /></FormItem>
                     )} />
