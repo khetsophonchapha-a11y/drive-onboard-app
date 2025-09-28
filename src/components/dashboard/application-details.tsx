@@ -177,9 +177,9 @@ function DocumentGroup({
             ) : null}
 
             {isEditMode && !hasFile && (
-                 <div className={`flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2 ${hasFile ? 'mt-4' : ''}`}>
+                 <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
                      <div className="text-center text-muted-foreground">
-                         <p className="font-medium">{hasFile ? 'อัปโหลดไฟล์เพิ่มเติม' : 'ยังไม่ได้อัปโหลดเอกสาร'}</p>
+                         <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
                         <Button asChild size="sm" variant="outline" className="mt-2" type="button">
                             <label className="cursor-pointer">
                                 <UploadCloud className="mr-2 h-4 w-4" />

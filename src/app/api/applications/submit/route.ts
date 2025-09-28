@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
     if (existingIndex !== -1) {
       // Entry exists, check if it has changed before replacing
       const existingRow = currentIndex[existingIndex];
-      // A simple JSON.stringify comparison works for flat objects like AppRow
-      if (JSON.stringify(existingRow) !== JSON.stringify(newAppRow)) {
+      // Use lodash's isEqual for a deep, reliable comparison
+      if (!isEqual(existingRow, newAppRow)) {
         currentIndex[existingIndex] = newAppRow;
         indexHasChanged = true;
       }
