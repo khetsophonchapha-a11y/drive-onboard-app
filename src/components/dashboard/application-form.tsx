@@ -147,6 +147,7 @@ export function ApplicationForm() {
   });
 
   const watchBrand = form.watch('vehicle.brand');
+  const watchModel = form.watch('vehicle.model');
   const watchColor = form.watch('vehicle.color');
   const models = carBrands.find(b => b.name === watchBrand)?.models || [];
 
@@ -383,7 +384,7 @@ export function ApplicationForm() {
                     </FormItem>
                     )}
                 />
-                {field.value === 'อื่นๆ' && (
+                {watchModel === 'อื่นๆ' && (
                     <FormField control={form.control} name="vehicle.model" render={({ field }) => (
                         <FormItem><FormLabel>ระบุรุ่นรถ</FormLabel><FormControl><Input {...field} placeholder="เช่น Air EV" /></FormControl><FormMessage /></FormItem>
                     )} />
@@ -567,3 +568,5 @@ export function ApplicationForm() {
     </Card>
   );
 }
+
+    
