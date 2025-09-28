@@ -13,32 +13,10 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  CheckCircle2,
-  XCircle,
-  FileClock,
   FileQuestion,
-  Sparkles,
-  Loader2,
-  Upload,
   File as FileIcon,
 } from "lucide-react";
-import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { requiredDocumentsSchema } from "@/lib/schema";
 
 type ApplicationDetailsProps = {
@@ -60,23 +38,8 @@ const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "su
 
 export function ApplicationDetails({ application: initialApplication }: ApplicationDetailsProps) {
   const [application, setApplication] = useState<Manifest>(initialApplication);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<{ analysis: string; instructions: string } | null>(null);
-  const [isAnalysisDialogOpen, setIsAnalysisDialogOpen] = useState(false);
-  const { toast } = useToast();
   const applicantName = application.applicant.fullName;
 
-
-  const handleAnalyze = async () => {
-    // This function needs to be adapted to the new data structure.
-    // It would involve fetching presigned URLs for documents and then calling the AI flow.
-    setIsAnalyzing(true);
-    toast({
-      title: "ฟังก์ชันยังไม่พร้อมใช้งาน",
-      description: "การวิเคราะห์ด้วย AI จะถูกนำมาใช้กับโครงสร้างข้อมูลใหม่ในเร็วๆ นี้",
-    });
-    setIsAnalyzing(false);
-  };
   
   const getDocRef = (docId: string): FileRef | undefined => {
     // This is a simplified mapping. A more robust solution would be better.
@@ -206,47 +169,9 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                         <Button variant="destructive">ปฏิเสธใบสมัคร</Button>
                     </div>
                 </div>
-              <Button onClick={handleAnalyze} disabled={isAnalyzing}>
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    กำลังวิเคราะห์...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    วิเคราะห์ความไม่สมบูรณ์ด้วย AI (เร็วๆนี้)
-                  </>
-                )}
-              </Button>
            </CardFooter>
         </Card>
       </div>
-       <Dialog open={isAnalysisDialogOpen} onOpenChange={setIsAnalysisDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-headline text-2xl">
-              <Sparkles className="h-6 w-6 text-primary" />
-              รายงานการวิเคราะห์ฟอร์มด้วย AI
-            </DialogTitle>
-            <DialogDescription>
-              การวิเคราะห์ข้อมูลที่ขาดหายไปหรือไม่ถูกต้องจากข้อมูลที่ส่งมา
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto p-1 pr-4 space-y-4">
-            <div>
-              <h3 className="font-semibold text-lg mb-2">สรุปผลการวิเคราะห์</h3>
-              <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-md">{analysisResult?.analysis}</p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg mb-2">คำแนะนำสำหรับผู้สมัคร</h3>
-              <div className="text-sm border p-3 rounded-md prose-sm prose-p:my-1 prose-ul:my-1">
-                <p>{analysisResult?.instructions}</p>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
