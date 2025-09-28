@@ -23,6 +23,8 @@ import {
   Send,
   Pencil,
   X,
+  UploadCloud,
+  Trash2,
 } from "lucide-react";
 import {
   Form,
@@ -32,9 +34,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ManifestSchema } from "@/lib/types";
+import { ManifestSchema, FileRefSchema } from "@/lib/types";
+import * as z from 'zod';
 
 import { requiredDocumentsSchema } from "@/lib/schema";
 import { DocumentViewer } from "@/components/dashboard/document-viewer";
@@ -85,6 +88,88 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
     return response;
 }
 
+async function md5Base64(file: File) {
+  const SparkMD5 = (await import('spark-md5')).default;
+  const buf = await file.arrayBuffer();
+  const hash = new SparkMD5.ArrayBuffer().append(buf).end();
+  const bin = hash.match(/.{2}/g)!.map(h => String.fromCharCode(parseInt(h, 16))).join("");
+  return btoa(bin);
+}
+
+// A new component to manage each document group
+function DocumentGroup({
+    docSchema,
+    isEditMode,
+    onFileUpload,
+    onFileDelete,
+    files = []
+}: {
+    docSchema: typeof requiredDocumentsSchema[0];
+    isEditMode: boolean;
+    onFileUpload: (docId: string, file: File) => void;
+    onFileDelete: (docId: string, r2Key: string) => void;
+    files: FileRef[];
+}) {
+    const hasFile = files.length > 0;
+    const allowMultiple = docSchema.id === 'doc-car-photo';
+
+    return (
+        <div className="border rounded-lg p-4 space-y-4">
+            <div className="flex items-center justify-between">
+                <h4 className="font-semibold">{docSchema.type}</h4>
+                <div className={`flex items-center gap-2 text-sm font-medium ${hasFile ? 'text-blue-500' : 'text-muted-foreground'}`}>
+                    {hasFile ? <FileIcon className="h-4 w-4" /> : <FileQuestion className="h-4 w-4" />}
+                    <span>{hasFile ? `มี ${files.length} ไฟล์` : 'ไม่มีไฟล์'}</span>
+                </div>
+            </div>
+
+            {hasFile ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {files.map((docRef) => (
+                        <div key={docRef.r2Key} className="flex flex-col gap-2">
+                            <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted">
+                                <DocumentViewer fileRef={docRef} />
+                            </div>
+                            {isEditMode && (
+                                <div className="flex gap-2 pt-1 justify-end">
+                                    <Button size="sm" variant="destructive" type="button" onClick={() => onFileDelete(docSchema.id, docRef.r2Key)}>
+                                        <Trash2 className="h-4 w-4 mr-1" /> ลบ
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            ) : null}
+
+            {isEditMode && (allowMultiple || !hasFile) && (
+                 <div className={`flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2 ${hasFile ? 'mt-4' : ''}`}>
+                     <div className="text-center text-muted-foreground">
+                         <p className="font-medium">{hasFile ? 'อัปโหลดไฟล์เพิ่มเติม' : 'ยังไม่ได้อัปโหลดเอกสาร'}</p>
+                        <Button asChild size="sm" variant="outline" className="mt-2" type="button">
+                            <label className="cursor-pointer">
+                                <UploadCloud className="mr-2 h-4 w-4" />
+                                อัปโหลด
+                                <Input
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/jpeg,image/png,application/pdf"
+                                    onChange={(e) => {
+                                        if (e.target.files?.[0]) {
+                                            onFileUpload(docSchema.id, e.target.files[0]);
+                                            e.target.value = ''; // Reset input to allow re-uploading same file
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </Button>
+                     </div>
+                 </div>
+            )}
+        </div>
+    );
+}
+
 
 export function ApplicationDetails({ application: initialApplication }: ApplicationDetailsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,6 +187,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { isDirty },
   } = form;
 
@@ -111,6 +197,107 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     }
     setIsEditMode(!isEditMode);
   };
+
+  const handleFileUpload = async (docId: string, file: File) => {
+        const docSchema = requiredDocumentsSchema.find(d => d.id === docId);
+        if (!docSchema) return;
+
+        toast({ title: 'กำลังอัปโหลด...', description: file.name });
+        
+        try {
+            const md5 = await md5Base64(file);
+            
+            const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    applicationId: initialApplication.appId, docType: docSchema.type, fileName: file.name,
+                    mime: file.type, size: file.size, md5,
+                }),
+            });
+            const { url, key } = await signResponse.json();
+
+            await safeFetch(url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type, 'Content-MD5': md5 } });
+            
+            const newFileRef: FileRef = { r2Key: key, mime: file.type, size: file.size, md5 };
+
+            // Update form state
+            switch (docId) {
+                case 'doc-car-photo':
+                    const currentPhotos = form.getValues('docs.carPhotos') || [];
+                    setValue('docs.carPhotos', [...currentPhotos, newFileRef], { shouldDirty: true });
+                    break;
+                case 'doc-insurance':
+                    setValue('docs.insurance.policy', newFileRef, { shouldDirty: true });
+                    break;
+                 case 'doc-citizen-id':
+                    setValue('docs.citizenIdCopy', newFileRef, { shouldDirty: true });
+                    break;
+                case 'doc-drivers-license':
+                    setValue('docs.driverLicenseCopy', newFileRef, { shouldDirty: true });
+                    break;
+                case 'doc-house-reg':
+                    setValue('docs.houseRegCopy', newFileRef, { shouldDirty: true });
+                    break;
+                case 'doc-car-reg':
+                    setValue('docs.carRegCopy', newFileRef, { shouldDirty: true });
+                    break;
+                case 'doc-bank-account':
+                    setValue('docs.kbankBookFirstPage', newFileRef, { shouldDirty: true });
+                    break;
+                case 'doc-tax-act':
+                    setValue('docs.taxAndPRB', newFileRef, { shouldDirty: true });
+                    break;
+                case 'doc-guarantor-citizen-id':
+                    setValue('docs.guarantorCitizenIdCopy', newFileRef, { shouldDirty: true });
+                    break;
+                case 'doc-guarantor-house-reg':
+                    setValue('docs.guarantorHouseRegCopy', newFileRef, { shouldDirty: true });
+                    break;
+            }
+
+            toast({ title: 'อัปโหลดไฟล์สำเร็จ!', description: file.name, variant: 'default' });
+
+        } catch (error: any) {
+             toast({ variant: 'destructive', title: 'อัปโหลดล้มเหลว', description: error.message });
+        }
+    };
+
+    const handleFileDelete = (docId: string, r2Key: string) => {
+        switch (docId) {
+            case 'doc-car-photo':
+                const currentPhotos = form.getValues('docs.carPhotos') || [];
+                setValue('docs.carPhotos', currentPhotos.filter(p => p.r2Key !== r2Key), { shouldDirty: true });
+                break;
+            case 'doc-insurance':
+                setValue('docs.insurance.policy', undefined, { shouldDirty: true });
+                break;
+            case 'doc-citizen-id':
+                setValue('docs.citizenIdCopy', undefined, { shouldDirty: true });
+                break;
+            case 'doc-drivers-license':
+                setValue('docs.driverLicenseCopy', undefined, { shouldDirty: true });
+                break;
+            case 'doc-house-reg':
+                setValue('docs.houseRegCopy', undefined, { shouldDirty: true });
+                break;
+            case 'doc-car-reg':
+                setValue('docs.carRegCopy', undefined, { shouldDirty: true });
+                break;
+            case 'doc-bank-account':
+                setValue('docs.kbankBookFirstPage', undefined, { shouldDirty: true });
+                break;
+            case 'doc-tax-act':
+                setValue('docs.taxAndPRB', undefined, { shouldDirty: true });
+                break;
+            case 'doc-guarantor-citizen-id':
+                setValue('docs.guarantorCitizenIdCopy', undefined, { shouldDirty: true });
+                break;
+            case 'doc-guarantor-house-reg':
+                setValue('docs.guarantorHouseRegCopy', undefined, { shouldDirty: true });
+                break;
+        }
+        toast({ title: 'ลบไฟล์สำเร็จ', description: 'ไฟล์จะถูกลบออกเมื่อคุณบันทึกการเปลี่ยนแปลง' });
+    };
 
 
   const onSubmit = async (values: Manifest) => {
@@ -137,8 +324,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   };
 
 
-  // In a real app, this would be a unique, secure URL.
-  // For now, it just points to the application form page.
   const editLink = `${window.location.origin}/apply?appId=${initialApplication.appId}`;
 
 
@@ -152,8 +337,10 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     setTimeout(() => setEditLinkCopied(false), 2000);
   };
 
-  const getDocRefs = (docId: string): FileRef[] => {
-    const docs = initialApplication.docs;
+ const getDocRefs = (docId: string): FileRef[] => {
+    const docs = form.watch('docs'); // Watch for changes
+    if (!docs) return [];
+    
     switch (docId) {
       case 'doc-car-photo':
         return docs.carPhotos || [];
@@ -270,49 +457,16 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             <CardDescription>เอกสารที่ผู้สมัครอัปโหลด</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {requiredDocumentsSchema.map((reqDoc) => {
-               const docRefs = getDocRefs(reqDoc.id);
-               const hasFile = docRefs.length > 0;
-
-               return (
-                <div key={reqDoc.id} className="border rounded-lg p-4 space-y-4">
-                   <div className="flex items-center justify-between">
-                      <h4 className="font-semibold">{reqDoc.type}</h4>
-                      <div className={`flex items-center gap-2 text-sm font-medium ${hasFile ? 'text-blue-500' : 'text-muted-foreground'}`}>
-                          {hasFile ? <FileIcon className="h-4 w-4" /> : <FileQuestion className="h-4 w-4" />}
-                          <span>{hasFile ? `มี ${docRefs.length} ไฟล์` : 'ไม่มีไฟล์'}</span>
-                      </div>
-                  </div>
-
-                  {hasFile ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {docRefs.map((docRef) => (
-                        <div key={docRef.r2Key} className="flex flex-col gap-2">
-                           <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted">
-                            <DocumentViewer fileRef={docRef} />
-                          </div>
-                           {isEditMode && (
-                              <div className="flex gap-2 pt-1 justify-end">
-                                  <Button size="sm" variant="outline" type="button">เปลี่ยนไฟล์</Button>
-                                  <Button size="sm" variant="destructive" type="button">ลบ</Button>
-                              </div>
-                           )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                     <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
-                         <div className="text-center text-muted-foreground">
-                             <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
-                             {isEditMode && (
-                                <Button size="sm" variant="outline" className="mt-2" type="button">อัปโหลด</Button>
-                             )}
-                         </div>
-                     </div>
-                  )}
-                </div>
-              )
-            })}
+            {requiredDocumentsSchema.map((reqDoc) => (
+                <DocumentGroup
+                    key={reqDoc.id}
+                    docSchema={reqDoc}
+                    isEditMode={isEditMode}
+                    files={getDocRefs(reqDoc.id)}
+                    onFileUpload={handleFileUpload}
+                    onFileDelete={handleFileDelete}
+                />
+            ))}
           </CardContent>
            <CardFooter className="flex-col items-start gap-4">
                 <div className="w-full space-y-4">
@@ -390,3 +544,5 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
+
+    

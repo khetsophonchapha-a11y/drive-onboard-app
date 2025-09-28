@@ -13,7 +13,7 @@ export type AppRow = {
 
 
 // Zod schema for FileRef
-const FileRefSchema = z.object({
+export const FileRefSchema = z.object({
   r2Key: z.string(),
   mime: z.string(),
   size: z.number(),
@@ -46,7 +46,7 @@ export const ManifestSchema = z.object({
   docs: z.object({
     citizenIdCopy: FileRefSchema.optional(),
     driverLicenseCopy: FileRefSchema.optional(),
-    houseRegCopy: FileRefSchema.optional(),
+    houseRegCopy: FileRefSchema.aoptional(),
     carRegCopy: FileRefSchema.optional(),
     carPhotos: z.array(FileRefSchema).optional(),
     kbankBookFirstPage: FileRefSchema.optional(),
@@ -57,7 +57,7 @@ export const ManifestSchema = z.object({
     }).optional(),
     guarantorCitizenIdCopy: FileRefSchema.optional(),
     guarantorHouseRegCopy: FileRefSchema.optional(),
-  }),
+  }).partial(), // Use .partial() to allow updating only some doc fields
   status: z.object({
     completeness: z.enum(['incomplete', 'complete']),
     verification: z.enum(['pending', 'approved', 'rejected']),
