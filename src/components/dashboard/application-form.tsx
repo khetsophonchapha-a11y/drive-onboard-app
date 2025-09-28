@@ -94,7 +94,7 @@ const formSchema = z.object({
     guarantor: guarantorSchema,
     documents: z.array(documentSchema)
       .refine(
-        (docs) => docs.every(doc => !doc.required || (doc.upload.status === 'selected' || doc.upload.status === 'success')),
+        (docs) => docs.every(doc => !doc.required || doc.upload.status === 'selected' || doc.upload.status === 'success'),
         {
           message: 'กรุณาอัปโหลดเอกสารที่จำเป็นให้ครบถ้วน',
           // This path is not straightforward, so we'll handle showing a generic error in the UI if needed.
@@ -312,10 +312,10 @@ export function ApplicationForm() {
               <CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle>
               <div className="grid md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="applicant.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ชื่อ-นามสกุล<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เบอร์โทรศัพท์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.nationalId" render={({ field }) => (
                   <FormItem><FormLabel>เลขบัตรประชาชน (ถ้ามี)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
