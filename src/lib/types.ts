@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export type VerificationStatus = 'pending' | 'approved' | 'rejected';
 
 // Minimal summary for index.json
@@ -9,51 +11,60 @@ export type AppRow = {
   status: VerificationStatus;
 };
 
-// Reference to a file stored in R2
-export type FileRef = {
-  r2Key: string;
-  mime: string;
-  size: number;
-  md5?: string;
-};
 
-// Full manifest per application, stored in applications/{appId}/manifest.json
-export type Manifest = {
-  appId: string;
-  createdAt: string; // ISO
-  applicant: {
-    fullName: string;
-    phone: string;
-    address?: string;
-    nationalId?: string;
-  };
-  vehicle: {
-    brand?: string;
-    model?: string;
-    plateNo?: string;
-    color?: string;
-    year?: number;
-  };
-  guarantor?: {
-    fullName?: string;
-    phone?: string;
-    address?: string;
-  };
-  docs: {
-    citizenIdCopy?: FileRef;
-    driverLicenseCopy?: FileRef;
-    houseRegCopy?: FileRef;
-    carRegCopy?: FileRef;
-    carPhotos?: FileRef[];
-    kbankBookFirstPage?: FileRef;
-    taxAndPRB?: FileRef;
-    insurance?: { type?: '1' | '2' | '3'; policy?: FileRef };
-    guarantorCitizenIdCopy?: FileRef;
-    guarantorHouseRegCopy?: FileRef;
-  };
-  status: {
-    completeness: 'incomplete' | 'complete';
-    verification: VerificationStatus;
-    notes?: string;
-  };
-};
+// Zod schema for FileRef
+const FileRefSchema = z.object({
+  r2Key: z.string(),
+  mime: z.string(),
+  size: z.number(),
+  md5: z.string().optional(),
+});
+export type FileRef = z.infer<typeof FileRefSchema>;
+
+// Zod schema for the full manifest
+export const ManifestSchema = z.object({
+  appId: z.string(),
+  createdAt: z.string(), // ISO date string
+  applicant: z.object({
+    fullName: z.string().min(1, 'ต้องกรอกชื่อ'),
+    phone: z.string().min(1, 'ต้องกรอกเบอร์โทร'),
+    address: z.string().optional(),
+    nationalId: z.string().optional(),
+  }),
+  vehicle: z.object({
+    brand: z.string().optional(),
+    model: z.string().optional(),
+    plateNo: z.string().optional(),
+    color: z.string().optional(),
+    year: z.number().optional(),
+  }).optional(),
+  guarantor: z.object({
+    fullName: z.string().optional(),
+    phone: z.string().optional(),
+    address: z.string().optional(),
+  }).optional(),
+  docs: z.object({
+    citizenIdCopy: FileRefSchema.optional(),
+    driverLicenseCopy: FileRefSchema.optional(),
+    houseRegCopy: FileRefSchema.optional(),
+    carRegCopy: FileRefSchema.optional(),
+    carPhotos: z.array(FileRefSchema).optional(),
+    kbankBookFirstPage: FileRefSchema.optional(),
+    taxAndPRB: FileRefSchema.optional(),
+    insurance: z.object({
+      type: z.enum(['1', '2', '3']).optional(),
+      policy: FileRefSchema.optional(),
+    }).optional(),
+    guarantorCitizenIdCopy: FileRefSchema.optional(),
+    guarantorHouseRegCopy: FileRefSchema.optional(),
+  }),
+  status: z.object({
+    completeness: z.enum(['incomplete', 'complete']),
+    verification: z.enum(['pending', 'approved', 'rejected']),
+    notes: z.string().optional(),
+  }),
+});
+
+export type Manifest = z.infer<typeof ManifestSchema>;
+
+    
