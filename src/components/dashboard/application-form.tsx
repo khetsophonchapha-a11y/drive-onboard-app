@@ -105,6 +105,10 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+
 export function ApplicationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState(0);
@@ -135,15 +139,18 @@ export function ApplicationForm() {
     const currentDocument = form.getValues(`documents.${index}`);
     
     // Validate file type and size on client-side first
-    const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
-    const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
-
     if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
         toast({ variant: "destructive", title: "ประเภทไฟล์ไม่ถูกต้อง", description: "รองรับเฉพาะไฟล์ JPG, PNG, และ PDF เท่านั้น" });
         return;
     }
-    if (file.size > MAX_FILE_SIZE) {
-        toast({ variant: "destructive", title: "ไฟล์มีขนาดใหญ่เกินไป", description: "ขนาดไฟล์ต้องไม่เกิน 15MB" });
+
+    if (file.type.startsWith('image/') && file.size > MAX_IMAGE_SIZE) {
+        toast({ variant: "destructive", title: "ไฟล์รูปภาพมีขนาดใหญ่เกินไป", description: "ขนาดไฟล์รูปภาพต้องไม่เกิน 2MB" });
+        return;
+    }
+
+    if (file.type === 'application/pdf' && file.size > MAX_PDF_SIZE) {
+        toast({ variant: "destructive", title: "ไฟล์ PDF มีขนาดใหญ่เกินไป", description: "ขนาดไฟล์ PDF ต้องไม่เกิน 10MB" });
         return;
     }
 
@@ -229,7 +236,7 @@ export function ApplicationForm() {
 
         const manifest: Manifest = {
             appId: appId,
-            createdAt: new Date().toISOString(),
+            createdAt: new date().toISOString(),
             applicant: values.applicant,
             vehicle: values.vehicle,
             guarantor: values.guarantor,
@@ -374,7 +381,7 @@ export function ApplicationForm() {
             <div className="space-y-4">
               <CardHeader className="p-0">
                 <CardTitle className="font-headline">อัปโหลดเอกสาร</CardTitle>
-                <CardDescription>กรุณาเซ็นสำเนาถูกต้องและถ่ายรูปให้ชัดเจนก่อนส่ง (JPG, PNG, PDF ขนาดไม่เกิน 15MB)</CardDescription>
+                <CardDescription>กรุณาเซ็นสำเนาถูกต้องและถ่ายรูปให้ชัดเจนก่อนส่ง (JPG, PNG ไม่เกิน 2MB; PDF ไม่เกิน 10MB)</CardDescription>
               </CardHeader>
               <div className="space-y-4 pt-2">
                 {documentFields.map((field, index) => {

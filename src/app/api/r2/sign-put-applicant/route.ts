@@ -16,6 +16,9 @@ const Body = z.object({
     turnstileToken: z.string().optional() 
 });
 
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
+
 export async function POST(req: NextRequest) {
   try {
     if (!process.env.R2_BUCKET) {
@@ -25,10 +28,19 @@ export async function POST(req: NextRequest) {
     const { applicationId, docType, fileName, mime, size, md5 } = Body.parse(await req.json());
     await assertApplicantOwner(applicationId, req); // ตรวจว่าเป็นเจ้าของจริง
     
-    const ACCEPT = ["image/jpeg","image/png","application/pdf"]; 
-    if (!ACCEPT.includes(mime) || size > 15*1024*1024) {
-      return NextResponse.json({error:"Invalid file type or size. Accepted: JPG, PNG, PDF up to 15MB."},{status:400});
+    const ACCEPTED_MIMES = ["image/jpeg","image/png","application/pdf"]; 
+    if (!ACCEPTED_MIMES.includes(mime)) {
+      return NextResponse.json({error:"Invalid file type. Accepted: JPG, PNG, PDF."},{status:400});
     }
+
+    if (mime.startsWith('image/') && size > MAX_IMAGE_SIZE) {
+        return NextResponse.json({error:`Image size cannot exceed ${MAX_IMAGE_SIZE / 1024 / 1024}MB.`},{status:400});
+    }
+
+    if (mime === 'application/pdf' && size > MAX_PDF_SIZE) {
+        return NextResponse.json({error:`PDF size cannot exceed ${MAX_PDF_SIZE / 1024 / 1024}MB.`},{status:400});
+    }
+
 
     const key = `applications/${applicationId}/${docType}/${Date.now()}-${fileName}`;
     
