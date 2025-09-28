@@ -53,6 +53,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
+import { useRouter } from "next/navigation";
 
 type ApplicationDetailsProps = {
   application: Manifest;
@@ -211,6 +212,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   const [editLinkCopied, setEditLinkCopied] = useState(false);
   const applicantName = initialApplication.applicant.fullName;
   const { toast } = useToast();
+  const router = useRouter();
 
   const [fileChanges, setFileChanges] = useState<FileChanges>({ toUpload: [], toDelete: [] });
 
@@ -405,7 +407,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         toast({ title: "บันทึกข้อมูลสำเร็จ!", description: "ข้อมูลใบสมัครได้รับการอัปเดตแล้ว", variant: "default" });
         setIsEditMode(false); 
         setFileChanges({ toUpload: [], toDelete: [] }); // Clear changes
-        reset(newManifest); // Update the form's default values
+        
 
         // Step 4: Delete old files from R2
         if (keysToDelete.length > 0) {
@@ -426,6 +428,10 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                 });
             }
         }
+        
+        // Step 5: Refresh the page to show the latest data
+        router.refresh();
+        reset(newManifest); // Update the form's default values for next edit session
 
 
       } catch (error: any) {
