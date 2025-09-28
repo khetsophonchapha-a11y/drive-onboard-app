@@ -6,7 +6,7 @@ import type { FileRef } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, ExternalLink, File as FileIcon } from 'lucide-react';
+import { AlertCircle, Download, File as FileIcon } from 'lucide-react';
 import Image from 'next/image';
 
 type DocumentViewerProps = {
@@ -95,14 +95,17 @@ export function DocumentViewer({ fileRef }: DocumentViewerProps) {
     );
   }
 
+  // Extract filename from r2Key for the download attribute
+  const fileName = fileRef.r2Key.split('/').pop()?.split('-').slice(1).join('-') || 'document';
+
   return (
     <div className="flex flex-col items-center justify-center h-full w-full gap-2 p-2">
         <FileIcon className="h-8 w-8 text-muted-foreground" />
         <p className="text-sm text-center text-muted-foreground">ไม่สามารถแสดงตัวอย่างได้</p>
         <Button asChild size="sm">
-            <a href={url} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                เปิดเอกสาร
+            <a href={url} download={fileName}>
+                <Download className="mr-2 h-4 w-4" />
+                ดาวน์โหลดเอกสาร
             </a>
         </Button>
     </div>
