@@ -42,22 +42,31 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   const applicantName = application.applicant.fullName;
 
   
-  const getDocRef = (docId: string): FileRef | undefined => {
-    // This is a simplified mapping. A more robust solution would be better.
-    const keyMap: Record<string, keyof Manifest['docs']> = {
-        'doc-citizen-id': 'citizenIdCopy',
-        'doc-drivers-license': 'driverLicenseCopy',
-        'doc-house-reg': 'houseRegCopy',
-        'doc-car-reg': 'carRegCopy',
-        'doc-bank-account': 'kbankBookFirstPage',
-        'doc-tax-act': 'taxAndPRB',
-        'doc-guarantor-citizen-id': 'guarantorCitizenIdCopy',
-        'doc-guarantor-house-reg': 'guarantorHouseRegCopy',
-    };
-    const docKey = keyMap[docId];
-    if (!docKey) return undefined;
-    // This doesn't handle array types like carPhotos or nested ones like insurance
-    return application.docs[docKey] as FileRef | undefined;
+  const getDocRefs = (docId: string): FileRef[] => {
+    switch (docId) {
+      case 'doc-car-photo':
+        return application.docs.carPhotos || [];
+      case 'doc-insurance':
+        return application.docs.insurance?.policy ? [application.docs.insurance.policy] : [];
+      case 'doc-citizen-id':
+        return application.docs.citizenIdCopy ? [application.docs.citizenIdCopy] : [];
+      case 'doc-drivers-license':
+        return application.docs.driverLicenseCopy ? [application.docs.driverLicenseCopy] : [];
+      case 'doc-house-reg':
+        return application.docs.houseRegCopy ? [application.docs.houseRegCopy] : [];
+      case 'doc-car-reg':
+        return application.docs.carRegCopy ? [application.docs.carRegCopy] : [];
+      case 'doc-bank-account':
+        return application.docs.kbankBookFirstPage ? [application.docs.kbankBookFirstPage] : [];
+      case 'doc-tax-act':
+        return application.docs.taxAndPRB ? [application.docs.taxAndPRB] : [];
+      case 'doc-guarantor-citizen-id':
+        return application.docs.guarantorCitizenIdCopy ? [application.docs.guarantorCitizenIdCopy] : [];
+      case 'doc-guarantor-house-reg':
+        return application.docs.guarantorHouseRegCopy ? [application.docs.guarantorHouseRegCopy] : [];
+      default:
+        return [];
+    }
   }
 
   const renderDetail = (label: string, value: string | number | undefined) => (
@@ -121,8 +130,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           </CardHeader>
           <CardContent className="space-y-4">
             {requiredDocumentsSchema.map((reqDoc) => {
-               const docRef = getDocRef(reqDoc.id);
-               const hasFile = !!docRef;
+               const docRefs = getDocRefs(reqDoc.id);
+               const hasFile = docRefs.length > 0;
 
                return (
                 <div key={reqDoc.id} className="border rounded-lg p-4 space-y-4">
@@ -130,27 +139,27 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                       <h4 className="font-semibold">{reqDoc.type}</h4>
                       <div className={`flex items-center gap-2 text-sm font-medium ${hasFile ? 'text-blue-500' : 'text-muted-foreground'}`}>
                           {hasFile ? <FileIcon className="h-4 w-4" /> : <FileQuestion className="h-4 w-4" />}
-                          <span>{hasFile ? 'มีไฟล์' : 'ไม่มีไฟล์'}</span>
+                          <span>{hasFile ? `มี ${docRefs.length} ไฟล์` : 'ไม่มีไฟล์'}</span>
                       </div>
                   </div>
 
-                  {hasFile && docRef && (
-                    <div className="flex flex-col md:flex-row gap-4">
-                      <div className="relative w-full md:w-1/3 aspect-video rounded-md overflow-hidden border bg-muted">
-                        <DocumentViewer fileRef={docRef} />
+                  {hasFile ? (
+                    docRefs.map((docRef, index) => (
+                      <div key={docRef.r2Key} className="flex flex-col md:flex-row gap-4">
+                        <div className="relative w-full md:w-1/3 aspect-video rounded-md overflow-hidden border bg-muted">
+                          <DocumentViewer fileRef={docRef} />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                            <p className="text-xs text-muted-foreground break-all">R2 Key: {docRef.r2Key}</p>
+                            <Textarea placeholder={`เพิ่มบันทึกการตรวจสอบสำหรับไฟล์ที่ ${index + 1}...`} />
+                            <div className="flex gap-2 pt-2">
+                                <Button size="sm" variant="success">อนุมัติเอกสาร</Button>
+                                <Button size="sm" variant="destructive">ปฏิเสธเอกสาร</Button>
+                            </div>
+                        </div>
                       </div>
-                      <div className="flex-1 space-y-2">
-                          <p className="text-xs text-muted-foreground break-all">R2 Key: {docRef.r2Key}</p>
-                          <Textarea placeholder="เพิ่มบันทึกการตรวจสอบ..." />
-                          <div className="flex gap-2 pt-2">
-                              <Button size="sm" variant="success">อนุมัติเอกสาร</Button>
-                              <Button size="sm" variant="destructive">ปฏิเสธเอกสาร</Button>
-                          </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {!hasFile && (
+                    ))
+                  ) : (
                      <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
                          <div className="text-center text-muted-foreground">
                              <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
@@ -175,3 +184,5 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </>
   );
 }
+
+    
