@@ -341,10 +341,10 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>นามสกุล<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={50} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.nationalId" render={({ field }) => (
-                  <FormItem><FormLabel>เลขบัตรประชาชน<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เลขบัตรประชาชน<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} placeholder="xxxxxxxxxxxxx" maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เบอร์โทรศัพท์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} placeholder="08x-xxx-xxxx" maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.address" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ถ้ามี)</FormLabel><FormControl><Input {...field} maxLength={200} /></FormControl><FormMessage /></FormItem>
@@ -510,7 +510,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="08x-xxx-xxxx" maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.address" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={200} /></FormControl><FormMessage /></FormItem>
