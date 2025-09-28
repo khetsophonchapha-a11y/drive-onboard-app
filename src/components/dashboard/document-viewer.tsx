@@ -93,13 +93,15 @@ export function DocumentViewer({ fileRef, previewUrl }: DocumentViewerProps) {
 
   if (isImage) {
     return (
-      <Image
-        src={url}
-        alt={`Preview of ${fileRef.r2Key}`}
-        fill
-        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        className="object-contain"
-      />
+        <div className="relative w-full h-full flex items-center justify-center">
+            <Image
+                src={url}
+                alt={`Preview of ${fileRef.r2Key}`}
+                width={200}
+                height={120}
+                className="object-contain w-auto h-auto max-w-full max-h-full"
+            />
+        </div>
     );
   }
 
@@ -120,3 +122,4 @@ export function DocumentViewer({ fileRef, previewUrl }: DocumentViewerProps) {
 }
 
     
+
