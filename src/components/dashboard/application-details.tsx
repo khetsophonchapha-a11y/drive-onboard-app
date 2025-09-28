@@ -613,6 +613,21 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                      <div className="flex justify-between items-center w-full">
                         <h4 className="font-semibold">การดำเนินการ</h4>
                         <div className="flex gap-2">
+                             {isEditMode && (isDirty || fileChanges.toUpload.length > 0 || fileChanges.toDelete.length > 0) && (
+                                <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
+                                {isSubmitting ? (
+                                    <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    กำลังบันทึก...
+                                    </>
+                                ) : (
+                                    <>
+                                    <Send className="mr-2 h-4 w-4" />
+                                    บันทึกการเปลี่ยนแปลง
+                                    </>
+                                )}
+                                </Button>
+                            )}
                             <Button variant="success">อนุมัติใบสมัคร</Button>
                             <Button variant="destructive">ปฏิเสธใบสมัคร</Button>
                         </div>
@@ -661,23 +676,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                 </div>
            </CardFooter>
         </Card>
-        {isEditMode && (isDirty || fileChanges.toUpload.length > 0 || fileChanges.toDelete.length > 0) && (
-            <div className="flex justify-end gap-2 sticky bottom-4">
-                <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
-                {isSubmitting ? (
-                    <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    กำลังบันทึก...
-                    </>
-                ) : (
-                    <>
-                    <Send className="mr-2 h-4 w-4" />
-                    บันทึกการเปลี่ยนแปลง
-                    </>
-                )}
-                </Button>
-            </div>
-        )}
       </div>
       </form>
     </Form>
