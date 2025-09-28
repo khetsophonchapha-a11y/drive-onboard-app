@@ -16,10 +16,18 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { requiredDocumentsSchema } from "@/lib/schema";
+import { carBrands, carColors } from "@/lib/vehicle-data";
 import { FileUp, FileCheck, X, Send, Loader2, AlertCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
@@ -52,10 +60,11 @@ async function md5Base64(file: File) {
 }
 
 const applicantSchema = z.object({
-  fullName: z.string().min(1, "กรุณากรอกชื่อ-นามสกุล"),
-  phone: z.string().min(1, "กรุณากรอกเบอร์โทรศัพท์"),
-  address: z.string().optional(),
-  nationalId: z.string().optional(),
+  firstName: z.string().min(1, 'ต้องกรอกชื่อจริง').max(50, 'ชื่อจริงต้องไม่เกิน 50 ตัวอักษร'),
+  lastName: z.string().min(1, 'ต้องกรอกนามสกุล').max(50, 'นามสกุลต้องไม่เกิน 50 ตัวอักษร'),
+  phone: z.string().min(10, 'เบอร์โทรต้องมี 10 หลัก').max(10, 'เบอร์โทรต้องมี 10 หลัก').regex(/^[0-9]+$/, 'เบอร์โทรต้องเป็นตัวเลขเท่านั้น'),
+  address: z.string().max(200, 'ที่อยู่ต้องไม่เกิน 200 ตัวอักษร').optional(),
+  nationalId: z.string().length(13, 'เลขบัตรประชาชนต้องมี 13 หลัก').regex(/^[0-9]+$/, 'เลขบัตรประชาชนต้องเป็นตัวเลขเท่านั้น'),
 });
 
 const vehicleSchema = z.object({
@@ -67,9 +76,10 @@ const vehicleSchema = z.object({
 });
 
 const guarantorSchema = z.object({
-    fullName: z.string().optional(),
-    phone: z.string().optional(),
-    address: z.string().optional(),
+    firstName: z.string().max(50, 'ชื่อจริงผู้ค้ำต้องไม่เกิน 50 ตัวอักษร').optional(),
+    lastName: z.string().max(50, 'นามสกุลผู้ค้ำต้องไม่เกิน 50 ตัวอักษร').optional(),
+    phone: z.string().max(10, 'เบอร์โทรผู้ค้ำต้องมี 10 หลัก').regex(/^[0-9]*$/, 'เบอร์โทรผู้ค้ำต้องเป็นตัวเลขเท่านั้น').optional(),
+    address: z.string().max(200, 'ที่อยู่ผู้ค้ำต้องไม่เกิน 200 ตัวอักษร').optional(),
 });
 
 const documentUploadSchema = z.object({
@@ -97,8 +107,6 @@ const formSchema = z.object({
         (docs) => docs.every(doc => !doc.required || doc.upload.status === 'selected' || doc.upload.status === 'success'),
         {
           message: 'กรุณาอัปโหลดเอกสารที่จำเป็นให้ครบถ้วน',
-          // This path is not straightforward, so we'll handle showing a generic error in the UI if needed.
-          // For now, disabling the button is the primary feedback.
         }
       ),
 });
@@ -109,6 +117,10 @@ const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
+const currentYear = new Date().getFullYear();
+const yearOptions = Array.from({ length: 30 }, (_, i) => currentYear - i);
+
+
 export function ApplicationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState(0);
@@ -118,15 +130,15 @@ export function ApplicationForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      applicant: { fullName: "", phone: "", address: "", nationalId: "" },
+      applicant: { firstName: "", lastName: "", phone: "", address: "", nationalId: "" },
       vehicle: { brand: "", model: "", plateNo: "", color: "" },
-      guarantor: { fullName: "", phone: "", address: "" },
+      guarantor: { firstName: "", lastName: "", phone: "", address: "" },
       documents: requiredDocumentsSchema.map(doc => ({
         ...doc,
         upload: { status: 'pending', progress: 0, file: null }
       }))
     },
-    mode: "onChange", // Validate on change to enable/disable button
+    mode: "onChange",
   });
 
   const { fields: documentFields, update: updateDocument } = useFieldArray({
@@ -134,11 +146,14 @@ export function ApplicationForm() {
     name: "documents"
   });
 
+  const watchBrand = form.watch('vehicle.brand');
+  const watchColor = form.watch('vehicle.color');
+  const models = carBrands.find(b => b.name === watchBrand)?.models || [];
+
   const handleFileChange = (file: File | null, index: number) => {
     if (!file) return;
     const currentDocument = form.getValues(`documents.${index}`);
     
-    // Validate file type and size on client-side first
     if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
         toast({ variant: "destructive", title: "ประเภทไฟล์ไม่ถูกต้อง", description: "รองรับเฉพาะไฟล์ JPG, PNG, และ PDF เท่านั้น" });
         return;
@@ -164,7 +179,7 @@ export function ApplicationForm() {
             errorMessage: undefined 
         }
     });
-    form.trigger('documents'); // Manually trigger validation for the documents array
+    form.trigger('documents');
   };
 
   const removeFile = (index: number) => {
@@ -180,7 +195,7 @@ export function ApplicationForm() {
             errorMessage: undefined 
         } 
     });
-     form.trigger('documents'); // Manually trigger validation for the documents array
+     form.trigger('documents');
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -193,7 +208,6 @@ export function ApplicationForm() {
         const totalUploads = filesToUpload.length;
         let uploadedCount = 0;
 
-        // Step 1: Upload all files in parallel
         const uploadPromises = filesToUpload.map(async (doc, index) => {
              const file = doc.upload.file!;
              const docIndexInForm = values.documents.findIndex(d => d.id === doc.id);
@@ -218,7 +232,7 @@ export function ApplicationForm() {
                 updateDocument(docIndexInForm, { ...doc, upload: { ...doc.upload, status: 'success', progress: 100, r2Key: key, file: null } });
                 
                 uploadedCount++;
-                setSubmissionProgress((uploadedCount / totalUploads) * 80); // 80% for uploads
+                setSubmissionProgress((uploadedCount / totalUploads) * 80);
                 
                 return { docType: doc.type, docId: doc.id, r2Key: key, mime: file.type, size: file.size, md5 };
 
@@ -231,62 +245,46 @@ export function ApplicationForm() {
         
         const uploadedFileRefs = await Promise.all(uploadPromises);
 
-        // Step 2: Build the manifest
-        setSubmissionProgress(90); // 10% for manifest build
+        setSubmissionProgress(90);
 
         const manifest: Manifest = {
             appId: appId,
-            createdAt: new date().toISOString(),
-            applicant: values.applicant,
+            createdAt: new Date().toISOString(),
+            applicant: {
+                ...values.applicant,
+                fullName: `${values.applicant.firstName} ${values.applicant.lastName}`.trim(),
+            },
             vehicle: values.vehicle,
-            guarantor: values.guarantor,
+            guarantor: {
+                ...values.guarantor,
+                fullName: `${values.guarantor?.firstName || ''} ${values.guarantor?.lastName || ''}`.trim() || undefined
+            },
             docs: uploadedFileRefs.reduce((acc, fileRef) => {
                 const fileData: FileRef = { r2Key: fileRef.r2Key, mime: fileRef.mime, size: fileRef.size, md5: fileRef.md5 };
 
                 switch (fileRef.docId) {
-                    case 'doc-citizen-id':
-                        acc.citizenIdCopy = fileData;
-                        break;
-                    case 'doc-drivers-license':
-                        acc.driverLicenseCopy = fileData;
-                        break;
-                    case 'doc-house-reg':
-                        acc.houseRegCopy = fileData;
-                        break;
-                    case 'doc-car-reg':
-                        acc.carRegCopy = fileData;
-                        break;
-                    case 'doc-bank-account':
-                        acc.kbankBookFirstPage = fileData;
-                        break;
-                    case 'doc-tax-act':
-                        acc.taxAndPRB = fileData;
-                        break;
-                    case 'doc-guarantor-citizen-id':
-                        acc.guarantorCitizenIdCopy = fileData;
-                        break;
-                    case 'doc-guarantor-house-reg':
-                        acc.guarantorHouseRegCopy = fileData;
-                        break;
-                    case 'doc-car-photo':
-                        acc.carPhoto = fileData;
-                        break;
+                    case 'doc-citizen-id': acc.citizenIdCopy = fileData; break;
+                    case 'doc-drivers-license': acc.driverLicenseCopy = fileData; break;
+                    case 'doc-house-reg': acc.houseRegCopy = fileData; break;
+                    case 'doc-car-reg': acc.carRegCopy = fileData; break;
+                    case 'doc-bank-account': acc.kbankBookFirstPage = fileData; break;
+                    case 'doc-tax-act': acc.taxAndPRB = fileData; break;
+                    case 'doc-guarantor-citizen-id': acc.guarantorCitizenIdCopy = fileData; break;
+                    case 'doc-guarantor-house-reg': acc.guarantorHouseRegCopy = fileData; break;
+                    case 'doc-car-photo': acc.carPhoto = fileData; break;
                     case 'doc-insurance':
-                        if (!acc.insurance) {
-                           acc.insurance = {};
-                        }
+                        if (!acc.insurance) acc.insurance = {};
                         acc.insurance.policy = fileData;
                         break;
                 }
                 return acc;
             }, {} as Manifest['docs']),
             status: {
-                completeness: 'complete', // Assuming all required docs are there
+                completeness: 'complete',
                 verification: 'pending',
             }
         };
 
-        // Step 3: Submit the manifest
         await safeFetch('/api/applications/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -318,17 +316,20 @@ export function ApplicationForm() {
             <div className="space-y-4">
               <CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle>
               <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="applicant.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={form.control} name="applicant.firstName" render={({ field }) => (
+                  <FormItem><FormLabel>ชื่อจริง<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={50} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="applicant.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={form.control} name="applicant.lastName" render={({ field }) => (
+                  <FormItem><FormLabel>นามสกุล<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={50} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.nationalId" render={({ field }) => (
-                  <FormItem><FormLabel>เลขบัตรประชาชน (ถ้ามี)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เลขบัตรประชาชน<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="applicant.phone" render={({ field }) => (
+                  <FormItem><FormLabel>เบอร์โทรศัพท์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.address" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ถ้ามี)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ถ้ามี)</FormLabel><FormControl><Input {...field} maxLength={200} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
             </div>
@@ -338,22 +339,104 @@ export function ApplicationForm() {
             {/* Vehicle Section */}
             <div className="space-y-4">
               <CardTitle className="font-headline">ข้อมูลยานพาหนะ (ถ้ามี)</CardTitle>
-              <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="vehicle.brand" render={({ field }) => (
-                  <FormItem><FormLabel>ยี่ห้อรถ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="vehicle.model" render={({ field }) => (
-                  <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="vehicle.year" render={({ field }) => (
-                  <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.valueAsNumber || undefined)} /></FormControl><FormMessage /></FormItem>
-                )} />
+              <div className="grid md:grid-cols-2 gap-x-4 gap-y-4">
+                <FormField
+                    control={form.control}
+                    name="vehicle.brand"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>ยี่ห้อรถ</FormLabel>
+                        <Select onValueChange={(value) => { field.onChange(value); form.setValue('vehicle.model', ''); }} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger><SelectValue placeholder="เลือกยี่ห้อรถ" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {carBrands.map(brand => <SelectItem key={brand.name} value={brand.name}>{brand.name}</SelectItem>)}
+                             <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                {watchBrand === 'อื่นๆ' && (
+                    <FormField control={form.control} name="vehicle.brand" render={({ field }) => (
+                        <FormItem><FormLabel>ระบุยี่ห้อรถ</FormLabel><FormControl><Input {...field} placeholder="เช่น Wuling" /></FormControl><FormMessage /></FormItem>
+                    )} />
+                )}
+                 <FormField
+                    control={form.control}
+                    name="vehicle.model"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>รุ่นรถ</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchBrand || watchBrand === 'อื่นๆ'}>
+                        <FormControl>
+                            <SelectTrigger><SelectValue placeholder={!watchBrand || watchBrand === 'อื่นๆ' ? 'กรุณาเลือกยี่ห้อก่อน' : 'เลือกรุ่นรถ'} /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {models.map(model => <SelectItem key={model} value={model}>{model}</SelectItem>)}
+                            <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                {field.value === 'อื่นๆ' && (
+                    <FormField control={form.control} name="vehicle.model" render={({ field }) => (
+                        <FormItem><FormLabel>ระบุรุ่นรถ</FormLabel><FormControl><Input {...field} placeholder="เช่น Air EV" /></FormControl><FormMessage /></FormItem>
+                    )} />
+                )}
+                <FormField
+                    control={form.control}
+                    name="vehicle.year"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>ปีที่ผลิต (ค.ศ.)</FormLabel>
+                        <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="เลือกปี" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {yearOptions.map(year => (
+                                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <FormField control={form.control} name="vehicle.plateNo" render={({ field }) => (
-                  <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="เช่น 1กข 1234" /></FormControl><FormMessage /></FormItem>
                 )} />
-                 <FormField control={form.control} name="vehicle.color" render={({ field }) => (
-                  <FormItem><FormLabel>สีรถ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                )} />
+                <FormField
+                    control={form.control}
+                    name="vehicle.color"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>สีรถ</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger><SelectValue placeholder="เลือกสีรถ" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {carColors.map(color => <SelectItem key={color} value={color}>{color}</SelectItem>)}
+                            <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                 {watchColor === 'อื่นๆ' && (
+                    <FormField control={form.control} name="vehicle.color" render={({ field }) => (
+                        <FormItem><FormLabel>ระบุสีรถ</FormLabel><FormControl><Input {...field} placeholder="เช่น สีเขียวมะนาว" /></FormControl><FormMessage /></FormItem>
+                    )} />
+                )}
               </div>
             </div>
 
@@ -363,14 +446,17 @@ export function ApplicationForm() {
             <div className="space-y-4">
               <CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน (ถ้ามี)</CardTitle>
               <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="guarantor.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                <FormField control={form.control} name="guarantor.firstName" render={({ field }) => (
+                  <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="guarantor.lastName" render={({ field }) => (
+                  <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.address" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={200} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
             </div>
@@ -481,5 +567,3 @@ export function ApplicationForm() {
     </Card>
   );
 }
-
-    

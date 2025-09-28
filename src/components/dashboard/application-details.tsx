@@ -216,7 +216,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
   const [fileChanges, setFileChanges] = useState<FileChanges>({ toUpload: [], toDelete: [] });
 
-  const form = useForm<Manifest>({
+  const form = useForm<z.infer<typeof ManifestSchema>>({
     resolver: zodResolver(ManifestSchema),
     defaultValues: initialApplication,
   });
@@ -317,10 +317,16 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     };
 
 
-  const onSubmit = async (values: Manifest) => {
+  const onSubmit = async (values: z.infer<typeof ManifestSchema>) => {
       setIsSubmitting(true);
       
-      const newManifest = JSON.parse(JSON.stringify(values));
+      const newManifest = JSON.parse(JSON.stringify(values)) as Manifest;
+      // Re-create fullName
+      newManifest.applicant.fullName = `${values.applicant.firstName} ${values.applicant.lastName}`.trim();
+      if (newManifest.guarantor) {
+        newManifest.guarantor.fullName = `${values.guarantor?.firstName || ''} ${values.guarantor?.lastName || ''}`.trim() || undefined;
+      }
+
       const keysToDelete = [...fileChanges.toDelete]; // Copy keys to delete
 
       try {
@@ -537,8 +543,11 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
           <CardContent className="space-y-4">
              <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={control} name="applicant.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล</FormLabel><FormControl><Input {...field} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="applicant.firstName" render={({ field }) => (
+                  <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={control} name="applicant.lastName" render={({ field }) => (
+                  <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={control} name="applicant.phone" render={({ field }) => (
                   <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
@@ -581,8 +590,11 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
         <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={control} name="guarantor.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="guarantor.firstName" render={({ field }) => (
+                  <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={control} name="guarantor.lastName" render={({ field }) => (
+                  <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={control} name="guarantor.phone" render={({ field }) => (
                   <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
@@ -686,5 +698,3 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
-
-    

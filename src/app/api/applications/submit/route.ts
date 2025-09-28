@@ -1,3 +1,4 @@
+
 // src/app/api/applications/submit/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -7,10 +8,12 @@ import type { Manifest, AppRow } from '@/lib/types';
 import { revalidateTag } from 'next/cache';
 import { isEqual } from 'lodash';
 
-const Body = z.object({
+// We don't use the ManifestSchema directly because it has derived/read-only fields
+const SubmitBodySchema = z.object({
   appId: z.string(),
-  manifest: z.any(), // In a real app, you would validate the manifest with a Zod schema
+  manifest: z.any(), // In a real app, you would validate the manifest with a more specific Zod schema
 });
+
 
 // Helper to get a JSON object from R2
 async function getJson(bucket: string, key: string): Promise<any | null> {
@@ -49,7 +52,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { appId, manifest } = Body.parse(body) as { appId: string; manifest: Manifest };
+    const { appId, manifest } = SubmitBodySchema.parse(body) as { appId: string; manifest: Manifest };
+    
+    // Ensure fullName is correctly assembled before saving
+    manifest.applicant.fullName = `${manifest.applicant.firstName} ${manifest.applicant.lastName}`.trim();
+    if(manifest.guarantor) {
+      manifest.guarantor.fullName = `${manifest.guarantor.firstName || ''} ${manifest.guarantor.lastName || ''}`.trim() || undefined;
+    }
+
 
     // Step 1: Write the full manifest.json for the application
     const manifestKey = `applications/${appId}/manifest.json`;
