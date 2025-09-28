@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -15,10 +16,26 @@ import { Badge } from "@/components/ui/badge";
 import {
   FileQuestion,
   File as FileIcon,
+  Copy,
+  Link as LinkIcon,
+  Check,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { requiredDocumentsSchema } from "@/lib/schema";
 import { DocumentViewer } from "@/components/dashboard/document-viewer";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+
 
 type ApplicationDetailsProps = {
   application: Manifest;
@@ -39,9 +56,25 @@ const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "su
 
 export function ApplicationDetails({ application: initialApplication }: ApplicationDetailsProps) {
   const [application, setApplication] = useState<Manifest>(initialApplication);
+  const [editLinkCopied, setEditLinkCopied] = useState(false);
   const applicantName = application.applicant.fullName;
+  const { toast } = useToast();
 
-  
+  // In a real app, this would be a unique, secure URL.
+  // For now, it just points to the application form page.
+  const editLink = `${window.location.origin}/apply?appId=${application.appId}`;
+
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(editLink);
+    setEditLinkCopied(true);
+    toast({
+      title: "คัดลอกลิงก์สำเร็จ",
+      description: "คุณสามารถส่งลิงก์นี้ให้ผู้สมัครเพื่อแก้ไขข้อมูลได้",
+    });
+    setTimeout(() => setEditLinkCopied(false), 2000);
+  };
+
   const getDocRefs = (docId: string): FileRef[] => {
     switch (docId) {
       case 'doc-car-photo':
@@ -171,11 +204,53 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             })}
           </CardContent>
            <CardFooter className="flex-col items-start gap-4">
-                <div>
-                    <h4 className="font-semibold">การดำเนินการกับใบสมัคร</h4>
-                    <div className="flex gap-2 pt-2">
-                        <Button variant="success">อนุมัติใบสมัคร</Button>
-                        <Button variant="destructive">ปฏิเสธใบสมัคร</Button>
+                <div className="w-full space-y-4">
+                    <div>
+                        <h4 className="font-semibold">การดำเนินการกับใบสมัคร</h4>
+                        <div className="flex gap-2 pt-2">
+                            <Button variant="success">อนุมัติใบสมัคร</Button>
+                            <Button variant="destructive">ปฏิเสธใบสมัคร</Button>
+                        </div>
+                    </div>
+                    <div className="border-t pt-4 w-full">
+                       <h4 className="font-semibold">ให้ผู้สมัครแก้ไข</h4>
+                        <p className="text-sm text-muted-foreground">ส่งลิงก์ให้ผู้สมัครเพื่อกลับมาอัปโหลดเอกสารหรือแก้ไขข้อมูล</p>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" className="mt-2">
+                              <LinkIcon className="mr-2 h-4 w-4" />
+                              ส่งลิงก์สำหรับแก้ไข
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>ลิงก์สำหรับแก้ไขใบสมัคร</DialogTitle>
+                              <DialogDescription>
+                                ส่งลิงก์นี้ให้ผู้สมัครเพื่อทำการแก้ไขข้อมูลและอัปโหลดเอกสารใหม่
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="flex items-center space-x-2">
+                              <div className="grid flex-1 gap-2">
+                                <Input
+                                  id="edit-link"
+                                  defaultValue={editLink}
+                                  readOnly
+                                />
+                              </div>
+                              <Button type="button" size="sm" className="px-3" onClick={handleCopyLink}>
+                                <span className="sr-only">Copy</span>
+                                {editLinkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                            <DialogFooter className="sm:justify-start">
+                              <DialogClose asChild>
+                                <Button type="button" variant="secondary">
+                                  ปิด
+                                </Button>
+                              </DialogClose>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                     </div>
                 </div>
            </CardFooter>
