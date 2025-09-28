@@ -15,7 +15,7 @@ async function getJsonCached(bucket: string, key: string): Promise<any | null> {
     );
 
     // 2. Use fetch() to get the object. Next.js automatically caches fetch requests.
-    // We'll revalidate this data every hour.
+    // We'll revalidate this data every hour, or when the tag is revalidated.
     const response = await fetch(signedUrl, { next: { revalidate: 3600, tags: ['r2-index'] } });
 
     if (response.status === 404) {

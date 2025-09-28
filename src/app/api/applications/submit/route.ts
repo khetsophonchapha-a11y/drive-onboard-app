@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { r2 } from '@/app/api/r2/_client';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import type { Manifest, AppRow } from '@/lib/types';
+import { revalidateTag } from 'next/cache';
 
 const Body = z.object({
   appId: z.string(),
@@ -78,6 +79,10 @@ export async function POST(req: NextRequest) {
     currentIndex.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     await putJson(bucket, indexKey, currentIndex);
+
+    // Step 3: Revalidate caches
+    revalidateTag('r2-index');
+    revalidateTag(`r2-app-${appId}`);
 
     return NextResponse.json({ ok: true, appId });
 
