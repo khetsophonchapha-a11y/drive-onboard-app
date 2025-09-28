@@ -5,6 +5,7 @@ import { r2 } from '@/app/api/r2/_client';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import type { Manifest, AppRow } from '@/lib/types';
 import { revalidateTag } from 'next/cache';
+import { isEqual } from 'lodash';
 
 const Body = z.object({
   appId: z.string(),
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     const manifestKey = `applications/${appId}/manifest.json`;
     await putJson(bucket, manifestKey, manifest);
 
-    // Step 2: Upsert the index.json
+    // Step 2: Conditionally upsert the index.json
     const indexKey = 'applications/index.json';
     const currentIndex: AppRow[] = (await getJson(bucket, indexKey)) || [];
 
@@ -67,21 +68,35 @@ export async function POST(req: NextRequest) {
     };
 
     const existingIndex = currentIndex.findIndex(row => row.appId === appId);
+    let indexHasChanged = false;
+
     if (existingIndex !== -1) {
-      // Replace existing entry
-      currentIndex[existingIndex] = newAppRow;
+      // Entry exists, check if it has changed before replacing
+      const existingRow = currentIndex[existingIndex];
+      // A simple JSON.stringify comparison works for flat objects like AppRow
+      if (JSON.stringify(existingRow) !== JSON.stringify(newAppRow)) {
+        currentIndex[existingIndex] = newAppRow;
+        indexHasChanged = true;
+      }
     } else {
-      // Add new entry
+      // New entry, always a change
       currentIndex.unshift(newAppRow); // Add to the top
+      indexHasChanged = true;
     }
     
-    // Sort by creation date, newest first
-    currentIndex.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Only sort and write if there was a change
+    if (indexHasChanged) {
+        // Sort by creation date, newest first
+        currentIndex.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        await putJson(bucket, indexKey, currentIndex);
+    }
 
-    await putJson(bucket, indexKey, currentIndex);
 
     // Step 3: Revalidate caches
-    revalidateTag('r2-index');
+    // Revalidate the index only if it was actually changed.
+    if (indexHasChanged) {
+        revalidateTag('r2-index');
+    }
     revalidateTag(`r2-app-${appId}`);
 
     return NextResponse.json({ ok: true, appId });
