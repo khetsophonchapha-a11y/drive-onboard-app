@@ -35,9 +35,12 @@ export const ManifestSchema = z.object({
   }),
   vehicle: z.object({
     brand: z.string().optional(),
+    brandOther: z.string().optional(),
     model: z.string().optional(),
+    modelOther: z.string().optional(),
     plateNo: z.string().optional(),
     color: z.string().optional(),
+    colorOther: z.string().optional(),
     year: z.number().optional(),
   }).optional(),
   guarantor: z.object({
