@@ -121,7 +121,7 @@ function DocumentGroup({
     onFileDelete: (docId: string, key: string) => void;
 }) {
     const hasFile = files.length > 0;
-    const allowMultiple = docSchema.id === 'doc-car-photo';
+    const allowMultiple = false; // Hardcoded to false as per new requirement
 
     return (
         <div className="border rounded-lg p-4 space-y-4">
@@ -149,25 +149,23 @@ function DocumentGroup({
                             </div>
                             {isEditMode && (
                                 <div className="flex gap-2 pt-1 justify-end">
-                                    {!allowMultiple && (
-                                        <Button asChild size="sm" variant="outline" type="button">
-                                             <label className="cursor-pointer">
-                                                <Pencil className="h-4 w-4 mr-1" /> เปลี่ยนไฟล์
-                                                <Input
-                                                    type="file"
-                                                    className="hidden"
-                                                    accept="image/jpeg,image/png,application/pdf"
-                                                    onChange={(e) => {
-                                                        if (e.target.files?.[0]) {
-                                                            const keyToDelete = fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl;
-                                                            onFileUpload(docSchema.id, e.target.files[0], keyToDelete);
-                                                            e.target.value = '';
-                                                        }
-                                                    }}
-                                                />
-                                            </label>
-                                        </Button>
-                                    )}
+                                    <Button asChild size="sm" variant="outline" type="button">
+                                         <label className="cursor-pointer">
+                                            <Pencil className="h-4 w-4 mr-1" /> เปลี่ยนไฟล์
+                                            <Input
+                                                type="file"
+                                                className="hidden"
+                                                accept="image/jpeg,image/png,application/pdf"
+                                                onChange={(e) => {
+                                                    if (e.target.files?.[0]) {
+                                                        const keyToDelete = fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl;
+                                                        onFileUpload(docSchema.id, e.target.files[0], keyToDelete);
+                                                        e.target.value = '';
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+                                    </Button>
                                     <Button size="sm" variant="destructive" type="button" onClick={() => onFileDelete(docSchema.id, fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl)}>
                                         <Trash2 className="h-4 w-4 mr-1" /> ลบ
                                     </Button>
@@ -178,7 +176,7 @@ function DocumentGroup({
                 </div>
             ) : null}
 
-            {isEditMode && (allowMultiple || !hasFile) && (
+            {isEditMode && !hasFile && (
                  <div className={`flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2 ${hasFile ? 'mt-4' : ''}`}>
                      <div className="text-center text-muted-foreground">
                          <p className="font-medium">{hasFile ? 'อัปโหลดไฟล์เพิ่มเติม' : 'ยังไม่ได้อัปโหลดเอกสาร'}</p>
@@ -253,11 +251,11 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         let newUploads = [...prev.toUpload];
         let newDeletes = [...prev.toDelete];
 
-        const allowMultiple = docId === 'doc-car-photo';
+        const allowMultiple = false; // No longer multiple
 
         if (replaceKey) {
              // If replacing an existing file, add its r2Key to toDelete
-            if (initialApplication.docs && Object.values(initialApplication.docs).flat().some(f => f && f.r2Key === replaceKey)) {
+            if (Object.values(initialApplication.docs).flat().some(f => f && typeof f === 'object' && 'r2Key' in f && f.r2Key === replaceKey)) {
                  if (!newDeletes.includes(replaceKey)) {
                     newDeletes.push(replaceKey);
                  }
@@ -360,9 +358,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             for (const key in newManifest.docs) {
                 const docKey = key as keyof Manifest['docs'];
                 const docValue = newManifest.docs[docKey];
-                if (Array.isArray(docValue)) { // carPhotos
-                     newManifest.docs[docKey] = docValue.filter(ref => ref && !fileChanges.toDelete.includes(ref.r2Key));
-                } else if (docValue && typeof docValue === 'object' && 'r2Key' in docValue) { // FileRef
+                if (docValue && typeof docValue === 'object' && 'r2Key' in docValue) { // FileRef
                     if (fileChanges.toDelete.includes(docValue.r2Key)) {
                          delete newManifest.docs[docKey];
                     }
@@ -382,15 +378,13 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                 'doc-drivers-license': 'driverLicenseCopy',
                 'doc-house-reg': 'houseRegCopy',
                 'doc-car-reg': 'carRegCopy',
+                'doc-car-photo': 'carPhoto',
                 'doc-bank-account': 'kbankBookFirstPage',
                 'doc-tax-act': 'taxAndPRB',
                 'doc-guarantor-citizen-id': 'guarantorCitizenIdCopy',
                 'doc-guarantor-house-reg': 'guarantorHouseRegCopy',
             };
-            if (docId === 'doc-car-photo') {
-                if (!newManifest.docs.carPhotos) newManifest.docs.carPhotos = [];
-                newManifest.docs.carPhotos.push(ref);
-            } else if (docId === 'doc-insurance') {
+            if (docId === 'doc-insurance') {
                 if (!newManifest.docs.insurance) newManifest.docs.insurance = {};
                 newManifest.docs.insurance.policy = ref;
             } else {
@@ -446,6 +440,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             case 'doc-drivers-license': return docs.driverLicenseCopy;
             case 'doc-house-reg': return docs.houseRegCopy;
             case 'doc-car-reg': return docs.carRegCopy;
+            case 'doc-car-photo': return docs.carPhoto;
             case 'doc-bank-account': return docs.kbankBookFirstPage;
             case 'doc-tax-act': return docs.taxAndPRB;
             case 'doc-guarantor-citizen-id': return docs.guarantorCitizenIdCopy;
@@ -464,7 +459,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             displayFiles.push({ type: 'temp', ref: tempFile, displayUrl: tempFile.objectUrl });
         }
 
-        const allowMultiple = docId === 'doc-car-photo';
+        const allowMultiple = false; // No longer multiple
 
         // Add existing files that haven't been marked for deletion
         const addExistingFile = (fileRef: FileRef | undefined) => {
@@ -477,41 +472,11 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             }
         };
 
-        switch (docId) {
-            case 'doc-car-photo':
-                initialApplication.docs?.carPhotos?.forEach(fileRef => {
-                    if (fileRef && !fileChanges.toDelete.includes(fileRef.r2Key)) {
-                         displayFiles.push({ type: 'existing', ref: fileRef, displayUrl: '' });
-                    }
-                });
-                break;
-            case 'doc-insurance':
-                addExistingFile(initialApplication.docs?.insurance?.policy);
-                break;
-            case 'doc-citizen-id':
-                addExistingFile(initialApplication.docs?.citizenIdCopy);
-                break;
-            case 'doc-drivers-license':
-                addExistingFile(initialApplication.docs?.driverLicenseCopy);
-                break;
-            case 'doc-house-reg':
-                addExistingFile(initialApplication.docs?.houseRegCopy);
-                break;
-            case 'doc-car-reg':
-                addExistingFile(initialApplication.docs?.carRegCopy);
-                break;
-            case 'doc-bank-account':
-                addExistingFile(initialApplication.docs?.kbankBookFirstPage);
-                break;
-            case 'doc-tax-act':
-                addExistingFile(initialApplication.docs?.taxAndPRB);
-                break;
-            case 'doc-guarantor-citizen-id':
-                addExistingFile(initialApplication.docs?.guarantorCitizenIdCopy);
-                break;
-            case 'doc-guarantor-house-reg':
-                addExistingFile(initialApplication.docs?.guarantorHouseRegCopy);
-                break;
+        const originalFile = getOriginalFileForDocId(docId);
+        if (Array.isArray(originalFile)) { // Should not happen anymore
+            originalFile.forEach(addExistingFile);
+        } else {
+            addExistingFile(originalFile);
         }
         
         return displayFiles;
@@ -693,5 +658,3 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
-
-    

@@ -250,10 +250,7 @@ export function ApplicationForm() {
                         acc.guarantorHouseRegCopy = fileData;
                         break;
                     case 'doc-car-photo':
-                        if (!acc.carPhotos) {
-                            acc.carPhotos = [];
-                        }
-                        acc.carPhotos.push(fileData);
+                        acc.carPhoto = fileData;
                         break;
                     case 'doc-insurance':
                         if (!acc.insurance) {
@@ -465,5 +462,3 @@ export function ApplicationForm() {
     </Card>
   );
 }
-
-    

@@ -49,7 +49,7 @@ export const ManifestSchema = z.object({
     driverLicenseCopy: FileRefSchema.optional(),
     houseRegCopy: FileRefSchema.optional(),
     carRegCopy: FileRefSchema.optional(),
-    carPhotos: z.array(FileRefSchema).optional(),
+    carPhoto: FileRefSchema.optional(),
     kbankBookFirstPage: FileRefSchema.optional(),
     taxAndPRB: FileRefSchema.optional(),
     insurance: z.object({
