@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 export type VerificationStatus = 'pending' | 'approved' | 'rejected';
@@ -46,7 +47,7 @@ export const ManifestSchema = z.object({
   docs: z.object({
     citizenIdCopy: FileRefSchema.optional(),
     driverLicenseCopy: FileRefSchema.optional(),
-    houseRegCopy: FileRefSchema.aoptional(),
+    houseRegCopy: FileRefSchema.optional(),
     carRegCopy: FileRefSchema.optional(),
     carPhotos: z.array(FileRefSchema).optional(),
     kbankBookFirstPage: FileRefSchema.optional(),
