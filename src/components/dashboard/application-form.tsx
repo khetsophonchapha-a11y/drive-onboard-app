@@ -52,8 +52,8 @@ async function md5Base64(file: File) {
 }
 
 const applicantSchema = z.object({
-  fullName: z.string().min(2, "กรุณากรอกชื่อ-นามสกุล"),
-  phone: z.string().min(9, "กรุณากรอกเบอร์โทรศัพท์"),
+  fullName: z.string().min(1, "กรุณากรอกชื่อ-นามสกุล"),
+  phone: z.string().min(1, "กรุณากรอกเบอร์โทรศัพท์"),
   address: z.string().optional(),
   nationalId: z.string().optional(),
 });
@@ -84,6 +84,7 @@ const documentUploadSchema = z.object({
 const documentSchema = z.object({
     id: z.string(),
     type: z.string(),
+    required: z.boolean(),
     upload: documentUploadSchema,
 });
 
@@ -91,7 +92,15 @@ const formSchema = z.object({
     applicant: applicantSchema,
     vehicle: vehicleSchema,
     guarantor: guarantorSchema,
-    documents: z.array(documentSchema),
+    documents: z.array(documentSchema)
+      .refine(
+        (docs) => docs.every(doc => !doc.required || (doc.upload.status === 'selected' || doc.upload.status === 'success')),
+        {
+          message: 'กรุณาอัปโหลดเอกสารที่จำเป็นให้ครบถ้วน',
+          // This path is not straightforward, so we'll handle showing a generic error in the UI if needed.
+          // For now, disabling the button is the primary feedback.
+        }
+      ),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -113,6 +122,7 @@ export function ApplicationForm() {
         upload: { status: 'pending', progress: 0, file: null }
       }))
     },
+    mode: "onChange", // Validate on change to enable/disable button
   });
 
   const { fields: documentFields, update: updateDocument } = useFieldArray({
@@ -147,6 +157,7 @@ export function ApplicationForm() {
             errorMessage: undefined 
         }
     });
+    form.trigger('documents'); // Manually trigger validation for the documents array
   };
 
   const removeFile = (index: number) => {
@@ -162,6 +173,7 @@ export function ApplicationForm() {
             errorMessage: undefined 
         } 
     });
+     form.trigger('documents'); // Manually trigger validation for the documents array
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -371,7 +383,7 @@ export function ApplicationForm() {
                   <div key={field.id} className="border rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex-1 w-full">
                       <div className="flex justify-between items-center">
-                        <p className="font-medium">{field.type}</p>
+                        <p className="font-medium">{field.type}{field.required && <span className="text-destructive ml-1">*</span>}</p>
                         {uploadState.status !== 'pending' && uploadState.status !== 'uploading' && (
                           <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeFile(index)}>
                             <X className="w-4 h-4"/>
@@ -443,7 +455,7 @@ export function ApplicationForm() {
                     </p>
                 </div>
             )}
-            <Button type="submit" size="lg" disabled={isSubmitting}>
+            <Button type="submit" size="lg" disabled={isSubmitting || !form.formState.isValid}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -462,3 +474,5 @@ export function ApplicationForm() {
     </Card>
   );
 }
+
+    
