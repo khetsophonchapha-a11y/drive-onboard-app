@@ -21,6 +21,8 @@ import {
   Check,
   Loader2,
   Send,
+  Pencil,
+  X,
 } from "lucide-react";
 import {
   Form,
@@ -86,20 +88,30 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
 
 export function ApplicationDetails({ application: initialApplication }: ApplicationDetailsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [editLinkCopied, setEditLinkCopied] = useState(false);
   const applicantName = initialApplication.applicant.fullName;
   const { toast } = useToast();
 
   const form = useForm<Manifest>({
     resolver: zodResolver(ManifestSchema),
-    defaultValues: {
-      ...initialApplication,
-      // Ensure nested objects are defined to avoid uncontrolled component errors
-      applicant: initialApplication.applicant || { fullName: '', phone: '' },
-      vehicle: initialApplication.vehicle || {},
-      guarantor: initialApplication.guarantor || {},
-    },
+    defaultValues: initialApplication,
   });
+
+  const {
+    handleSubmit,
+    control,
+    reset,
+    formState: { isDirty },
+  } = form;
+
+  const handleEditToggle = () => {
+    if (isEditMode) {
+      reset(initialApplication); // Reset form to initial values if canceling edit
+    }
+    setIsEditMode(!isEditMode);
+  };
+
 
   const onSubmit = async (values: Manifest) => {
       setIsSubmitting(true);
@@ -110,6 +122,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             body: JSON.stringify({ appId: values.appId, manifest: values })
         });
         toast({ title: "บันทึกข้อมูลสำเร็จ!", description: "ข้อมูลใบสมัครได้รับการอัปเดตแล้ว", variant: "default" });
+        setIsEditMode(false); // Exit edit mode on successful submission
+        reset(values); // Update the form's default values to the new state
 
       } catch (error: any) {
         toast({
@@ -168,7 +182,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)}>
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -177,7 +191,13 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                   <CardTitle className="font-headline text-2xl">{applicantName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
                   <CardDescription>รหัสใบสมัคร: {initialApplication.appId}</CardDescription>
                 </div>
-                <Badge variant={statusVariantMap[initialApplication.status.verification]} className="capitalize text-base">{statusText[initialApplication.status.verification]}</Badge>
+                 <div className="flex items-center gap-4">
+                    <Badge variant={statusVariantMap[initialApplication.status.verification]} className="capitalize text-base h-8">{statusText[initialApplication.status.verification]}</Badge>
+                    <Button type="button" size="icon" variant={isEditMode ? "destructive" : "outline"} onClick={handleEditToggle} className="h-8 w-8">
+                      {isEditMode ? <X /> : <Pencil />}
+                      <span className="sr-only">{isEditMode ? "Cancel Edit" : "Edit Application"}</span>
+                    </Button>
+                </div>
             </div>
           </CardHeader>
         </Card>
@@ -186,17 +206,17 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
           <CardContent className="space-y-4">
              <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="applicant.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="applicant.fullName" render={({ field }) => (
+                  <FormItem><FormLabel>ชื่อ-นามสกุล</FormLabel><FormControl><Input {...field} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="applicant.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="applicant.phone" render={({ field }) => (
+                  <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="applicant.nationalId" render={({ field }) => (
-                  <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="applicant.nationalId" render={({ field }) => (
+                  <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="applicant.address" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="applicant.address" render={({ field }) => (
+                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
           </CardContent>
@@ -206,20 +226,20 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           <CardHeader><CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle></CardHeader>
           <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                 <FormField control={form.control} name="vehicle.brand" render={({ field }) => (
-                    <FormItem><FormLabel>ยี่ห้อ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                 <FormField control={control} name="vehicle.brand" render={({ field }) => (
+                    <FormItem><FormLabel>ยี่ห้อ</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                  )} />
-                 <FormField control={form.control} name="vehicle.model" render={({ field }) => (
-                    <FormItem><FormLabel>รุ่น</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                 <FormField control={control} name="vehicle.model" render={({ field }) => (
+                    <FormItem><FormLabel>รุ่น</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                  )} />
-                  <FormField control={form.control} name="vehicle.year" render={({ field }) => (
-                    <FormItem><FormLabel>ปี</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                  <FormField control={control} name="vehicle.year" render={({ field }) => (
+                    <FormItem><FormLabel>ปี</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                  )} />
-                 <FormField control={form.control} name="vehicle.plateNo" render={({ field }) => (
-                    <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                 <FormField control={control} name="vehicle.plateNo" render={({ field }) => (
+                    <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                  )} />
-                 <FormField control={form.control} name="vehicle.color" render={({ field }) => (
-                    <FormItem><FormLabel>สี</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                 <FormField control={control} name="vehicle.color" render={({ field }) => (
+                    <FormItem><FormLabel>สี</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                  )} />
               </div>
           </CardContent>
@@ -230,14 +250,14 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
         <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="guarantor.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="guarantor.fullName" render={({ field }) => (
+                  <FormItem><FormLabel>ชื่อ-นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="guarantor.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="guarantor.phone" render={({ field }) => (
+                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="guarantor.address" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="guarantor.address" render={({ field }) => (
+                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
         </CardContent>
@@ -271,10 +291,12 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                            <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted">
                             <DocumentViewer fileRef={docRef} />
                           </div>
-                          <div className="flex gap-2 pt-1 justify-end">
-                              <Button size="sm" variant="outline" type="button">เปลี่ยนไฟล์</Button>
-                              <Button size="sm" variant="destructive" type="button">ลบ</Button>
-                          </div>
+                           {isEditMode && (
+                              <div className="flex gap-2 pt-1 justify-end">
+                                  <Button size="sm" variant="outline" type="button">เปลี่ยนไฟล์</Button>
+                                  <Button size="sm" variant="destructive" type="button">ลบ</Button>
+                              </div>
+                           )}
                         </div>
                       ))}
                     </div>
@@ -282,7 +304,9 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                      <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
                          <div className="text-center text-muted-foreground">
                              <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
-                             <Button size="sm" variant="outline" className="mt-2" type="button">อัปโหลด</Button>
+                             {isEditMode && (
+                                <Button size="sm" variant="outline" className="mt-2" type="button">อัปโหลด</Button>
+                             )}
                          </div>
                      </div>
                   )}
@@ -344,25 +368,25 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                 </div>
            </CardFooter>
         </Card>
-         <div className="flex justify-end gap-2 sticky bottom-4">
-             <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  กำลังบันทึก...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  บันทึกการเปลี่ยนแปลง
-                </>
-              )}
-            </Button>
-        </div>
+        {isEditMode && isDirty && (
+            <div className="flex justify-end gap-2 sticky bottom-4">
+                <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
+                {isSubmitting ? (
+                    <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    กำลังบันทึก...
+                    </>
+                ) : (
+                    <>
+                    <Send className="mr-2 h-4 w-4" />
+                    บันทึกการเปลี่ยนแปลง
+                    </>
+                )}
+                </Button>
+            </div>
+        )}
       </div>
       </form>
     </Form>
   );
 }
-
-    
