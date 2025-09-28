@@ -226,6 +226,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     control,
     reset,
     formState: { isDirty },
+    trigger,
   } = form;
 
    // Revoke object URLs on cleanup
@@ -249,12 +250,13 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     const newTempFile: TempFile = { docId, file, objectUrl };
 
     setFileChanges(prev => {
-        const newUploads = [...prev.toUpload];
-        const newDeletes = [...prev.toDelete];
+        let newUploads = [...prev.toUpload];
+        let newDeletes = [...prev.toDelete];
 
-        // If it's a replacement for a single-file doc
+        const allowMultiple = docId === 'doc-car-photo';
+
         if (replaceKey) {
-            // If replacing an existing file, add its r2Key to toDelete
+             // If replacing an existing file, add its r2Key to toDelete
             if (initialApplication.docs && Object.values(initialApplication.docs).flat().some(f => f && f.r2Key === replaceKey)) {
                  if (!newDeletes.includes(replaceKey)) {
                     newDeletes.push(replaceKey);
@@ -268,14 +270,15 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             }
         }
         
-        const allowMultiple = docId === 'doc-car-photo';
         if (!allowMultiple) {
             // For single-file docs, remove any existing temp file for this docId
-            const existingTempIndex = newUploads.findIndex(f => f.docId === docId);
-            if (existingTempIndex > -1) {
-                 URL.revokeObjectURL(newUploads[existingTempIndex].objectUrl);
-                 newUploads.splice(existingTempIndex, 1);
-            }
+            newUploads = newUploads.filter(f => {
+                if (f.docId === docId) {
+                    URL.revokeObjectURL(f.objectUrl);
+                    return false;
+                }
+                return true;
+            });
              // Also mark the original file for deletion if it exists
              const originalFile = getOriginalFileForDocId(docId);
              if (originalFile && !newDeletes.includes(originalFile.r2Key)) {
@@ -287,7 +290,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         
         return { toUpload: newUploads, toDelete: newDeletes };
     });
-    form.trigger(); // Mark form as dirty
+    trigger(); // Mark form as dirty
+    toast({ title: 'เพิ่มไฟล์ในคิว', description: 'การเปลี่ยนแปลงจะถูกบันทึกเมื่อคุณกดปุ่ม "บันทึกการเปลี่ยนแปลง"' });
   };
   
     const handleFileDelete = (docId: string, key: string) => { // key can be r2Key or objectUrl
@@ -309,7 +313,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             return { toUpload: newUploads, toDelete: newDeletes };
         });
         toast({ title: 'ลบไฟล์สำเร็จ', description: 'การเปลี่ยนแปลงจะถูกบันทึกเมื่อคุณกดปุ่ม "บันทึกการเปลี่ยนแปลง"' });
-        form.trigger(); // Mark form as dirty
+        trigger(); // Mark form as dirty
     };
 
 
@@ -320,8 +324,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
       try {
         // Step 1: Upload new files
-        const uploadedFileRefs: Record<string, FileRef | FileRef[]> = {};
-
         const uploadPromises = fileChanges.toUpload.map(async tempFile => {
             const { docId, file } = tempFile;
             toast({ title: 'กำลังอัปโหลด...', description: file.name });
@@ -407,8 +409,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         });
         toast({ title: "บันทึกข้อมูลสำเร็จ!", description: "ข้อมูลใบสมัครได้รับการอัปเดตแล้ว", variant: "default" });
         setIsEditMode(false); 
-        reset(newManifest); // Update the form's default values
         setFileChanges({ toUpload: [], toDelete: [] }); // Clear changes
+        reset(newManifest); // Update the form's default values
 
       } catch (error: any) {
         toast({
@@ -462,16 +464,26 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             displayFiles.push({ type: 'temp', ref: tempFile, displayUrl: tempFile.objectUrl });
         }
 
+        const allowMultiple = docId === 'doc-car-photo';
+
         // Add existing files that haven't been marked for deletion
         const addExistingFile = (fileRef: FileRef | undefined) => {
-            if (fileRef && !fileChanges.toDelete.includes(fileRef.r2Key) && !fileChanges.toUpload.some(t => t.docId === docId && docId !== 'doc-car-photo')) {
+            if (fileRef && !fileChanges.toDelete.includes(fileRef.r2Key)) {
+                 // For single-file docs, don't show existing if a temp one is replacing it
+                if (!allowMultiple && fileChanges.toUpload.some(t => t.docId === docId)) {
+                    return;
+                }
                 displayFiles.push({ type: 'existing', ref: fileRef, displayUrl: '' }); // displayUrl is empty, DocumentViewer will fetch it
             }
         };
 
         switch (docId) {
             case 'doc-car-photo':
-                initialApplication.docs?.carPhotos?.forEach(addExistingFile);
+                initialApplication.docs?.carPhotos?.forEach(fileRef => {
+                    if (fileRef && !fileChanges.toDelete.includes(fileRef.r2Key)) {
+                         displayFiles.push({ type: 'existing', ref: fileRef, displayUrl: '' });
+                    }
+                });
                 break;
             case 'doc-insurance':
                 addExistingFile(initialApplication.docs?.insurance?.policy);
