@@ -106,7 +106,7 @@ export function ApplicationForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       applicant: { fullName: "", phone: "", address: "", nationalId: "" },
-      vehicle: { brand: "", model: "", year: undefined, plateNo: "", color: "" },
+      vehicle: { brand: "", model: "", plateNo: "", color: "" },
       guarantor: { fullName: "", phone: "", address: "" },
       documents: requiredDocumentsSchema.map(doc => ({
         ...doc,
@@ -222,18 +222,45 @@ export function ApplicationForm() {
             vehicle: values.vehicle,
             guarantor: values.guarantor,
             docs: uploadedFileRefs.reduce((acc, fileRef) => {
-                // This mapping is simplified. A real app might need a more robust mapping.
-                const keyMap: Record<string, keyof Manifest['docs']> = {
-                    'doc-citizen-id': 'citizenIdCopy', 'doc-drivers-license': 'driverLicenseCopy',
-                    'doc-house-reg': 'houseRegCopy', 'doc-car-reg': 'carRegCopy',
-                    'doc-bank-account': 'kbankBookFirstPage', 'doc-tax-act': 'taxAndPRB',
-                    'doc-guarantor-citizen-id': 'guarantorCitizenIdCopy', 'doc-guarantor-house-reg': 'guarantorHouseRegCopy',
-                };
-                const docKey = keyMap[fileRef.docId];
-                if (docKey) {
-                    const fileData: FileRef = { r2Key: fileRef.r2Key, mime: fileRef.mime, size: fileRef.size, md5: fileRef.md5 };
-                    // This doesn't handle array types like carPhotos or nested insurance
-                    (acc as any)[docKey] = fileData;
+                const fileData: FileRef = { r2Key: fileRef.r2Key, mime: fileRef.mime, size: fileRef.size, md5: fileRef.md5 };
+
+                switch (fileRef.docId) {
+                    case 'doc-citizen-id':
+                        acc.citizenIdCopy = fileData;
+                        break;
+                    case 'doc-drivers-license':
+                        acc.driverLicenseCopy = fileData;
+                        break;
+                    case 'doc-house-reg':
+                        acc.houseRegCopy = fileData;
+                        break;
+                    case 'doc-car-reg':
+                        acc.carRegCopy = fileData;
+                        break;
+                    case 'doc-bank-account':
+                        acc.kbankBookFirstPage = fileData;
+                        break;
+                    case 'doc-tax-act':
+                        acc.taxAndPRB = fileData;
+                        break;
+                    case 'doc-guarantor-citizen-id':
+                        acc.guarantorCitizenIdCopy = fileData;
+                        break;
+                    case 'doc-guarantor-house-reg':
+                        acc.guarantorHouseRegCopy = fileData;
+                        break;
+                    case 'doc-car-photo':
+                        if (!acc.carPhotos) {
+                            acc.carPhotos = [];
+                        }
+                        acc.carPhotos.push(fileData);
+                        break;
+                    case 'doc-insurance':
+                        if (!acc.insurance) {
+                           acc.insurance = {};
+                        }
+                        acc.insurance.policy = fileData;
+                        break;
                 }
                 return acc;
             }, {} as Manifest['docs']),
@@ -297,19 +324,19 @@ export function ApplicationForm() {
               <CardTitle className="font-headline">ข้อมูลยานพาหนะ (ถ้ามี)</CardTitle>
               <div className="grid md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="vehicle.brand" render={({ field }) => (
-                  <FormItem><FormLabel>ยี่ห้อรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ยี่ห้อรถ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.model" render={({ field }) => (
-                  <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>รุ่นรถ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.year" render={({ field }) => (
-                  <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ปีที่ผลิต</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.valueAsNumber || undefined)} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="vehicle.plateNo" render={({ field }) => (
-                  <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField control={form.control} name="vehicle.color" render={({ field }) => (
-                  <FormItem><FormLabel>สีรถ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>สีรถ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
             </div>
@@ -321,13 +348,13 @@ export function ApplicationForm() {
               <CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน (ถ้ามี)</CardTitle>
               <div className="grid md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="guarantor.fullName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อ-นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ชื่อ-นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="guarantor.address" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
             </div>
