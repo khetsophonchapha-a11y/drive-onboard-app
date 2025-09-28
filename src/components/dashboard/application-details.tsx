@@ -319,6 +319,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
       setIsSubmitting(true);
       
       const newManifest = JSON.parse(JSON.stringify(values));
+      const keysToDelete = [...fileChanges.toDelete]; // Copy keys to delete
 
       try {
         // Step 1: Upload new files
@@ -405,6 +406,27 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         setIsEditMode(false); 
         setFileChanges({ toUpload: [], toDelete: [] }); // Clear changes
         reset(newManifest); // Update the form's default values
+
+        // Step 4: Delete old files from R2
+        if (keysToDelete.length > 0) {
+            try {
+                await safeFetch('/api/r2/delete-objects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ r2Keys: keysToDelete })
+                });
+                toast({ title: "ล้างข้อมูลสำเร็จ", description: `ไฟล์เก่าจำนวน ${keysToDelete.length} ไฟล์ถูกลบออกจากระบบแล้ว` });
+            } catch (deleteError: any) {
+                // Failure to delete is not critical for the user, so just log and toast.
+                console.error("Failed to delete old files:", deleteError);
+                toast({
+                    variant: "destructive",
+                    title: "ลบไฟล์เก่าล้มเหลว",
+                    description: "การบันทึกข้อมูลสำเร็จ แต่ไม่สามารถลบไฟล์เก่าบางส่วนออกจากระบบได้",
+                });
+            }
+        }
+
 
       } catch (error: any) {
         toast({
@@ -658,3 +680,5 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
+
+    
