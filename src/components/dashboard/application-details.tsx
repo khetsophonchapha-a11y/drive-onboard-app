@@ -692,7 +692,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                     ) : initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated' ? (
                                         <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
                                             {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                            อนุมัติใบสมัคร
+                                            อนุมัติใบสมัครอีกครั้ง
                                         </Button>
                                     ) : (
                                         <>

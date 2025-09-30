@@ -418,5 +418,3 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
     </div>
   )
 }
-
-    
