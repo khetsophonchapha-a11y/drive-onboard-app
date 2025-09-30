@@ -377,7 +377,7 @@ export function ApplicationForm() {
                   <FormItem><FormLabel>เบอร์โทรศัพท์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} placeholder="xxx-xxx-xxxx" maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="applicant.address" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ถ้ามี)</FormLabel><FormControl><Input {...field} maxLength={200} /></FormControl><FormMessage /></FormItem>
+                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ถ้ามี)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={200} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
             </div>
@@ -395,7 +395,7 @@ export function ApplicationForm() {
                         <FormItem>
                             <FormLabel>ยี่ห้อรถ</FormLabel>
                             <div className={`grid ${watchBrand === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value || ''}>
                                 <FormControl>
                                     <SelectTrigger><SelectValue placeholder="เลือกยี่ห้อรถ" /></SelectTrigger>
                                 </FormControl>
@@ -411,7 +411,7 @@ export function ApplicationForm() {
                                         render={({ field: brandOtherField }) => (
                                             <FormItem>
                                                 <FormControl>
-                                                    <Input {...brandOtherField} placeholder="ระบุยี่ห้อ" />
+                                                    <Input {...brandOtherField} value={brandOtherField.value || ''} placeholder="ระบุยี่ห้อ" />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -430,7 +430,7 @@ export function ApplicationForm() {
                         <FormItem>
                             <FormLabel>รุ่นรถ</FormLabel>
                              <div className={`grid ${watchModel === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
-                                <Select onValueChange={field.onChange} value={field.value} disabled={!watchBrand || watchBrand === 'อื่นๆ'}>
+                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={!watchBrand || watchBrand === 'อื่นๆ'}>
                                 <FormControl>
                                     <SelectTrigger><SelectValue placeholder={!watchBrand || watchBrand === 'อื่นๆ' ? 'กรุณาระบุยี่ห้อก่อน' : 'เลือกรุ่นรถ'} /></SelectTrigger>
                                 </FormControl>
@@ -446,7 +446,7 @@ export function ApplicationForm() {
                                         render={({ field: modelOtherField }) => (
                                             <FormItem>
                                                 <FormControl>
-                                                    <Input {...modelOtherField} placeholder="ระบุรุ่น" />
+                                                    <Input {...modelOtherField} value={modelOtherField.value || ''} placeholder="ระบุรุ่น" />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -464,7 +464,7 @@ export function ApplicationForm() {
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>ปีที่ผลิต (ค.ศ.)</FormLabel>
-                            <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                            <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString() || ''}>
                                 <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="เลือกปี" />
@@ -490,7 +490,7 @@ export function ApplicationForm() {
                         <FormItem>
                             <FormLabel>สีรถ</FormLabel>
                              <div className={`grid ${watchColor === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value || ''}>
                                 <FormControl>
                                     <SelectTrigger><SelectValue placeholder="เลือกสีรถ" /></SelectTrigger>
                                 </FormControl>
@@ -506,7 +506,7 @@ export function ApplicationForm() {
                                         render={({ field: colorOtherField }) => (
                                             <FormItem>
                                                 <FormControl>
-                                                    <Input {...colorOtherField} placeholder="ระบุสี" />
+                                                    <Input {...colorOtherField} value={colorOtherField.value || ''} placeholder="ระบุสี" />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -544,15 +544,17 @@ export function ApplicationForm() {
 
             <Separator />
 
-            {/* Download Forms Section */}
-             <div className="space-y-4">
-                <CardHeader className="p-0">
-                    <CardTitle className="font-headline">ดาวน์โหลดแบบฟอร์มที่จำเป็น</CardTitle>
+            {/* Documents Section */}
+            <div className="space-y-4">
+              <CardHeader className="p-0">
+                <CardTitle className="font-headline">อัปโหลดเอกสาร</CardTitle>
+                <CardDescription>กรุณาเซ็นสำเนาถูกต้องและถ่ายรูปให้ชัดเจนก่อนส่ง (JPG, PNG ไม่เกิน 2MB; PDF ไม่เกิน 10MB)</CardDescription>
+              </CardHeader>
+               <div className="space-y-4 pt-4">
                     <CardDescription>
                         ดาวน์โหลดแบบฟอร์มเพื่อกรอกและเซ็นชื่อ จากนั้นอัปโหลดในส่วนถัดไป
                     </CardDescription>
-                </CardHeader>
-                <div className="grid sm:grid-cols-3 gap-4 pt-2">
+                <div className="grid sm:grid-cols-3 gap-4">
                     {formTemplates.map((template) => (
                         <a 
                             key={template.name}
@@ -565,15 +567,9 @@ export function ApplicationForm() {
                         </a>
                     ))}
                 </div>
+                <Separator className="!my-6" />
             </div>
-
-            {/* Documents Section */}
-            <div className="space-y-4">
-              <CardHeader className="p-0">
-                <CardTitle className="font-headline">อัปโหลดเอกสาร</CardTitle>
-                <CardDescription>กรุณาเซ็นสำเนาถูกต้องและถ่ายรูปให้ชัดเจนก่อนส่ง (JPG, PNG ไม่เกิน 2MB; PDF ไม่เกิน 10MB)</CardDescription>
-              </CardHeader>
-              <div className="space-y-4 pt-2">
+              <div className="space-y-4">
                 {documentFields.map((field, index) => {
                   const uploadState = form.watch(`documents.${index}.upload`);
                   return (
@@ -674,3 +670,5 @@ export function ApplicationForm() {
     </Card>
   );
 }
+
+    
