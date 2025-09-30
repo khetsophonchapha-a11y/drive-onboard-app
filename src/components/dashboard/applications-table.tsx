@@ -14,7 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle as XCircleIcon, Loader2 } from "lucide-react"
+import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle as XCircleIcon, Loader2, UserX } from "lucide-react"
 import Link from "next/link"
 import { DateRange } from "react-day-picker"
 
@@ -404,3 +404,5 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
     </div>
   )
 }
+
+    
