@@ -158,6 +158,8 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
         cell: ({ row }) => {
             const application = row.original;
             const isCurrentUpdating = isPending && updatingId === application.appId;
+            const status = application.status;
+
             return (
                 <div className="flex items-center justify-end gap-2">
                     <Button asChild variant="outline" size="sm">
@@ -165,14 +167,24 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                             <Eye className="mr-1 h-4 w-4" /> ดูข้อมูล
                         </Link>
                     </Button>
-                    <Button variant="success" size="sm" onClick={() => handleUpdateStatus(application.appId, 'approved')} disabled={isCurrentUpdating}>
-                        {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
-                        อนุมัติ
-                    </Button>
-                     <Button variant="destructive" size="sm" onClick={() => handleUpdateStatus(application.appId, 'rejected')} disabled={isCurrentUpdating}>
-                        {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <XCircleIcon className="mr-1 h-4 w-4" />}
-                        ปฏิเสธ
-                    </Button>
+                    
+                    {status === 'approved' ? (
+                        <Button variant="secondary" size="sm" onClick={() => handleUpdateStatus(application.appId, 'terminated')} disabled={isCurrentUpdating}>
+                            {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <UserX className="mr-1 h-4 w-4" />}
+                            เลิกจ้าง
+                        </Button>
+                    ) : (
+                        <>
+                            <Button variant="success" size="sm" onClick={() => handleUpdateStatus(application.appId, 'approved')} disabled={isCurrentUpdating}>
+                                {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
+                                อนุมัติ
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleUpdateStatus(application.appId, 'rejected')} disabled={isCurrentUpdating}>
+                                {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <XCircleIcon className="mr-1 h-4 w-4" />}
+                                ปฏิเสธ
+                            </Button>
+                        </>
+                    )}
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -183,10 +195,12 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions เพิ่มเติม</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'terminated')}>
-                                <UserX className="mr-2 h-4 w-4" />
-                                <span>เลิกจ้าง</span>
-                            </DropdownMenuItem>
+                            {status !== 'approved' && (
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'terminated')}>
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    <span>เลิกจ้าง</span>
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
