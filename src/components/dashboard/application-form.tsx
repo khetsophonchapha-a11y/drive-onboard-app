@@ -124,9 +124,9 @@ const currentYear = new Date().getFullYear();
 const yearOptions = Array.from({ length: 30 }, (_, i) => currentYear - i);
 
 const formTemplates = [
-    { name: 'ใบสมัครงาน', path: '/forms/application-form.pdf' },
-    { name: 'หนังสือสัญญาจ้างขนส่งสินค้า', path: '/forms/transport-contract.pdf' },
-    { name: 'สัญญาค้ำประกันบุคคลเข้าทำงาน', path: '/forms/guarantee-contract.pdf' },
+    { name: 'ใบสมัครงาน', filename: 'application-form.pdf' },
+    { name: 'หนังสือสัญญาจ้างขนส่งสินค้า', filename: 'transport-contract.pdf' },
+    { name: 'สัญญาค้ำประกันบุคคลเข้าทำงาน', filename: 'guarantee-contract.pdf' },
 ];
 
 export function ApplicationForm() {
@@ -556,8 +556,8 @@ export function ApplicationForm() {
                     {formTemplates.map((template) => (
                         <a 
                             key={template.name}
-                            href={template.path}
-                            download
+                            href={`/api/download-form?filename=${template.filename}`}
+                            download={template.filename}
                             className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
                         >
                             <Download className="mr-2 h-4 w-4" />
