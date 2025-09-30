@@ -475,7 +475,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             description: `ใบสมัครถูกเปลี่ยนสถานะเป็น "${statusText[status]}"`,
             variant: "default"
         });
-        // router.refresh() is automatically handled by revalidateTag in server action
+        router.refresh(); // Refresh the page to show the latest data
       } else {
         toast({
             title: "อัปเดตสถานะล้มเหลว",

@@ -17,6 +17,7 @@ import {
 import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle, Loader2, UserX, FileClock } from "lucide-react"
 import Link from "next/link"
 import { DateRange } from "react-day-picker"
+import { useRouter } from "next/navigation";
 
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
@@ -86,6 +87,7 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [date, setDate] = React.useState<DateRange | undefined>()
+  const router = useRouter();
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [applicationToDelete, setApplicationToDelete] = React.useState<AppRow | null>(null);
@@ -103,6 +105,7 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
             description: `ใบสมัครถูกเปลี่ยนสถานะเป็น "${statusText[status]}"`,
             variant: "default"
         });
+        router.refresh(); // Refresh the page to show the latest data
       } else {
         toast({
             title: "อัปเดตสถานะล้มเหลว",
@@ -168,26 +171,24 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                         </Link>
                     </Button>
                     
-                    {status === 'approved' ? (
+                    {status === 'pending' && (
+                        <>
+                            <Button variant="success" size="sm" onClick={() => handleUpdateStatus(application.appId, 'approved')} disabled={isCurrentUpdating}>
+                                {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
+                                อนุมัติ
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleUpdateStatus(application.appId, 'rejected')} disabled={isCurrentUpdating}>
+                                {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <XCircle className="mr-1 h-4 w-4" />}
+                                ปฏิเสธ
+                            </Button>
+                        </>
+                    )}
+                    
+                    {status === 'approved' && (
                         <Button variant="secondary" size="sm" onClick={() => handleUpdateStatus(application.appId, 'terminated')} disabled={isCurrentUpdating}>
                             {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <UserX className="mr-1 h-4 w-4" />}
                             เลิกจ้าง
                         </Button>
-                    ) : (
-                        <>
-                            {status !== 'approved' && (
-                              <Button variant="success" size="sm" onClick={() => handleUpdateStatus(application.appId, 'approved')} disabled={isCurrentUpdating}>
-                                  {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
-                                  อนุมัติ
-                              </Button>
-                            )}
-                            {status !== 'rejected' && (
-                              <Button variant="destructive" size="sm" onClick={() => handleUpdateStatus(application.appId, 'rejected')} disabled={isCurrentUpdating}>
-                                  {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <XCircle className="mr-1 h-4 w-4" />}
-                                  ปฏิเสธ
-                              </Button>
-                            )}
-                        </>
                     )}
 
                     <DropdownMenu>
@@ -440,4 +441,5 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
     </div>
   )
 }
+
     
