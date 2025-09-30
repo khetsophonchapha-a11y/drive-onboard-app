@@ -383,6 +383,9 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         // Add the newly uploaded files
         for (const { docId, ref } of uploadResults) {
             const docMapping = {
+                'doc-application-form': 'applicationForm',
+                'doc-transport-contract': 'transportContract',
+                'doc-guarantee-contract': 'guaranteeContract',
                 'doc-citizen-id': 'citizenIdCopy',
                 'doc-drivers-license': 'driverLicenseCopy',
                 'doc-house-reg': 'houseRegCopy',
@@ -470,6 +473,9 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         if (!docs) return undefined;
         switch (docId) {
             case 'doc-insurance': return docs.insurance?.policy;
+            case 'doc-application-form': return docs.applicationForm;
+            case 'doc-transport-contract': return docs.transportContract;
+            case 'doc-guarantee-contract': return docs.guaranteeContract;
             case 'doc-citizen-id': return docs.citizenIdCopy;
             case 'doc-drivers-license': return docs.driverLicenseCopy;
             case 'doc-house-reg': return docs.houseRegCopy;

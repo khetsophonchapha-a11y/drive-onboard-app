@@ -41,6 +41,9 @@ export const applicationFormSchema = {
 };
 
 export const requiredDocumentsSchema = [
+  { id: 'doc-application-form', type: 'ใบสมัครงาน', required: true },
+  { id: 'doc-transport-contract', type: 'หนังสือสัญญาจ้างขนส่งสินค้า', required: true },
+  { id: 'doc-guarantee-contract', type: 'สัญญาค้ำประกันบุคคลเข้าทำงาน', required: true },
   { id: 'doc-citizen-id', type: "สำเนาบัตรประชาชน", required: true },
   { id: 'doc-drivers-license', type: 'สำเนาใบขับขี่', required: true },
   { id: 'doc-house-reg', type: 'สำเนาทะเบียนบ้าน', required: true },

@@ -50,6 +50,9 @@ export const ManifestSchema = z.object({
     address: z.string().max(200, 'ที่อยู่ผู้ค้ำต้องไม่เกิน 200 ตัวอักษร').optional(),
   }).optional(),
   docs: z.object({
+    applicationForm: FileRefSchema.optional(),
+    transportContract: FileRefSchema.optional(),
+    guaranteeContract: FileRefSchema.optional(),
     citizenIdCopy: FileRefSchema.optional(),
     driverLicenseCopy: FileRefSchema.optional(),
     houseRegCopy: FileRefSchema.optional(),

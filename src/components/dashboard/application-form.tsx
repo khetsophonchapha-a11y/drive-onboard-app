@@ -151,13 +151,16 @@ export function ApplicationForm() {
 
   const watchBrand = form.watch('vehicle.brand');
   const watchColor = form.watch('vehicle.color');
+  const watchModel = form.watch('vehicle.model');
 
   const models = carBrands.find(b => b.name === watchBrand)?.models || [];
 
   useEffect(() => {
-    // When brand changes, reset model
-    form.setValue('vehicle.model', '');
-    form.setValue('vehicle.modelOther', '');
+    // When brand changes, reset model, unless the brand is "Other"
+    if (watchBrand !== 'อื่นๆ') {
+      form.setValue('vehicle.model', '');
+      form.setValue('vehicle.modelOther', '');
+    }
   }, [watchBrand, form]);
 
   const handleFileChange = (file: File | null, index: number) => {
@@ -286,19 +289,22 @@ export function ApplicationForm() {
                 const fileData: FileRef = { r2Key: fileRef.r2Key, mime: fileRef.mime, size: fileRef.size, md5: fileRef.md5 };
 
                 switch (fileRef.docId) {
+                    case 'doc-application-form': acc.applicationForm = fileData; break;
+                    case 'doc-transport-contract': acc.transportContract = fileData; break;
+                    case 'doc-guarantee-contract': acc.guaranteeContract = fileData; break;
                     case 'doc-citizen-id': acc.citizenIdCopy = fileData; break;
                     case 'doc-drivers-license': acc.driverLicenseCopy = fileData; break;
                     case 'doc-house-reg': acc.houseRegCopy = fileData; break;
                     case 'doc-car-reg': acc.carRegCopy = fileData; break;
                     case 'doc-bank-account': acc.kbankBookFirstPage = fileData; break;
                     case 'doc-tax-act': acc.taxAndPRB = fileData; break;
-                    case 'doc-guarantor-citizen-id': acc.guarantorCitizenIdCopy = fileData; break;
-                    case 'doc-guarantor-house-reg': acc.guarantorHouseRegCopy = fileData; break;
                     case 'doc-car-photo': acc.carPhoto = fileData; break;
                     case 'doc-insurance':
                         if (!acc.insurance) acc.insurance = {};
                         acc.insurance.policy = fileData;
                         break;
+                    case 'doc-guarantor-citizen-id': acc.guarantorCitizenIdCopy = fileData; break;
+                    case 'doc-guarantor-house-reg': acc.guarantorHouseRegCopy = fileData; break;
                 }
                 return acc;
             }, {} as Manifest['docs']),
@@ -398,7 +404,7 @@ export function ApplicationForm() {
                             />
                         )}
                     </div>
-                    <div className={`grid ${form.watch('vehicle.model') === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
+                    <div className={`grid ${watchModel === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
                         <FormField
                             control={form.control}
                             name="vehicle.model"
@@ -418,7 +424,7 @@ export function ApplicationForm() {
                             </FormItem>
                             )}
                         />
-                         {form.watch('vehicle.model') === 'อื่นๆ' && (
+                         {watchModel === 'อื่นๆ' && (
                             <FormField
                                 control={form.control}
                                 name="vehicle.modelOther"
