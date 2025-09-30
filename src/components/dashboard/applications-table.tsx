@@ -105,7 +105,9 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
             description: `ใบสมัครถูกเปลี่ยนสถานะเป็น "${statusText[status]}"`,
             variant: "default"
         });
-        router.refresh(); // Refresh the page to show the latest data
+        // This is the key change. router.refresh() tells Next.js to re-fetch
+        // the Server Component data and update the UI.
+        router.refresh(); 
       } else {
         toast({
             title: "อัปเดตสถานะล้มเหลว",
@@ -125,10 +127,6 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
   const handleDeleteConfirm = () => {
     if (applicationToDelete) {
       onDelete(applicationToDelete.appId);
-      toast({
-        title: "ลบใบสมัครสำเร็จ (จำลอง)",
-        description: `ใบสมัครของ ${applicationToDelete.fullName} ได้ถูกลบออกจาก UI แล้ว`,
-      });
       setIsDeleteDialogOpen(false);
       setApplicationToDelete(null);
     }
@@ -258,18 +256,17 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
       columnVisibility,
       rowSelection,
     },
-    // Prevent re-render on state change for external state management
-    // This is handled by Next.js revalidation
-    manualPagination: true,
-    manualSorting: true,
-    manualFiltering: true,
+    // We are now letting tanstack-table handle this since the data is passed via props
+    // manualPagination: true,
+    // manualSorting: true,
+    // manualFiltering: true,
   })
 
   React.useEffect(() => {
     if (date?.from) {
       // If only `from` is selected, filter from that day to now.
       // If `to` is also selected, filter between `from` and `to`.
-      const toDate = date.to ? date.to : new Date();
+      const toDate = date.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date();
       table.getColumn('createdAt')?.setFilterValue([date.from, toDate]);
     } else {
         table.getColumn('createdAt')?.setFilterValue(undefined);
@@ -303,11 +300,11 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                   {date?.from ? (
                       date.to ? (
                       <>
-                          {format(date.from, "LLL dd, y", { locale: th })} -{" "}
-                          {format(date.to, "LLL dd, y", { locale: th })}
+                          {format(date.from, "d MMM yyyy", { locale: th })} -{" "}
+                          {format(date.to, "d MMM yyyy", { locale: th })}
                       </>
                       ) : (
-                      format(date.from, "LLL dd, y", { locale: th })
+                      format(date.from, "d MMM yyyy", { locale: th })
                       )
                   ) : (
                       <span>เลือกช่วงวันที่</span>
@@ -441,5 +438,3 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
     </div>
   )
 }
-
-    

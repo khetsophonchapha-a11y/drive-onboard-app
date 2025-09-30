@@ -1,65 +1,29 @@
 
-"use client";
+import { ApplicationsClient } from "@/components/dashboard/applications-client";
+import type { AppRow } from "@/lib/types";
 
-import { useState, useEffect, useMemo } from "react";
-import { OverviewCards } from "@/components/dashboard/overview-cards";
-import { ApplicationsTable } from "@/components/dashboard/applications-table";
-import type { AppRow, VerificationStatus } from "@/lib/types";
-import { Skeleton } from "@/components/ui/skeleton";
+// Helper to fetch data directly on the server
+async function getApplications(): Promise<AppRow[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+  try {
+    // We use fetch with cache: 'no-store' to ensure we always get fresh data
+    // when this server component re-renders (e.g., after a router.refresh()).
+    const res = await fetch(`${baseUrl}/api/applications`, { cache: 'no-store' });
 
-export default function DashboardPage() {
-  const [statusFilter, setStatusFilter] = useState<VerificationStatus | "all">("all");
-  const [applications, setApplications] = useState<AppRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchApplications = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/applications");
-        if (!res.ok) {
-          throw new Error("Failed to fetch applications");
-        }
-        const data = await res.json();
-        setApplications(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchApplications();
-  }, []);
-
-  const handleStatusFilter = (status: VerificationStatus | "all") => {
-    setStatusFilter(status);
-  };
-  
-  const filteredApplications = useMemo(() => {
-    if (statusFilter === 'all') {
-      return applications;
+    if (!res.ok) {
+      console.error("Failed to fetch applications:", await res.text());
+      return []; // Return empty array on error
     }
-    return applications.filter(app => app.status === statusFilter);
-  }, [applications, statusFilter]);
-
-  const handleDeleteApplication = async (applicationId: string) => {
-    // This is a placeholder. In a real app, you would call a DELETE API endpoint.
-    // This endpoint would need to:
-    // 1. Delete all files in the `applications/{appId}` folder in R2.
-    // 2. Delete the `manifest.json`.
-    // 3. Remove the entry from `index.json`.
-    console.log(`TODO: Implement deletion for ${applicationId}`);
-    
-    // For now, just remove from the UI optimistically.
-    setApplications(apps => apps.filter(app => app.appId !== applicationId));
-  };
-
-
-  if (error) {
-    return <div className="text-destructive">Error: {error}</div>;
+    return await res.json();
+  } catch (error) {
+    console.error("Error in getApplications:", error);
+    return []; // Return empty array on network or parsing error
   }
+}
+
+
+export default async function DashboardPage() {
+  const applications = await getApplications();
 
   return (
     <div className="space-y-6">
@@ -69,30 +33,7 @@ export default function DashboardPage() {
           ภาพรวมและจัดการใบสมัครพนักงานขับรถทั้งหมด
         </p>
       </div>
-      {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Skeleton className="h-[109px] w-full" />
-          <Skeleton className="h-[109px] w-full" />
-          <Skeleton className="h-[109px] w-full" />
-           <Skeleton className="h-[109px] w-full" />
-           <Skeleton className="h-[109px] w-full" />
-        </div>
-      ) : (
-        <OverviewCards 
-          onStatusSelect={handleStatusFilter} 
-          selectedStatus={statusFilter}
-          applications={applications} 
-        />
-      )}
-      {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
-      ) : (
-        <ApplicationsTable applications={filteredApplications} onDelete={handleDeleteApplication} />
-      )}
+      <ApplicationsClient initialApplications={applications} />
     </div>
   );
 }

@@ -759,5 +759,3 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
-
-    
