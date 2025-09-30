@@ -1,8 +1,9 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { VerificationStatus, AppRow } from "@/lib/types";
-import { Users, FileClock, CheckCircle, XCircle } from "lucide-react";
+import { Users, FileClock, CheckCircle, XCircle, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type OverviewCardsProps = {
@@ -21,6 +22,7 @@ export function OverviewCards({ onStatusSelect, selectedStatus, applications }: 
   const pendingApplications = statusCounts.pending || 0;
   const approvedApplications = statusCounts.approved || 0;
   const rejectedApplications = statusCounts.rejected || 0;
+  const terminatedApplications = statusCounts.terminated || 0;
 
   const cardData = [
     {
@@ -51,10 +53,17 @@ export function OverviewCards({ onStatusSelect, selectedStatus, applications }: 
       status: "rejected",
       color: "text-destructive",
     },
+    {
+      title: "เลิกจ้าง",
+      value: terminatedApplications,
+      icon: UserX,
+      status: "terminated",
+      color: "text-slate-500",
+    },
   ] as const;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       {cardData.map((card) => (
         <Card 
           key={card.status}

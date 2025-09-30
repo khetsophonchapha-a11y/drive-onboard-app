@@ -56,16 +56,19 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 
-const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "success" | "destructive"> = {
+type BadgeVariant = "default" | "secondary" | "success" | "destructive" | "outline";
+const statusVariantMap: Record<VerificationStatus, BadgeVariant> = {
   pending: "default",
   approved: "success",
   rejected: "destructive",
+  terminated: "secondary",
 };
 
 const statusText: Record<VerificationStatus, string> = {
   pending: "รอตรวจสอบ",
   approved: "อนุมัติ",
   rejected: "ปฏิเสธ",
+  terminated: "เลิกจ้าง",
 };
 
 type ApplicationsTableProps = {

@@ -1,7 +1,7 @@
 
 import { z } from 'zod';
 
-export type VerificationStatus = 'pending' | 'approved' | 'rejected';
+export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'terminated';
 
 // Minimal summary for index.json
 export type AppRow = {
@@ -69,7 +69,7 @@ export const ManifestSchema = z.object({
   }).partial(), // Use .partial() to allow updating only some doc fields
   status: z.object({
     completeness: z.enum(['incomplete', 'complete']),
-    verification: z.enum(['pending', 'approved', 'rejected']),
+    verification: z.enum(['pending', 'approved', 'rejected', 'terminated']),
     notes: z.string().optional(),
   }),
 });
