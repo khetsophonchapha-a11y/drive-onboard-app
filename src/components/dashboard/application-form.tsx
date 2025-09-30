@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { useToast } from "@/hooks/use-toast";
 import { requiredDocumentsSchema } from "@/lib/schema";
 import { carBrands, carColors } from "@/lib/vehicle-data";
-import { FileUp, FileCheck, X, Send, Loader2, AlertCircle } from "lucide-react";
+import { FileUp, FileCheck, X, Send, Loader2, AlertCircle, Download } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import type { Manifest, FileRef } from "@/lib/types";
@@ -123,6 +124,11 @@ const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 const currentYear = new Date().getFullYear();
 const yearOptions = Array.from({ length: 30 }, (_, i) => currentYear - i);
 
+const formTemplates = [
+    { name: 'ใบสมัครงาน', path: '/forms/application-form.pdf' },
+    { name: 'หนังสือสัญญาจ้างขนส่งสินค้า', path: '/forms/transport-contract.pdf' },
+    { name: 'สัญญาค้ำประกันบุคคลเข้าทำงาน', path: '/forms/guarantee-contract.pdf' },
+];
 
 export function ApplicationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -156,12 +162,29 @@ export function ApplicationForm() {
   const models = carBrands.find(b => b.name === watchBrand)?.models || [];
 
   useEffect(() => {
-    // When brand changes, reset model, unless the brand is "Other"
     if (watchBrand !== 'อื่นๆ') {
       form.setValue('vehicle.model', '');
       form.setValue('vehicle.modelOther', '');
     }
   }, [watchBrand, form]);
+
+  useEffect(() => {
+    if (watchBrand !== 'อื่นๆ') {
+      form.setValue('vehicle.brandOther', '');
+    }
+  }, [watchBrand, form]);
+
+  useEffect(() => {
+    if (watchModel !== 'อื่นๆ') {
+      form.setValue('vehicle.modelOther', '');
+    }
+  }, [watchModel, form]);
+
+  useEffect(() => {
+    if (watchColor !== 'อื่นๆ') {
+      form.setValue('vehicle.colorOther', '');
+    }
+  }, [watchColor, form]);
 
   const handleFileChange = (file: File | null, index: number) => {
     if (!file) return;
@@ -369,75 +392,79 @@ export function ApplicationForm() {
             <div className="space-y-4">
                 <CardTitle className="font-headline">ข้อมูลยานพาหนะ (ถ้ามี)</CardTitle>
                 <div className="grid md:grid-cols-2 gap-x-4 gap-y-4">
-                    <div className={`grid ${watchBrand === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
+                    <div className="grid grid-cols-1">
                         <FormField
                             control={form.control}
                             name="vehicle.brand"
                             render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="grid grid-cols-1">
                                 <FormLabel>ยี่ห้อรถ</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="เลือกยี่ห้อรถ" /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {carBrands.map(brand => <SelectItem key={brand.name} value={brand.name}>{brand.name}</SelectItem>)}
-                                    <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
-                                </SelectContent>
-                                </Select>
+                                <div className={`grid ${field.value === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger><SelectValue placeholder="เลือกยี่ห้อรถ" /></SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {carBrands.map(brand => <SelectItem key={brand.name} value={brand.name}>{brand.name}</SelectItem>)}
+                                        <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
+                                    </SelectContent>
+                                    </Select>
+                                     {field.value === 'อื่นๆ' && (
+                                        <FormField
+                                            control={form.control}
+                                            name="vehicle.brandOther"
+                                            render={({ field: brandOtherField }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <Input {...brandOtherField} placeholder="ระบุยี่ห้อ" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
                                 <FormMessage />
                             </FormItem>
                             )}
                         />
-                        {watchBrand === 'อื่นๆ' && (
-                            <FormField
-                                control={form.control}
-                                name="vehicle.brandOther"
-                                render={({ field }) => (
-                                    <FormItem className="self-end">
-                                        <FormControl>
-                                            <Input {...field} placeholder="ระบุยี่ห้อ" />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
                     </div>
-                    <div className={`grid ${watchModel === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
+                    <div className="grid grid-cols-1">
                         <FormField
                             control={form.control}
                             name="vehicle.model"
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>รุ่นรถ</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} disabled={!watchBrand || watchBrand === 'อื่นๆ'}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder={!watchBrand || watchBrand === 'อื่นๆ' ? 'กรุณาระบุยี่ห้อก่อน' : 'เลือกรุ่นรถ'} /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {models.map(model => <SelectItem key={model} value={model}>{model}</SelectItem>)}
-                                    <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
-                                </SelectContent>
-                                </Select>
+                                 <div className={`grid ${field.value === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={!watchBrand || watchBrand === 'อื่นๆ'}>
+                                    <FormControl>
+                                        <SelectTrigger><SelectValue placeholder={!watchBrand || watchBrand === 'อื่นๆ' ? 'กรุณาระบุยี่ห้อก่อน' : 'เลือกรุ่นรถ'} /></SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {models.map(model => <SelectItem key={model} value={model}>{model}</SelectItem>)}
+                                        <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
+                                    </SelectContent>
+                                    </Select>
+                                    {field.value === 'อื่นๆ' && (
+                                        <FormField
+                                            control={form.control}
+                                            name="vehicle.modelOther"
+                                            render={({ field: modelOtherField }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <Input {...modelOtherField} placeholder="ระบุรุ่น" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
                                 <FormMessage />
                             </FormItem>
                             )}
                         />
-                         {watchModel === 'อื่นๆ' && (
-                            <FormField
-                                control={form.control}
-                                name="vehicle.modelOther"
-                                render={({ field }) => (
-                                    <FormItem className="self-end">
-                                        <FormControl>
-                                            <Input {...field} placeholder="ระบุรุ่น" />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
                     </div>
                     <FormField
                         control={form.control}
@@ -464,40 +491,42 @@ export function ApplicationForm() {
                     <FormField control={form.control} name="vehicle.plateNo" render={({ field }) => (
                         <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="เช่น 1กข 1234" /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <div className={`grid ${watchColor === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
+                    <div className="grid grid-cols-1">
                         <FormField
                             control={form.control}
                             name="vehicle.color"
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>สีรถ</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="เลือกสีรถ" /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {carColors.map(color => <SelectItem key={color} value={color}>{color}</SelectItem>)}
-                                    <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
-                                </SelectContent>
-                                </Select>
+                                 <div className={`grid ${field.value === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger><SelectValue placeholder="เลือกสีรถ" /></SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {carColors.map(color => <SelectItem key={color} value={color}>{color}</SelectItem>)}
+                                        <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
+                                    </SelectContent>
+                                    </Select>
+                                    {field.value === 'อื่นๆ' && (
+                                        <FormField
+                                            control={form.control}
+                                            name="vehicle.colorOther"
+                                            render={({ field: colorOtherField }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <Input {...colorOtherField} placeholder="ระบุสี" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
                                 <FormMessage />
                             </FormItem>
                             )}
                         />
-                         {watchColor === 'อื่นๆ' && (
-                            <FormField
-                                control={form.control}
-                                name="vehicle.colorOther"
-                                render={({ field }) => (
-                                    <FormItem className="self-end">
-                                        <FormControl>
-                                            <Input {...field} placeholder="ระบุสี" />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
                     </div>
                 </div>
             </div>
@@ -524,6 +553,26 @@ export function ApplicationForm() {
             </div>
 
             <Separator />
+
+            {/* Download Forms Section */}
+             <div className="space-y-4">
+                <CardHeader className="p-0">
+                    <CardTitle className="font-headline">ดาวน์โหลดแบบฟอร์มที่จำเป็น</CardTitle>
+                    <CardDescription>
+                        ดาวน์โหลดแบบฟอร์มเพื่อกรอกและเซ็นชื่อ จากนั้นอัปโหลดในส่วนถัดไป
+                    </CardDescription>
+                </CardHeader>
+                <div className="grid sm:grid-cols-3 gap-4 pt-2">
+                    {formTemplates.map((template) => (
+                        <Button key={template.name} variant="outline" asChild>
+                            <Link href={template.path} download>
+                                <Download className="mr-2 h-4 w-4" />
+                                {template.name}
+                            </Link>
+                        </Button>
+                    ))}
+                </div>
+            </div>
 
             {/* Documents Section */}
             <div className="space-y-4">
@@ -632,3 +681,5 @@ export function ApplicationForm() {
     </Card>
   );
 }
+
+    
