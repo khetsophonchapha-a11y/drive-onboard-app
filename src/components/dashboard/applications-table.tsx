@@ -14,7 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle as XCircleIcon, Loader2, UserX } from "lucide-react"
+import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle, Loader2, UserX, FileClock } from "lucide-react"
 import Link from "next/link"
 import { DateRange } from "react-day-picker"
 
@@ -175,14 +175,18 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                         </Button>
                     ) : (
                         <>
-                            <Button variant="success" size="sm" onClick={() => handleUpdateStatus(application.appId, 'approved')} disabled={isCurrentUpdating}>
-                                {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
-                                อนุมัติ
-                            </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleUpdateStatus(application.appId, 'rejected')} disabled={isCurrentUpdating}>
-                                {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <XCircleIcon className="mr-1 h-4 w-4" />}
-                                ปฏิเสธ
-                            </Button>
+                            {status !== 'approved' && (
+                              <Button variant="success" size="sm" onClick={() => handleUpdateStatus(application.appId, 'approved')} disabled={isCurrentUpdating}>
+                                  {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
+                                  อนุมัติ
+                              </Button>
+                            )}
+                            {status !== 'rejected' && (
+                              <Button variant="destructive" size="sm" onClick={() => handleUpdateStatus(application.appId, 'rejected')} disabled={isCurrentUpdating}>
+                                  {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <XCircle className="mr-1 h-4 w-4" />}
+                                  ปฏิเสธ
+                              </Button>
+                            )}
                         </>
                     )}
 
@@ -195,10 +199,28 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions เพิ่มเติม</DropdownMenuLabel>
-                            {status !== 'approved' && (
+                            {status !== 'pending' && (
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'pending')}>
+                                    <FileClock className="mr-2 h-4 w-4" />
+                                    <span>เปลี่ยนเป็น "รอตรวจสอบ"</span>
+                                </DropdownMenuItem>
+                            )}
+                             {status !== 'approved' && (
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'approved')}>
+                                    <Check className="mr-2 h-4 w-4" />
+                                    <span>เปลี่ยนเป็น "อนุมัติ"</span>
+                                </DropdownMenuItem>
+                            )}
+                            {status !== 'rejected' && (
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'rejected')}>
+                                    <XCircle className="mr-2 h-4 w-4" />
+                                    <span>เปลี่ยนเป็น "ปฏิเสธ"</span>
+                                </DropdownMenuItem>
+                            )}
+                            {status !== 'terminated' && (
                                 <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'terminated')}>
                                     <UserX className="mr-2 h-4 w-4" />
-                                    <span>เลิกจ้าง</span>
+                                    <span>เปลี่ยนเป็น "เลิกจ้าง"</span>
                                 </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
@@ -418,3 +440,5 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
     </div>
   )
 }
+
+    

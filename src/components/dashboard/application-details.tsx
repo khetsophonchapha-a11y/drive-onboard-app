@@ -692,7 +692,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                     ) : initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated' ? (
                                         <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
                                             {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                            อนุมัติใบสมัครอีกครั้ง
+                                            อนุมัติอีกครั้ง
                                         </Button>
                                     ) : (
                                         <>
@@ -703,10 +703,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                             <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
                                                 {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
                                                 ปฏิเสธใบสมัคร
-                                            </Button>
-                                            <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
-                                                {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
-                                                เลิกจ้าง
                                             </Button>
                                         </>
                                     )}
@@ -763,3 +759,5 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
+
+    
