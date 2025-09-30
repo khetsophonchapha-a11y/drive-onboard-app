@@ -205,19 +205,19 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                                     <span>เปลี่ยนเป็น "รอตรวจสอบ"</span>
                                 </DropdownMenuItem>
                             )}
-                             {status !== 'approved' && (
+                             {status !== 'approved' && status !== 'pending' && (
                                 <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'approved')}>
                                     <Check className="mr-2 h-4 w-4" />
                                     <span>เปลี่ยนเป็น "อนุมัติ"</span>
                                 </DropdownMenuItem>
                             )}
-                            {status !== 'rejected' && (
+                            {status !== 'rejected' && status !== 'pending' && (
                                 <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'rejected')}>
                                     <XCircle className="mr-2 h-4 w-4" />
                                     <span>เปลี่ยนเป็น "ปฏิเสธ"</span>
                                 </DropdownMenuItem>
                             )}
-                            {status !== 'terminated' && (
+                            {status !== 'terminated' && status !== 'pending' && (
                                 <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'terminated')}>
                                     <UserX className="mr-2 h-4 w-4" />
                                     <span>เปลี่ยนเป็น "เลิกจ้าง"</span>
@@ -440,5 +440,4 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
     </div>
   )
 }
-
     
