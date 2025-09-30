@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { OverviewCards } from "@/components/dashboard/overview-cards";
 import { ApplicationsTable } from "@/components/dashboard/applications-table";
 import type { AppRow, VerificationStatus } from "@/lib/types";
@@ -37,9 +37,12 @@ export default function DashboardPage() {
     setStatusFilter(status);
   };
   
-  const filteredApplications = statusFilter === 'all' 
-    ? applications 
-    : applications.filter(app => app.status === statusFilter);
+  const filteredApplications = useMemo(() => {
+    if (statusFilter === 'all') {
+      return applications;
+    }
+    return applications.filter(app => app.status === statusFilter);
+  }, [applications, statusFilter]);
 
   const handleDeleteApplication = async (applicationId: string) => {
     // This is a placeholder. In a real app, you would call a DELETE API endpoint.
@@ -71,7 +74,8 @@ export default function DashboardPage() {
           <Skeleton className="h-[109px] w-full" />
           <Skeleton className="h-[109px] w-full" />
           <Skeleton className="h-[109px] w-full" />
-          <Skeleton className="h-[109px] w-full" />
+           <Skeleton className="h-[109px] w-full" />
+           <Skeleton className="h-[109px] w-full" />
         </div>
       ) : (
         <OverviewCards 

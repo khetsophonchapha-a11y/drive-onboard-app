@@ -14,7 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle as XCircleIcon } from "lucide-react"
+import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle as XCircleIcon, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { DateRange } from "react-day-picker"
 
@@ -54,6 +54,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { updateApplicationStatus } from "@/app/actions";
 
 
 type BadgeVariant = "default" | "secondary" | "success" | "destructive" | "outline";
@@ -89,6 +90,29 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [applicationToDelete, setApplicationToDelete] = React.useState<AppRow | null>(null);
   const { toast } = useToast();
+  const [isPending, startTransition] = React.useTransition();
+  const [updatingId, setUpdatingId] = React.useState<string | null>(null);
+
+  const handleUpdateStatus = (appId: string, status: VerificationStatus) => {
+    setUpdatingId(appId);
+    startTransition(async () => {
+      const result = await updateApplicationStatus(appId, status);
+      if (result.success) {
+        toast({
+            title: `อัปเดตสถานะสำเร็จ`,
+            description: `ใบสมัครถูกเปลี่ยนสถานะเป็น "${statusText[status]}"`,
+            variant: "default"
+        });
+      } else {
+        toast({
+            title: "อัปเดตสถานะล้มเหลว",
+            description: result.error,
+            variant: "destructive"
+        });
+      }
+      setUpdatingId(null);
+    });
+  };
 
   const handleOpenDeleteDialog = (application: AppRow) => {
     setApplicationToDelete(application);
@@ -133,6 +157,7 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
         enableHiding: false,
         cell: ({ row }) => {
             const application = row.original;
+            const isCurrentUpdating = isPending && updatingId === application.appId;
             return (
                 <div className="flex items-center justify-end gap-2">
                     <Button asChild variant="outline" size="sm">
@@ -140,22 +165,28 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                             <Eye className="mr-1 h-4 w-4" /> ดูข้อมูล
                         </Link>
                     </Button>
-                    <Button variant="success" size="sm" onClick={() => console.log('Approve', application.appId)}>
-                        <Check className="mr-1 h-4 w-4" /> อนุมัติ
+                    <Button variant="success" size="sm" onClick={() => handleUpdateStatus(application.appId, 'approved')} disabled={isCurrentUpdating}>
+                        {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
+                        อนุมัติ
                     </Button>
-                     <Button variant="destructive" size="sm" onClick={() => console.log('Reject', application.appId)}>
-                        <XCircleIcon className="mr-1 h-4 w-4" /> ปฏิเสธ
+                     <Button variant="destructive" size="sm" onClick={() => handleUpdateStatus(application.appId, 'rejected')} disabled={isCurrentUpdating}>
+                        {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <XCircleIcon className="mr-1 h-4 w-4" />}
+                        ปฏิเสธ
                     </Button>
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
+                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={isCurrentUpdating}>
                                 <span className="sr-only">เปิดเมนู</span>
                                 <MoreHorizontal className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions เพิ่มเติม</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'terminated')}>
+                                <UserX className="mr-2 h-4 w-4" />
+                                <span>เลิกจ้าง</span>
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
@@ -190,6 +221,11 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
       columnVisibility,
       rowSelection,
     },
+    // Prevent re-render on state change for external state management
+    // This is handled by Next.js revalidation
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
   })
 
   React.useEffect(() => {
@@ -323,8 +359,7 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          แสดง {table.getRowModel().rows.length} จาก {applications.length} รายการ
         </div>
         <div className="space-x-2">
           <Button

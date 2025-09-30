@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useTransition } from "react";
 import type { Manifest, FileRef, VerificationStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,9 @@ import {
   X,
   UploadCloud,
   Trash2,
+  UserX,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import {
   Form,
@@ -54,6 +57,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
 import { useRouter } from "next/navigation";
+import { updateApplicationStatus } from "@/app/actions";
 
 type ApplicationDetailsProps = {
   application: Manifest;
@@ -220,6 +224,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   const router = useRouter();
 
   const [fileChanges, setFileChanges] = useState<FileChanges>({ toUpload: [], toDelete: [] });
+
+  const [isStatusPending, startStatusTransition] = useTransition();
 
   const form = useForm<z.infer<typeof ManifestSchema>>({
     resolver: zodResolver(ManifestSchema),
@@ -460,6 +466,27 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   };
 
 
+  const handleUpdateStatus = (status: VerificationStatus) => {
+    startStatusTransition(async () => {
+      const result = await updateApplicationStatus(initialApplication.appId, status);
+      if (result.success) {
+        toast({
+            title: `อัปเดตสถานะสำเร็จ`,
+            description: `ใบสมัครถูกเปลี่ยนสถานะเป็น "${statusText[status]}"`,
+            variant: "default"
+        });
+        // router.refresh() is automatically handled by revalidateTag in server action
+      } else {
+        toast({
+            title: "อัปเดตสถานะล้มเหลว",
+            description: result.error,
+            variant: "destructive"
+        });
+      }
+    });
+  };
+
+
   const editLink = `${window.location.origin}/apply?appId=${initialApplication.appId}`;
 
 
@@ -641,7 +668,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                      <div className="flex justify-between items-center w-full">
                         <h4 className="font-semibold">การดำเนินการ</h4>
                         <div className="flex gap-2">
-                             {isEditMode && (isDirty || fileChanges.toUpload.length > 0 || fileChanges.toDelete.length > 0) && (
+                             {isEditMode && (isDirty || fileChanges.toUpload.length > 0 || fileChanges.toDelete.length > 0) ? (
                                 <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
                                 {isSubmitting ? (
                                     <>
@@ -655,9 +682,22 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                     </>
                                 )}
                                 </Button>
+                            ) : (
+                                <>
+                                    <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                        อนุมัติใบสมัคร
+                                    </Button>
+                                    <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
+                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                                        ปฏิเสธใบสมัคร
+                                    </Button>
+                                    <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
+                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                        เลิกจ้าง
+                                    </Button>
+                                </>
                             )}
-                            <Button variant="success">อนุมัติใบสมัคร</Button>
-                            <Button variant="destructive">ปฏิเสธใบสมัคร</Button>
                         </div>
                     </div>
                     <Separator />
