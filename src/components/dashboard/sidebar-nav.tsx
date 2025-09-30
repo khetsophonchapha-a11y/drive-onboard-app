@@ -25,12 +25,12 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  const menuItems = [
-    {
-      href: "/dashboard",
-      label: "แดชบอร์ด",
-      icon: LayoutDashboard,
-    },
+  const menuItems: { href: string, label: string, icon: React.ElementType }[] = [
+    // {
+    //   href: "/dashboard",
+    //   label: "แดชบอร์ด",
+    //   icon: LayoutDashboard,
+    // },
   ];
 
   return (
