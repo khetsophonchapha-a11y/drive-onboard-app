@@ -582,13 +582,13 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           <CardContent className="space-y-4">
              <div className="grid md:grid-cols-2 gap-4">
                 <FormField control={control} name="applicant.firstName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={control} name="applicant.lastName" render={({ field }) => (
-                  <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={control} name="applicant.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={control} name="applicant.nationalId" render={({ field }) => (
                   <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
@@ -684,18 +684,32 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                 </Button>
                             ) : (
                                 <>
-                                    <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
-                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                        อนุมัติใบสมัคร
-                                    </Button>
-                                    <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
-                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
-                                        ปฏิเสธใบสมัคร
-                                    </Button>
-                                    <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
-                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
-                                        เลิกจ้าง
-                                    </Button>
+                                    {initialApplication.status.verification === 'approved' ? (
+                                        <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
+                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                            เลิกจ้าง
+                                        </Button>
+                                    ) : initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated' ? (
+                                        <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                            อนุมัติใบสมัคร
+                                        </Button>
+                                    ) : (
+                                        <>
+                                            <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                                {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                                อนุมัติใบสมัคร
+                                            </Button>
+                                            <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
+                                                {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                                                ปฏิเสธใบสมัคร
+                                            </Button>
+                                            <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
+                                                {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                                เลิกจ้าง
+                                            </Button>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -749,5 +763,3 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
-
-    
