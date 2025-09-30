@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -35,7 +36,8 @@ export function Header() {
                 </BreadcrumbLink>
             </BreadcrumbItem>
             {pathSegments.slice(1).map((segment, index) => {
-                if (segment === 'applications' && pathSegments.length < 3) return null;
+                // If the segment is 'applications', we skip it to avoid the redundant link.
+                if (segment === 'applications') return null;
 
                 const href = `/${pathSegments.slice(0, index + 2).join('/')}`;
                 const isLast = index === pathSegments.length - 2;
