@@ -8,7 +8,7 @@ import { Header } from "@/components/dashboard/header";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
-  if (loading || !user) {
+  if (loading) {
     return <div className="flex items-center justify-center h-screen w-full"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div></div>;
   }
 
