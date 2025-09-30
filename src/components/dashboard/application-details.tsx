@@ -591,7 +591,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                   <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={control} name="applicant.nationalId" render={({ field }) => (
-                  <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={13} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={control} name="applicant.address" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
@@ -759,3 +759,5 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
+
+    
