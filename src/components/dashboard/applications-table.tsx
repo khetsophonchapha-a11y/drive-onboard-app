@@ -14,7 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle, Calendar as CalendarIcon, X, Trash2 } from "lucide-react"
+import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle as XCircleIcon } from "lucide-react"
 import Link from "next/link"
 import { DateRange } from "react-day-picker"
 
@@ -134,28 +134,39 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
         cell: ({ row }) => {
             const application = row.original;
             return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">เปิดเมนู</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <Link href={`/dashboard/applications/${application.appId}`} passHref>
-                            <DropdownMenuItem>ดูใบสมัคร</DropdownMenuItem>
+                <div className="flex items-center justify-end gap-2">
+                    <Button asChild variant="outline" size="sm">
+                        <Link href={`/dashboard/applications/${application.appId}`}>
+                            <Eye className="mr-1 h-4 w-4" /> ดูข้อมูล
                         </Link>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                            onClick={() => handleOpenDeleteDialog(application)}
-                        >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>ลบใบสมัคร</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                    </Button>
+                    <Button variant="success" size="sm" onClick={() => console.log('Approve', application.appId)}>
+                        <Check className="mr-1 h-4 w-4" /> อนุมัติ
+                    </Button>
+                     <Button variant="destructive" size="sm" onClick={() => console.log('Reject', application.appId)}>
+                        <XCircleIcon className="mr-1 h-4 w-4" /> ปฏิเสธ
+                    </Button>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">เปิดเมนู</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions เพิ่มเติม</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                onClick={() => handleOpenDeleteDialog(application)}
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>ลบใบสมัคร</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             );
         },
     },
