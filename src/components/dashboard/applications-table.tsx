@@ -143,9 +143,6 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
                         <Link href={`/dashboard/applications/${application.appId}`} passHref>
                             <DropdownMenuItem>ดูใบสมัคร</DropdownMenuItem>
                         </Link>
-                         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(application.appId)}>
-                            คัดลอก ID
-                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
                             className="text-destructive focus:text-destructive focus:bg-destructive/10"
