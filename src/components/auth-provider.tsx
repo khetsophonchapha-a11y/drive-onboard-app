@@ -34,8 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser);
-          // If user is logged in and tries to access a public path like /login, redirect to dashboard
-          if (publicPaths.includes(pathname)) {
+          // If user is logged in and tries to access the login page, redirect to dashboard.
+          // Allow access to other public pages like /apply.
+          if (pathname === '/login') {
             router.push("/dashboard");
           }
         } else {
