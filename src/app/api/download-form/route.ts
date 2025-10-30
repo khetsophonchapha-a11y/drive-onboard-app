@@ -5,120 +5,143 @@ import fs from 'fs/promises';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import type { Manifest } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
-// import { th } from 'date-fns/locale'; // Removed to avoid Thai characters
+import { th } from 'date-fns/locale';
 
+// Helper to format dates consistently with Thai locale
 function formatDate(date: string | Date | undefined): string {
-    if (!date) return '';
+    if (!date) return '..............................';
     try {
         const dateObj = typeof date === 'string' ? parseISO(date) : date;
-        // Use default English locale which is supported by Helvetica
-        return format(dateObj, 'd MMMM yyyy'); 
+        return format(dateObj, 'd MMMM yyyy', { locale: th });
     } catch {
-        return '';
+        return '..............................';
     }
 }
 
+// Helper for optional string values
+const val = (text: string | undefined | null, suffix = '') => (text ? `${text}${suffix}` : '');
+const num = (n: number | undefined | null) => (n !== undefined && n !== null ? n.toString() : '');
+
+const LINE_HEIGHT = 20;
+const COL1_X = 50;
+const COL2_X = 300;
 
 async function fillApplicationForm(data: Manifest): Promise<Uint8Array> {
-    const templatePath = path.join(process.cwd(), 'public', 'forms', 'application-form.pdf');
-    const templateBytes = await fs.readFile(templatePath);
-    const pdfDoc = await PDFDocument.load(templateBytes);
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const page = pdfDoc.getPages()[0];
-    
-    const { applicant, applicationDetails, vehicle } = data;
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
 
-    // A simple text drawing helper
-    const drawText = (text: string | undefined, x: number, y: number, size = 10) => {
-        // Only draw if text is defined and doesn't contain non-ASCII characters
-        if (text && /^[\x00-\x7F]*$/.test(text)) {
-            page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
-        }
+    const fontBytes = await fs.readFile(path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Regular.ttf'));
+    const boldFontBytes = await fs.readFile(path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Bold.ttf'));
+    const sarabunFont = await pdfDoc.embedFont(fontBytes);
+    const sarabunBoldFont = await pdfDoc.embedFont(boldFontBytes);
+
+    let y = height - 50;
+
+    const drawText = (text: string, x: number, currentY: number, isBold = false) => {
+        page.drawText(text, { x, y: currentY, font: isBold ? sarabunBoldFont : sarabunFont, size: 12, color: rgb(0, 0, 0) });
     };
+
+    drawText('ใบสมัครพนักงานขับรถ', width / 2 - 50, y, true);
+    y -= LINE_HEIGHT * 2;
+
+    drawText('ข้อมูลการสมัคร', COL1_X, y, true);
+    y -= LINE_HEIGHT;
+    drawText(`ตำแหน่งที่สมัคร: ${val(data.applicationDetails?.position)}`, COL1_X, y);
+    drawText(`วันที่สมัคร: ${formatDate(data.applicationDetails?.applicationDate)}`, COL2_X, y);
+    y -= LINE_HEIGHT * 1.5;
+
+    drawText('ข้อมูลส่วนตัวผู้สมัคร', COL1_X, y, true);
+    y -= LINE_HEIGHT;
+    drawText(`ชื่อ-นามสกุล: ${val(data.applicant?.prefix)} ${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)}`, COL1_X, y);
+    drawText(`เบอร์โทรศัพท์: ${val(data.applicant?.mobilePhone)}`, COL2_X, y);
+    y -= LINE_HEIGHT;
+    drawText(`เลขบัตรประชาชน: ${val(data.applicant?.nationalId)}`, COL1_X, y);
+    drawText(`อีเมล: ${val(data.applicant?.email)}`, COL2_X, y);
+    y -= LINE_HEIGHT;
+    drawText(`ที่อยู่ปัจจุบัน: ${val(data.applicant?.currentAddress?.houseNo)}`, COL1_X, y);
+    y -= LINE_HEIGHT * 1.5;
     
-    const drawNumeric = (num: number | undefined, x: number, y: number, size = 10) => {
-        if (num !== undefined) {
-             page.drawText(num.toString(), { x, y, size, font, color: rgb(0, 0, 0) });
-        }
-    }
+    drawText('ข้อมูลยานพาหนะ', COL1_X, y, true);
+    y -= LINE_HEIGHT;
+    drawText(`ยี่ห้อ/รุ่น: ${val(data.vehicle?.brand)} / ${val(data.vehicle?.model)}`, COL1_X, y);
+    drawText(`ปี: ${num(data.vehicle?.year)}`, COL2_X, y);
+    y -= LINE_HEIGHT;
+    drawText(`ป้ายทะเบียน: ${val(data.vehicle?.plateNo)}`, COL1_X, y);
+    drawText(`สี: ${val(data.vehicle?.color)}`, COL2_X, y);
+    y -= LINE_HEIGHT * 1.5;
 
-    // Fill data - coordinates are examples, they need to be measured from the template
-    // These fields are likely English/Numeric
-    drawText(applicationDetails?.position, 450, 710);
-    drawText(formatDate(applicationDetails?.applicationDate), 450, 688);
-    drawText(applicant?.email, 350, 615);
-    drawNumeric(applicant?.age, 250, 635);
-    drawText(applicant?.nationalId, 400, 635);
-    drawText(applicant?.mobilePhone, 120, 615);
-
-    // Thai fields are skipped to prevent error
-    // drawText(applicant.prefix, 100, 655);
-    // drawText(applicant.firstName, 200, 655);
-    // drawText(applicant.lastName, 350, 655);
-    // drawText(applicant.nickname, 500, 655);
-    // drawText(applicant.currentAddress?.houseNo, 150, 595);
-
-    drawText(vehicle?.brand, 120, 450);
-    drawText(vehicle?.model, 250, 450);
-    drawNumeric(vehicle?.year, 400, 450);
-    drawText(vehicle?.plateNo, 120, 430);
-    
-    // Color might be in Thai, skip for now
-    // drawText(vehicle.color, 250, 430);
-
+    // Signature boxes
+    y -= LINE_HEIGHT * 2;
+    page.drawRectangle({ x: COL2_X, y: y - 40, width: 200, height: 40, borderColor: rgb(0,0,0), borderWidth: 0.5 });
+    drawText('ลงชื่อผู้สมัคร', COL2_X + 60, y - 55);
+    drawText(`( ${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)} )`, COL2_X + 45, y - 70);
 
     return pdfDoc.save();
 }
 
 async function fillTransportContract(data: Manifest): Promise<Uint8Array> {
-    const templatePath = path.join(process.cwd(), 'public', 'forms', 'transport-contract.pdf');
-    const templateBytes = await fs.readFile(templatePath);
-    const pdfDoc = await PDFDocument.load(templateBytes);
-     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const page = pdfDoc.getPages()[0];
-    const { applicant, vehicle } = data;
-
-    const drawText = (text: string | undefined, x: number, y: number, size = 10) => {
-        if (text && /^[\x00-\x7F]*$/.test(text)) {
-            page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
-        }
-    };
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
     
-    // Example coordinates
-    drawText(formatDate(data.contractDetails?.contractDate || new Date()), 450, 720);
-    // Skipping fields that might contain Thai
-    // drawText(applicant.fullName, 200, 650);
-    // drawText(applicant.currentAddress?.houseNo, 200, 630);
-    drawText(applicant?.nationalId, 400, 650);
-    drawText(vehicle?.plateNo, 200, 500);
+    const fontBytes = await fs.readFile(path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Regular.ttf'));
+    const sarabunFont = await pdfDoc.embedFont(fontBytes);
 
+    let y = height - 50;
+    
+    page.drawText('สัญญาจ้างขนส่ง', { x: width / 2 - 50, y, font: sarabunFont, size: 16 });
+    y -= LINE_HEIGHT * 2;
+    
+    page.drawText(`วันที่ทำสัญญา: ${formatDate(data.contractDetails?.contractDate || new Date())}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT * 2;
+
+    const fullName = `${val(data.applicant?.prefix)} ${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)}`.trim();
+    const address = `${val(data.applicant?.currentAddress?.houseNo)}`.trim();
+
+    page.drawText(`ผู้ว่าจ้าง: บริษัท ไดรฟ์ออนบอร์ด จำกัด`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT;
+    page.drawText(`ผู้รับจ้าง (พนักงานขับรถ): ${fullName}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT;
+    page.drawText(`ที่อยู่: ${address}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT;
+    page.drawText(`เลขบัตรประชาชน: ${val(data.applicant?.nationalId)}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT;
+    page.drawText(`ทะเบียนรถยนต์ที่ใช้ประกอบการ: ${val(data.vehicle?.plateNo)}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
 
     return pdfDoc.save();
 }
 
 
 async function fillGuaranteeContract(data: Manifest): Promise<Uint8Array> {
-    const templatePath = path.join(process.cwd(), 'public', 'forms', 'guarantee-contract.pdf');
-    const templateBytes = await fs.readFile(templatePath);
-    const pdfDoc = await PDFDocument.load(templateBytes);
-     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const page = pdfDoc.getPages()[0];
-    const { applicant, guarantor } = data;
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
 
-    const drawText = (text: string | undefined, x: number, y: number, size = 10) => {
-        if (text && /^[\x00-\x7F]*$/.test(text)) {
-            page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
-        }
-    };
+    const fontBytes = await fs.readFile(path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Regular.ttf'));
+    const sarabunFont = await pdfDoc.embedFont(fontBytes);
+
+    let y = height - 50;
+
+    page.drawText('สัญญาค้ำประกันการทำงาน', { x: width / 2 - 60, y, font: sarabunFont, size: 16 });
+    y -= LINE_HEIGHT * 2;
+
+    page.drawText(`วันที่ทำสัญญา: ${formatDate(data.guarantor?.contractDate || new Date())}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT * 2;
     
-    // Example coordinates
-    drawText(formatDate(guarantor?.contractDate || new Date()), 450, 750);
-    // Skipping fields that are certainly Thai
-    // drawText(applicant.fullName, 200, 680);
-    // drawText(guarantor?.fullName, 200, 650);
-    // drawText(guarantor?.address?.houseNo, 200, 630);
-    drawText(guarantor?.nationalId, 400, 650);
+    const applicantFullName = `${val(data.applicant?.prefix)} ${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)}`.trim();
+    const guarantorFullName = `${val(data.guarantor?.firstName)} ${val(data.guarantor?.lastName)}`.trim();
+    const guarantorAddress = `${val(data.guarantor?.address?.houseNo)}`.trim();
 
+    page.drawText(`ผู้ค้ำประกัน: ${guarantorFullName}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT;
+    page.drawText(`ที่อยู่ผู้ค้ำประกัน: ${guarantorAddress}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT;
+    page.drawText(`เลขบัตรประชาชนผู้ค้ำประกัน: ${val(data.guarantor?.nationalId)}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT * 2;
+    page.drawText(`ขอค้ำประกัน นาย/นาง/นางสาว: ${applicantFullName}`, { x: COL1_X, y, font: sarabunFont, size: 12 });
+    y -= LINE_HEIGHT;
+    page.drawText(`ซึ่งเป็นพนักงานขับรถของบริษัท ไดรฟ์ออนบอร์ด จำกัด`, { x: COL1_X, y, font: sarabunFont, size: 12 });
 
     return pdfDoc.save();
 }
@@ -155,9 +178,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error(`[Download Form Error] for file ${filename}:`, error);
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
-        return NextResponse.json({ error: 'File template not found.' }, { status: 404 });
-    }
     const message = error instanceof Error ? error.message : 'An internal server error occurred.';
     return NextResponse.json({ error: message }, { status: 500 });
   }
