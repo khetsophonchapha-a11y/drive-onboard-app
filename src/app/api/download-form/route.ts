@@ -529,3 +529,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `PDF Generation Failed: ${message}` }, { status: 500 });
   }
 }
+
+    
