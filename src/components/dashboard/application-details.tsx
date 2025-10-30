@@ -62,6 +62,7 @@ import { Separator } from "../ui/separator";
 import { useRouter } from "next/navigation";
 import { updateApplicationStatus } from "@/app/actions";
 import { cloneDeepWith } from 'lodash';
+import { z } from "zod";
 
 type ApplicationDetailsProps = {
   application: Manifest;
@@ -478,7 +479,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   };
 
   const onInvalid = (errors: any) => {
-    console.error("Form validation failed:", errors);
     let firstErrorMessage = "กรุณาตรวจสอบข้อมูลที่กรอกไม่ถูกต้อง";
 
     if (errors.applicant?.firstName?.message) {
