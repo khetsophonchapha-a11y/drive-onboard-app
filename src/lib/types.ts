@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'terminated';
@@ -100,7 +101,7 @@ export const ManifestSchema = z.object({
     modelOther: z.string().optional(),
     plateNo: z.string().optional(),
     color: z.string().optional(),
-    colorOther: z A string().optional(),
+    colorOther: z.string().optional(),
     year: z.coerce.number().optional(),
   }).optional(),
   docs: z.object({
