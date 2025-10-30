@@ -90,11 +90,14 @@ function drawText(
     fallbackFont: PDFFont
 ) {
     try {
+        // This is a simplified check. A more robust check would iterate through glyphs.
+        // For our purpose, if encoding throws, we fall back.
+        font.encodeText(text);
         page.drawText(text, { x, y, font, size, color: rgb(0, 0, 0) });
     } catch (e) {
-        // ถ้าฟอนต์หลัก (เช่น Sarabun) ไม่รองรับอักขระ (ไม่น่าเกิด)
-        // หรือถ้าฟอนต์สำรอง (Helvetica) ไม่รองรับ (เช่น ภาษาไทย)
-        // ให้วาดสัญลักษณ์ [?] แทน
+        // If the primary font (e.g., Sarabun) fails for some reason,
+        // or if the fallback font (Helvetica) is used for Thai text,
+        // draw a placeholder '?' instead of crashing.
         page.drawText('[?]', { x, y, font: fallbackFont, size, color: rgb(1, 0, 0) });
     }
 }
@@ -217,7 +220,9 @@ async function fillApplicationForm(data: Manifest): Promise<Uint8Array> {
     y -= (LINE_HEIGHT * 1.5);
 
     // --- Title ---
-    drawText(page, 'ใบสมัครงาน', (width / 2) - (boldFont.widthOfTextAtSize('ใบสมัครงาน', 16) / 2), y, boldFont, 16, fallbackFont);
+    const title = 'ใบสมัครงาน';
+    const titleWidth = boldFont.widthOfTextAtSize(title, 16);
+    drawText(page, title, (width / 2) - (titleWidth / 2), y, boldFont, 16, fallbackFont);
     y -= (LINE_HEIGHT * 2);
 
     // --- Personal Info ---
@@ -389,7 +394,9 @@ async function fillTransportContract(data: Manifest): Promise<Uint8Array> {
     let y = height - PAGE_MARGIN;
     const x = PAGE_MARGIN;
     
-    drawText(page, 'สัญญาจ้างขนส่ง', (width / 2) - (boldFont.widthOfTextAtSize('สัญญาจ้างขนส่ง', 16) / 2), y, boldFont, 16, fallbackFont);
+    const title = 'สัญญาจ้างขนส่ง';
+    const titleWidth = boldFont.widthOfTextAtSize(title, 16);
+    drawText(page, title, (width / 2) - (titleWidth / 2), y, boldFont, 16, fallbackFont);
     y -= LINE_HEIGHT * 2;
     
     const contractDate = formatDate(data.contractDetails?.contractDate || new Date(), isThaiFontLoaded);
@@ -431,7 +438,9 @@ async function fillGuaranteeContract(data: Manifest): Promise<Uint8Array> {
     let y = height - PAGE_MARGIN;
     const x = PAGE_MARGIN;
 
-    drawText(page, 'สัญญาค้ำประกันการทำงาน', (width / 2) - (boldFont.widthOfTextAtSize('สัญญาค้ำประกันการทำงาน', 16) / 2), y, boldFont, 16, fallbackFont);
+    const title = 'สัญญาค้ำประกันการทำงาน';
+    const titleWidth = boldFont.widthOfTextAtSize(title, 16);
+    drawText(page, title, (width / 2) - (titleWidth / 2), y, boldFont, 16, fallbackFont);
     y -= LINE_HEIGHT * 2;
 
     const contractDate = formatDate(data.guarantor?.contractDate || new Date(), isThaiFontLoaded);
