@@ -1,8 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
-import fs from 'fs'; // เปลี่ยนจาก fs/promises เป็น fs
+import { readFile } from 'fs/promises';
 import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
+import fontkit from 'fontkit';
 import type { Manifest } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -20,6 +21,8 @@ const PAGE_MARGIN = 50;
  * @returns อ็อบเจกต์ที่มีฟอนต์หลักและฟอนต์สำรอง
  */
 async function loadFonts(pdfDoc: PDFDocument) {
+    pdfDoc.registerFontkit(fontkit);
+
     let font: PDFFont;
     let boldFont: PDFFont;
     let isThaiFontLoaded = false;
@@ -28,15 +31,13 @@ async function loadFonts(pdfDoc: PDFDocument) {
     const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Regular.ttf');
     const boldFontPath = path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Bold.ttf');
     
-    // *** เพิ่ม Console Log เพื่อ Debug ***
     console.log(`[Font Loader] Current working directory: ${process.cwd()}`);
     console.log(`[Font Loader] Attempting to read regular font from: ${fontPath}`);
     console.log(`[Font Loader] Attempting to read bold font from: ${boldFontPath}`);
 
     try {
-        // *** เปลี่ยนมาใช้ readFileSync (แบบ Synchronous) ***
-        const fontBytes = fs.readFileSync(fontPath);
-        const boldFontBytes = fs.readFileSync(boldFontPath);
+        const fontBytes = await readFile(fontPath);
+        const boldFontBytes = await readFile(boldFontPath);
 
         font = await pdfDoc.embedFont(fontBytes);
         boldFont = await pdfDoc.embedFont(boldFontBytes);
