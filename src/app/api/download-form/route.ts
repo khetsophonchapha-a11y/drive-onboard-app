@@ -423,7 +423,6 @@ async function fillTransportContract(data: Manifest): Promise<Uint8Array> {
 
     const fullName = `${val(data.applicant?.prefix)}${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)}`.trim();
     
-    // ***** FIX: ประกาศตัวแปร 'addr' ที่นี่ *****
     const addr = data.applicant?.currentAddress;
     
     const address = `${val(addr?.houseNo)} ${val(addr?.moo)} ${val(addr?.street)} ${val(addr?.subDistrict)} ${val(addr?.district)} ${val(addr?.province)} ${val(addr?.postalCode)}`.trim();
