@@ -597,6 +597,33 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           </Card>
           
           <Card>
+              <CardHeader>
+                  <CardTitle className="font-headline">เอกสารที่สร้างโดยระบบ</CardTitle>
+                  <CardDescription>ดูตัวอย่างและดาวน์โหลดเอกสารที่สร้างจากข้อมูลที่กรอก</CardDescription>
+              </CardHeader>
+              <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                   <a href={`/api/download-form?filename=application-form.pdf`} download className="inline-block">
+                      <Button variant="outline" className="w-full justify-start">
+                          <Download className="mr-2 h-4 w-4" />
+                          ใบสมัครงาน.pdf
+                      </Button>
+                  </a>
+                  <a href={`/api/download-form?filename=transport-contract.pdf`} download className="inline-block">
+                      <Button variant="outline" className="w-full justify-start">
+                          <Download className="mr-2 h-4 w-4" />
+                          สัญญาจ้างขนส่ง.pdf
+                      </Button>
+                  </a>
+                  <a href={`/api/download-form?filename=guarantee-contract.pdf`} download className="inline-block">
+                      <Button variant="outline" className="w-full justify-start">
+                          <Download className="mr-2 h-4 w-4" />
+                          สัญญาค้ำประกัน.pdf
+                      </Button>
+                  </a>
+              </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
             <CardContent className="space-y-4">
                <div className="grid md:grid-cols-2 gap-4">
@@ -663,32 +690,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           </CardContent>
           </Card>
 
-          <Card>
-              <CardHeader>
-                  <CardTitle className="font-headline">เอกสารที่สร้างโดยระบบ</CardTitle>
-                  <CardDescription>ดูตัวอย่างและดาวน์โหลดเอกสารที่สร้างจากข้อมูลที่กรอก</CardDescription>
-              </CardHeader>
-              <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                   <a href={`/api/download-form?filename=application-form.pdf`} download className="inline-block">
-                      <Button variant="outline" className="w-full justify-start">
-                          <Download className="mr-2 h-4 w-4" />
-                          ใบสมัครงาน.pdf
-                      </Button>
-                  </a>
-                  <a href={`/api/download-form?filename=transport-contract.pdf`} download className="inline-block">
-                      <Button variant="outline" className="w-full justify-start">
-                          <Download className="mr-2 h-4 w-4" />
-                          สัญญาจ้างขนส่ง.pdf
-                      </Button>
-                  </a>
-                  <a href={`/api/download-form?filename=guarantee-contract.pdf`} download className="inline-block">
-                      <Button variant="outline" className="w-full justify-start">
-                          <Download className="mr-2 h-4 w-4" />
-                          สัญญาค้ำประกัน.pdf
-                      </Button>
-                  </a>
-              </CardContent>
-          </Card>
            
           
           <Card>
