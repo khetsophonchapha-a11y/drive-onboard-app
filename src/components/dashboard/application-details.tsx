@@ -60,6 +60,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
 import { useRouter } from "next/navigation";
 import { updateApplicationStatus } from "@/app/actions";
+import { cloneDeepWith } from 'lodash';
 
 type ApplicationDetailsProps = {
   application: Manifest;
@@ -212,6 +213,15 @@ function DocumentGroup({
     );
 }
 
+// Helper function to sanitize data for the form, converting null/undefined to empty strings
+function sanitizeDataForForm(data: any) {
+    return cloneDeepWith(data, value => {
+        if (value === null || value === undefined) {
+            return '';
+        }
+    });
+}
+
 
 export function ApplicationDetails({ application: initialApplication }: ApplicationDetailsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -224,9 +234,11 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
   const [isStatusPending, startStatusTransition] = useTransition();
 
+  const sanitizedInitialApplication = useMemo(() => sanitizeDataForForm(initialApplication), [initialApplication]);
+
   const form = useForm<z.infer<typeof ManifestSchema>>({
     resolver: zodResolver(ManifestSchema),
-    defaultValues: initialApplication,
+    defaultValues: sanitizedInitialApplication,
   });
 
   const {
@@ -246,7 +258,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
 
   const handleCancel = () => {
-    reset(initialApplication); // Reset form to initial values
+    reset(sanitizedInitialApplication); // Reset form to initial sanitized values
     setFileChanges({ toUpload: [], toDelete: [] }); // Reset file changes
     toast({ title: 'ยกเลิกการเปลี่ยนแปลง', description: 'ข้อมูลกลับเป็นเหมือนเดิมแล้ว' });
   };
@@ -442,7 +454,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         
         // Step 5: Refresh server data and reset form state
         router.refresh();
-        reset(newManifest); // Update the form's default values, which will set isDirty to false
+        const newSanitized = sanitizeDataForForm(newManifest);
+        reset(newSanitized); // Update the form's default values with the new sanitized data
 
 
       } catch (error: any) {
@@ -784,5 +797,3 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
-
-    
