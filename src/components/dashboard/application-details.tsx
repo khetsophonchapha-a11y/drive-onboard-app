@@ -121,13 +121,11 @@ async function md5Base64(file: File) {
 // A new component to manage each document group
 function DocumentGroup({
     docSchema,
-    isEditMode,
     files, // Combined existing and temp files for display
     onFileUpload,
     onFileDelete,
 }: {
     docSchema: typeof requiredDocumentsSchema[0];
-    isEditMode: boolean;
     files: { type: 'existing' | 'temp', ref: FileRef | TempFile, displayUrl: string }[];
     onFileUpload: (docId: string, file: File, replaceKey?: string) => void;
     onFileDelete: (docId: string, key: string) => void;
@@ -159,36 +157,34 @@ function DocumentGroup({
                                     previewUrl={fileItem.displayUrl}
                                 />
                             </div>
-                            {isEditMode && (
-                                <div className="flex gap-2 pt-1 justify-end">
-                                    <Button asChild size="sm" variant="outline" type="button">
-                                         <label className="cursor-pointer">
-                                            <Pencil className="h-4 w-4 mr-1" /> เปลี่ยนไฟล์
-                                            <Input
-                                                type="file"
-                                                className="hidden"
-                                                accept="image/jpeg,image/png,application/pdf"
-                                                onChange={(e) => {
-                                                    if (e.target.files?.[0]) {
-                                                        const keyToDelete = fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl;
-                                                        onFileUpload(docSchema.id, e.target.files[0], keyToDelete);
-                                                        e.target.value = '';
-                                                    }
-                                                }}
-                                            />
-                                        </label>
-                                    </Button>
-                                    <Button size="sm" variant="destructive" type="button" onClick={() => onFileDelete(docSchema.id, fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl)}>
-                                        <Trash2 className="h-4 w-4 mr-1" /> ลบ
-                                    </Button>
-                                </div>
-                            )}
+                            <div className="flex gap-2 pt-1 justify-end">
+                                <Button asChild size="sm" variant="outline" type="button">
+                                     <label className="cursor-pointer">
+                                        <Pencil className="h-4 w-4 mr-1" /> เปลี่ยนไฟล์
+                                        <Input
+                                            type="file"
+                                            className="hidden"
+                                            accept="image/jpeg,image/png,application/pdf"
+                                            onChange={(e) => {
+                                                if (e.target.files?.[0]) {
+                                                    const keyToDelete = fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl;
+                                                    onFileUpload(docSchema.id, e.target.files[0], keyToDelete);
+                                                    e.target.value = '';
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                </Button>
+                                <Button size="sm" variant="destructive" type="button" onClick={() => onFileDelete(docSchema.id, fileItem.type === 'existing' ? fileItem.ref.r2Key : (fileItem.ref as TempFile).objectUrl)}>
+                                    <Trash2 className="h-4 w-4 mr-1" /> ลบ
+                                </Button>
+                            </div>
                         </div>
                     ))}
                 </div>
             ) : null}
 
-            {isEditMode && !hasFile && (
+            {!hasFile && (
                  <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
                      <div className="text-center text-muted-foreground">
                          <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
@@ -219,7 +215,6 @@ function DocumentGroup({
 
 export function ApplicationDetails({ application: initialApplication }: ApplicationDetailsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [editLinkCopied, setEditLinkCopied] = useState(false);
   const applicantName = initialApplication.applicant.fullName;
   const { toast } = useToast();
@@ -250,12 +245,10 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     }, [fileChanges.toUpload]);
 
 
-  const handleEditToggle = () => {
-    if (isEditMode) {
-      reset(initialApplication); // Reset form to initial values
-      setFileChanges({ toUpload: [], toDelete: [] }); // Reset file changes
-    }
-    setIsEditMode(!isEditMode);
+  const handleCancel = () => {
+    reset(initialApplication); // Reset form to initial values
+    setFileChanges({ toUpload: [], toDelete: [] }); // Reset file changes
+    toast({ title: 'ยกเลิกการเปลี่ยนแปลง', description: 'ข้อมูลกลับเป็นเหมือนเดิมแล้ว' });
   };
   
   const handleFileUpload = (docId: string, file: File, replaceKey?: string) => {
@@ -424,7 +417,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             body: JSON.stringify({ appId: newManifest.appId, manifest: newManifest })
         });
         toast({ title: "บันทึกข้อมูลสำเร็จ!", description: "ข้อมูลใบสมัครได้รับการอัปเดตแล้ว", variant: "default" });
-        setIsEditMode(false); 
         setFileChanges({ toUpload: [], toDelete: [] }); // Clear changes
         
 
@@ -555,8 +547,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   
   return (
     <Form {...form}>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="space-y-6 pb-24">
+      <form onSubmit={handleSubmit(onSubmit)} className="pb-24">
+        <div className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -566,12 +558,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                   </div>
                    <div className="flex items-center gap-2">
                       <Badge variant={statusVariantMap[initialApplication.status.verification]} className="capitalize text-base h-8">{statusText[initialApplication.status.verification]}</Badge>
-                      {!isEditMode && (
-                          <Button type="button" size="icon" variant="outline" onClick={handleEditToggle} className="h-8 w-8">
-                              <Pencil />
-                              <span className="sr-only">Edit Application</span>
-                          </Button>
-                      )}
                   </div>
               </div>
             </CardHeader>
@@ -582,19 +568,19 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             <CardContent className="space-y-4">
                <div className="grid md:grid-cols-2 gap-4">
                   <FormField control={control} name="applicant.firstName" render={({ field }) => (
-                    <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={50} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="applicant.lastName" render={({ field }) => (
-                    <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={50} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="applicant.mobilePhone" render={({ field }) => (
-                    <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="applicant.nationalId" render={({ field }) => (
-                    <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={13} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={13} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="applicant.currentAddress.houseNo" render={({ field }) => (
-                    <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                    <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
             </CardContent>
@@ -605,19 +591,19 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                    <FormField control={control} name="vehicle.brand" render={({ field }) => (
-                      <FormItem><FormLabel>ยี่ห้อ</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>ยี่ห้อ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                    )} />
                    <FormField control={control} name="vehicle.model" render={({ field }) => (
-                      <FormItem><FormLabel>รุ่น</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>รุ่น</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                    )} />
                     <FormField control={control} name="vehicle.year" render={({ field }) => (
-                      <FormItem><FormLabel>ปี</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>ปี</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
                    )} />
                    <FormField control={control} name="vehicle.plateNo" render={({ field }) => (
-                      <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                    )} />
                    <FormField control={control} name="vehicle.color" render={({ field }) => (
-                      <FormItem><FormLabel>สี</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>สี</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                    )} />
                 </div>
             </CardContent>
@@ -629,16 +615,16 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                   <FormField control={control} name="guarantor.firstName" render={({ field }) => (
-                    <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="guarantor.lastName" render={({ field }) => (
-                    <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="guarantor.address.houseNo" render={({ field }) => (
-                    <FormItem><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                   )} />
                    <FormField control={control} name="guarantor.nationalId" render={({ field }) => (
-                    <FormItem><FormLabel>เลขบัตรประชาชน (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>เลขบัตรประชาชน (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
           </CardContent>
@@ -682,7 +668,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                   <DocumentGroup
                       key={reqDoc.id}
                       docSchema={reqDoc}
-                      isEditMode={isEditMode}
                       files={getDisplayFiles(reqDoc.id)}
                       onFileUpload={handleFileUpload}
                       onFileDelete={handleFileDelete}
@@ -694,34 +679,32 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                       <Separator />
                        <div className="flex justify-between items-center w-full">
                           <h4 className="font-semibold">การดำเนินการ</h4>
-                          {!isEditMode && (
-                              <div className="flex gap-2">
-                                  {initialApplication.status.verification === 'pending' && (
-                                       <>
-                                          <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
-                                              {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                              อนุมัติใบสมัคร
-                                          </Button>
-                                          <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
-                                              {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
-                                              ปฏิเสธใบสมัคร
-                                          </Button>
-                                      </>
-                                  )}
-                                  {initialApplication.status.verification === 'approved' && (
-                                      <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
-                                          {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
-                                          เลิกจ้าง
+                          <div className="flex gap-2">
+                              {initialApplication.status.verification === 'pending' && (
+                                   <>
+                                      <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                          {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                          อนุมัติใบสมัคร
                                       </Button>
-                                  )}
-                                   {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
-                                       <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
-                                          {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
-                                          พิจารณาใหม่
+                                      <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
+                                          {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                                          ปฏิเสธใบสมัคร
                                       </Button>
-                                  )}
-                              </div>
-                          )}
+                                  </>
+                              )}
+                              {initialApplication.status.verification === 'approved' && (
+                                  <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
+                                      {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                      เลิกจ้าง
+                                  </Button>
+                              )}
+                               {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
+                                   <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
+                                      {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
+                                      พิจารณาใหม่
+                                  </Button>
+                              )}
+                          </div>
                       </div>
                       <Separator />
                       <div className="w-full">
@@ -769,13 +752,13 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           </Card>
         </div>
 
-        {isEditMode && hasChanges && (
+        {hasChanges && (
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between h-20">
                   <p className="text-lg font-semibold">ตรวจพบการเปลี่ยนแปลง</p>
                   <div className="flex items-center gap-4">
-                      <Button variant="ghost" onClick={handleEditToggle} disabled={isSubmitting}>
+                      <Button variant="ghost" onClick={handleCancel} disabled={isSubmitting}>
                           <X className="mr-2 h-4 w-4" />
                           ยกเลิก
                       </Button>
@@ -801,3 +784,5 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
+
+    
