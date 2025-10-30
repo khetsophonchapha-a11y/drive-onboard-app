@@ -29,8 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { requiredDocumentsSchema } from "@/lib/schema";
-import { FileUp, FileCheck, X, Send, Loader2, AlertCircle, Download, CalendarIcon } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { FileUp, FileCheck, X, Send, Loader2, AlertCircle, CalendarIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,6 +38,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import type { Manifest, FileRef } from "@/lib/types";
 import { ManifestSchema } from "@/lib/types";
+import { carBrands, carColors } from "@/lib/vehicle-data";
 
 // Helper for safer fetching with better error messages
 async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
@@ -87,6 +87,7 @@ const ApplicationFormSchema = ManifestSchema.pick({
     applicant: true,
     applicationDetails: true,
     guarantor: true,
+    vehicle: true,
 }).extend({
     documents: z.array(documentSchema)
       .refine(
@@ -104,12 +105,6 @@ const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
-const formTemplates = [
-    { name: 'ใบสมัครงาน', filename: 'application-form.pdf' },
-    { name: 'หนังสือสัญญาจ้างขนส่งสินค้า', filename: 'transport-contract.pdf' },
-    { name: 'สัญญาค้ำประกันบุคคลเข้าทำงาน', filename: 'guarantee-contract.pdf' },
-];
-
 export function ApplicationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState(0);
@@ -121,9 +116,12 @@ export function ApplicationForm() {
     defaultValues: {
       applicant: {
         isPermanentAddressSame: false,
+        nationality: 'ไทย',
+        race: 'ไทย',
       },
       applicationDetails: {
         applicationDate: new Date(),
+        position: 'พนักงานขับรถ'
       },
       documents: requiredDocumentsSchema.map(doc => ({
         ...doc,
@@ -139,6 +137,7 @@ export function ApplicationForm() {
   });
 
   const watchIsPermanentAddressSame = form.watch('applicant.isPermanentAddressSame');
+  const watchVehicleBrand = form.watch('vehicle.brand');
 
   useEffect(() => {
     if(watchIsPermanentAddressSame) {
@@ -256,6 +255,7 @@ export function ApplicationForm() {
                 ...values.guarantor,
                  fullName: `${values.guarantor?.firstName || ''} ${values.guarantor?.lastName || ''}`.trim() || undefined
             },
+            vehicle: values.vehicle,
             docs: uploadedFileRefs.reduce((acc, fileRef) => {
                 const fileData: FileRef = { r2Key: fileRef.r2Key, mime: fileRef.mime, size: fileRef.size, md5: fileRef.md5 };
 
@@ -360,7 +360,7 @@ export function ApplicationForm() {
                                 <FormItem className="flex flex-col"><FormLabel>วัน/เดือน/ปีเกิด<span className="text-destructive ml-1">*</span></FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>เลือกวันที่</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name="applicant.age" render={({ field }) => (
-                                <FormItem><FormLabel>อายุ</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>อายุ</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))}/></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name="applicant.race" render={({ field }) => (
                                 <FormItem><FormLabel>เชื้อชาติ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -372,10 +372,10 @@ export function ApplicationForm() {
                                 <FormItem><FormLabel>ศาสนา</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                              <FormField control={form.control} name="applicant.height" render={({ field }) => (
-                                <FormItem><FormLabel>ส่วนสูง (ซม.)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>ส่วนสูง (ซม.)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
                             )} />
                               <FormField control={form.control} name="applicant.weight" render={({ field }) => (
-                                <FormItem><FormLabel>น้ำหนัก (กก.)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>น้ำหนัก (กก.)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -449,7 +449,7 @@ export function ApplicationForm() {
                         )}
                     </div>
                      {/* Other Info */}
-                    <div className="space-y-4 pt-6">
+                    <div className="space-y-4 pt-6 border-t">
                         <h4 className="text-md font-semibold">ข้อมูลอื่นๆ</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <FormField control={form.control} name="applicant.residenceType" render={({ field }) => (
@@ -501,6 +501,86 @@ export function ApplicationForm() {
 
             <Card>
                 <CardHeader>
+                    <CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="vehicle.brand"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>ยี่ห้อรถ</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="เลือกยี่ห้อ..." /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {carBrands.map(brand => <SelectItem key={brand.name} value={brand.name}>{brand.name}</SelectItem>)}
+                                            <SelectItem value="other">อื่นๆ</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        {watchVehicleBrand === 'other' && (
+                             <FormField control={form.control} name="vehicle.brandOther" render={({ field }) => ( <FormItem><FormLabel>ระบุยี่ห้อ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                        )}
+
+                        <FormField
+                            control={form.control}
+                            name="vehicle.model"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>รุ่นรถ</FormLabel>
+                                     <Select onValueChange={field.onChange} value={field.value} disabled={!watchVehicleBrand || watchVehicleBrand === 'other'}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="เลือกรุ่น..." /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {carBrands.find(b => b.name === watchVehicleBrand)?.models.map(model => <SelectItem key={model} value={model}>{model}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        {watchVehicleBrand === 'other' && (
+                             <FormField control={form.control} name="vehicle.modelOther" render={({ field }) => ( <FormItem><FormLabel>ระบุรุ่น</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                        )}
+                        <FormField control={form.control} name="vehicle.year" render={({ field }) => (
+                            <FormItem><FormLabel>ปี (ค.ศ.)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="vehicle.plateNo" render={({ field }) => (
+                            <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField
+                            control={form.control}
+                            name="vehicle.color"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>สี</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="เลือกสี..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            {carColors.map(color => <SelectItem key={color} value={color}>{color}</SelectItem>)}
+                                             <SelectItem value="other">อื่นๆ</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         {form.watch('vehicle.color') === 'other' && (
+                             <FormField control={form.control} name="vehicle.colorOther" render={({ field }) => ( <FormItem><FormLabel>ระบุสี</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
                     <CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน (ถ้ามี)</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -535,26 +615,8 @@ export function ApplicationForm() {
                     <CardTitle className="font-headline">อัปโหลดเอกสาร</CardTitle>
                     <CardDescription>กรุณาเซ็นสำเนาถูกต้องและถ่ายรูปให้ชัดเจนก่อนส่ง (JPG, PNG ไม่เกิน 2MB; PDF ไม่เกิน 10MB)</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                        <FormDescription>
-                            ดาวน์โหลดแบบฟอร์มเพื่อกรอกและเซ็นชื่อ จากนั้นอัปโหลดในส่วนถัดไป
-                        </FormDescription>
-                        <div className="grid sm:grid-cols-3 gap-4">
-                            {formTemplates.map((template) => (
-                                <a 
-                                    key={template.name}
-                                    href={`/api/download-form?filename=${template.filename}`}
-                                    download={template.filename}
-                                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-                                >
-                                    <Download className="mr-2 h-4 w-4" />
-                                    {template.name}
-                                </a>
-                            ))}
-                        </div>
-                        <Separator className="!my-6" />
-                    </div>
+                <CardContent className="space-y-4">
+                    
                     <div className="space-y-4">
                         {documentFields.map((field, index) => {
                         const uploadState = form.watch(`documents.${index}.upload`);

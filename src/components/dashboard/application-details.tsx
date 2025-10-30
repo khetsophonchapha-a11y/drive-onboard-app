@@ -638,7 +638,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                   <FormItem><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField control={control} name="guarantor.nationalId" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>เลขบัตรประชาชน (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
         </CardContent>
@@ -684,18 +684,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                 </Button>
                             ) : (
                                 <>
-                                    {initialApplication.status.verification === 'approved' ? (
-                                        <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
-                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
-                                            เลิกจ้าง
-                                        </Button>
-                                    ) : initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated' ? (
-                                         <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
-                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                            อนุมัติใบสมัคร
-                                        </Button>
-                                    ) : (
-                                        <>
+                                    {initialApplication.status.verification === 'pending' && (
+                                         <>
                                             <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
                                                 {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                                                 อนุมัติใบสมัคร
@@ -705,6 +695,18 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                                 ปฏิเสธใบสมัคร
                                             </Button>
                                         </>
+                                    )}
+                                    {initialApplication.status.verification === 'approved' && (
+                                        <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
+                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                            เลิกจ้าง
+                                        </Button>
+                                    )}
+                                     {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
+                                         <Button variant="success" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
+                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                            พิจารณาใหม่
+                                        </Button>
                                     )}
                                 </>
                             )}
