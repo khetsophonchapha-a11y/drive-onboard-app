@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useTransition } from "react";
+import React, { useState, useEffect, useMemo, useTransition } from "react";
 import type { Manifest, FileRef, VerificationStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,7 +106,7 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
         } catch (e) {
             // response body is not json, just use status text
         }
-        console.error("safeFetch error:", errorMessage);
+        console.error("safeFetch Error:", errorMessage);
         throw new Error(errorMessage);
     }
     return response;
@@ -226,6 +226,7 @@ function sanitizeDataForForm(data: any) {
 
 export function ApplicationDetails({ application: initialApplication }: ApplicationDetailsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
   const [editLinkCopied, setEditLinkCopied] = useState(false);
   const applicantName = initialApplication.applicant.fullName;
   const { toast } = useToast();
@@ -467,7 +468,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
 
       } catch (error: any) {
-        console.error("onSubmit error:", error);
+        console.error("onSubmit failed:", error);
         toast({
             variant: "destructive",
             title: "บันทึกข้อมูลล้มเหลว",
@@ -480,6 +481,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
   const onInvalid = (errors: any) => {
     // A simple, robust way to get the first error message.
+    console.error("Form validation failed:", errors);
     const firstErrorMessage = Object.values(errors)[0]?.message as string || "กรุณาตรวจสอบข้อมูลที่กรอกไม่ถูกต้อง";
     
     toast({
@@ -511,18 +513,43 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   };
 
 
-  const editLink = typeof window !== 'undefined' ? `${window.location.origin}/apply?appId=${initialApplication.appId}` : '';
+  const handleDownload = async (filename: string) => {
+    if (isDownloading) return;
+    setIsDownloading(filename);
+    try {
+        const response = await fetch('/api/download-form', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename, data: initialApplication }),
+        });
 
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to download ${filename}`);
+        }
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(editLink);
-    setEditLinkCopied(true);
-    toast({
-      title: "คัดลอกลิงก์สำเร็จ",
-      description: "คุณสามารถส่งลิงก์นี้ให้ผู้สมัครเพื่อแก้ไขข้อมูลได้",
-    });
-    setTimeout(() => setEditLinkCopied(false), 2000);
-  };
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+
+    } catch (error: any) {
+        console.error(`Download failed for ${filename}:`, error);
+        toast({
+            variant: 'destructive',
+            title: `ดาวน์โหลด ${filename} ล้มเหลว`,
+            description: error.message,
+        });
+    } finally {
+        setIsDownloading(null);
+    }
+};
+
   
   const getOriginalFileForDocId = (docId: string): FileRef | undefined => {
         const docs = initialApplication.docs;
@@ -593,31 +620,25 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                 </div>
             </CardHeader>
         </Card>
-
+        
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline">เอกสารที่สร้างโดยระบบ</CardTitle>
                 <CardDescription>ดูตัวอย่างและดาวน์โหลดเอกสารที่สร้างจากข้อมูลที่กรอก</CardDescription>
             </CardHeader>
             <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <a href={`/api/download-form?filename=application-form.pdf`} download className="inline-block">
-                    <Button variant="outline" className="w-full justify-start" type="button">
-                        <Download className="mr-2 h-4 w-4" />
-                        ใบสมัครงาน.pdf
-                    </Button>
-                </a>
-                <a href={`/api/download-form?filename=transport-contract.pdf`} download className="inline-block">
-                    <Button variant="outline" className="w-full justify-start" type="button">
-                        <Download className="mr-2 h-4 w-4" />
-                        สัญญาจ้างขนส่ง.pdf
-                    </Button>
-                </a>
-                <a href={`/api/download-form?filename=guarantee-contract.pdf`} download className="inline-block">
-                    <Button variant="outline" className="w-full justify-start" type="button">
-                        <Download className="mr-2 h-4 w-4" />
-                        สัญญาค้ำประกัน.pdf
-                    </Button>
-                </a>
+                <Button variant="outline" className="w-full justify-start" type="button" onClick={() => handleDownload('application-form.pdf')} disabled={!!isDownloading}>
+                    {isDownloading === 'application-form.pdf' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    ใบสมัครงาน.pdf
+                </Button>
+                <Button variant="outline" className="w-full justify-start" type="button" onClick={() => handleDownload('transport-contract.pdf')} disabled={!!isDownloading}>
+                    {isDownloading === 'transport-contract.pdf' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    สัญญาจ้างขนส่ง.pdf
+                </Button>
+                <Button variant="outline" className="w-full justify-start" type="button" onClick={() => handleDownload('guarantee-contract.pdf')} disabled={!!isDownloading || !initialApplication.guarantor?.fullName}>
+                    {isDownloading === 'guarantee-contract.pdf' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    สัญญาค้ำประกัน.pdf
+                </Button>
             </CardContent>
         </Card>
 

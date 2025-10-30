@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'terminated';
@@ -34,14 +33,14 @@ const AddressSchema = z.object({
 
 // Zod schema for the full manifest
 export const ManifestSchema = z.object({
-  appId: z.string(),
-  createdAt: z.string(), // ISO date string
+  appId: z.string().optional(),
+  createdAt: z.string().optional(), // ISO date string
   applicant: z.object({
     prefix: z.string().optional(),
     firstName: z.string().max(50, 'ชื่อจริงต้องไม่เกิน 50 ตัวอักษร').optional(),
     lastName: z.string().max(50, 'นามสกุลต้องไม่เกิน 50 ตัวอักษร').optional(),
     nickname: z.string().optional(),
-    nationalId: z.string().regex(/^[0-9]*$/, 'เลขบัตรประชาชนต้องเป็นตัวเลขเท่านั้น').refine(val => val === '' || val.length === 13, { message: 'เลขบัตรประชาชนต้องมี 13 หลัก' }).optional(),
+    nationalId: z.string().optional(),
     nationalIdIssueDate: z.date().optional(),
     nationalIdExpiryDate: z.date().optional(),
     dateOfBirth: z.date().optional(),
@@ -57,11 +56,11 @@ export const ManifestSchema = z.object({
     permanentAddress: AddressSchema.optional(),
     isPermanentAddressSame: z.boolean().optional(),
     homePhone: z.string().optional(),
-    mobilePhone: z.string().regex(/^[0-9]*$/, 'เบอร์โทรต้องเป็นตัวเลขเท่านั้น').refine(val => val === '' || val.length === 10, { message: 'เบอร์โทรต้องมี 10 หลัก' }).optional(),
+    mobilePhone: z.string().optional(),
     email: z.string().email('อีเมลไม่ถูกต้อง').optional().or(z.literal('')),
     residenceType: z.enum(['own', 'rent', 'dorm']).optional(),
     militaryStatus: z.enum(['exempt', 'discharged', 'not-drafted']).optional(),
-  }),
+  }).optional(),
   applicationDetails: z.object({
     position: z.string().optional(),
     criminalRecord: z.enum(['yes', 'no']).optional(),
@@ -126,7 +125,7 @@ export const ManifestSchema = z.object({
     completeness: z.enum(['incomplete', 'complete']),
     verification: z.enum(['pending', 'approved', 'rejected', 'terminated']),
     notes: z.string().optional(),
-  }),
+  }).optional(),
 });
 
 // Re-add `fullName` for derived data, but it's not part of the editable schema
