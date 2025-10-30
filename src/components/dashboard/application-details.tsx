@@ -416,7 +416,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ appId: newManifest.appId, manifest: newManifest })
         });
-        toast({ title: "บันทึกข้อมูลสำเร็จ!", description: "ข้อมูลใบสมัครได้รับการอัปเดตแล้ว", variant: "default" });
+        toast({ title: "บันทึกการเปลี่ยนแปลงสำเร็จ!", description: "ข้อมูลใบสมัครได้รับการอัปเดตแล้ว", variant: "default" });
         setFileChanges({ toUpload: [], toDelete: [] }); // Clear changes
         
 
@@ -440,9 +440,9 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
             }
         }
         
-        // Step 5: Refresh the page to show the latest data
+        // Step 5: Refresh server data and reset form state
         router.refresh();
-        reset(newManifest); // Update the form's default values for next edit session
+        reset(newManifest); // Update the form's default values, which will set isDirty to false
 
 
       } catch (error: any) {
@@ -478,7 +478,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   };
 
 
-  const editLink = `${window.location.origin}/apply?appId=${initialApplication.appId}`;
+  const editLink = typeof window !== 'undefined' ? `${window.location.origin}/apply?appId=${initialApplication.appId}` : '';
 
 
   const handleCopyLink = () => {
@@ -577,7 +577,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                     <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="applicant.nationalId" render={({ field }) => (
-                    <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={13} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={control} name="applicant.currentAddress.houseNo" render={({ field }) => (
                     <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
@@ -758,7 +758,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
               <div className="flex items-center justify-between h-20">
                   <p className="text-lg font-semibold">ตรวจพบการเปลี่ยนแปลง</p>
                   <div className="flex items-center gap-4">
-                      <Button variant="ghost" onClick={handleCancel} disabled={isSubmitting}>
+                      <Button variant="ghost" type="button" onClick={handleCancel} disabled={isSubmitting}>
                           <X className="mr-2 h-4 w-4" />
                           ยกเลิก
                       </Button>
