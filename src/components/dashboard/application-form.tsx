@@ -46,12 +46,18 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
     if (!response.ok) {
         let errorMessage = `Request failed with status ${response.status} (${response.statusText})`;
         try {
-            const errorBody = await response.json();
-            if (errorBody.error) {
-                 errorMessage += `: ${errorBody.error}`
+             const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                const errorBody = await response.json();
+                if (errorBody.error) {
+                    errorMessage = errorBody.error;
+                }
+            } else {
+                 errorMessage = response.statusText;
             }
         } catch (e) {
-            // response body is not json, just use status text
+            // Parsing JSON failed, stick with the status text.
+             errorMessage = response.statusText;
         }
         throw new Error(errorMessage);
     }
@@ -713,3 +719,5 @@ export function ApplicationForm() {
     </Form>
   );
 }
+
+    

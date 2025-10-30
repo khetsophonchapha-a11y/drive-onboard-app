@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import { readFile } from 'fs/promises';
 import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
-import fontkit from 'fontkit';
+import * as fontkit from 'fontkit';
 import type { Manifest } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { th } from 'date-fns/locale';
