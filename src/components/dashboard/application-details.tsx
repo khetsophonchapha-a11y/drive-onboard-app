@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect, useMemo, useTransition } from "react";
@@ -108,6 +106,7 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
         } catch (e) {
             // response body is not json, just use status text
         }
+        console.error("safeFetch error:", errorMessage); // Log error before throwing
         throw new Error(errorMessage);
     }
     return response;
@@ -468,6 +467,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
 
       } catch (error: any) {
+        console.error("onSubmit error:", error); // Log any error during the submission process
         toast({
             variant: "destructive",
             title: "บันทึกข้อมูลล้มเหลว",
