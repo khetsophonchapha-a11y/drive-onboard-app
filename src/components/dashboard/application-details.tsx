@@ -246,7 +246,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     handleSubmit,
     control,
     reset,
-    formState: { isDirty },
+    formState: { isDirty, errors },
     trigger,
   } = form;
 
@@ -481,17 +481,28 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   const onInvalid = (errors: any) => {
     let firstErrorMessage = "กรุณาตรวจสอบข้อมูลที่กรอกไม่ถูกต้อง";
 
-    if (errors.applicant?.firstName?.message) {
-      firstErrorMessage = errors.applicant.firstName.message;
-    } else if (errors.applicant?.lastName?.message) {
-      firstErrorMessage = errors.applicant.lastName.message;
-    }
-    // You can add more checks for other fields here
+    // Recursively find the first error message
+    const findFirstError = (obj: any): string | undefined => {
+        for (const key in obj) {
+            if (typeof obj[key] === 'object' && obj[key] !== null) {
+                if (obj[key].message && typeof obj[key].message === 'string') {
+                    return obj[key].message;
+                }
+                const nestedError = findFirstError(obj[key]);
+                if (nestedError) {
+                    return nestedError;
+                }
+            }
+        }
+        return undefined;
+    };
+
+    const errorMessage = findFirstError(errors);
 
     toast({
       variant: "destructive",
       title: "บันทึกข้อมูลล้มเหลว",
-      description: firstErrorMessage,
+      description: errorMessage || firstErrorMessage,
     });
   };
 
