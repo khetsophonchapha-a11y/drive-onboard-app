@@ -1,4 +1,3 @@
-
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -21,7 +20,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 export function Header() {
     const pathname = usePathname();
-    const pathSegments = pathname.split('/').filter(Boolean);
     const { user, logout } = useAuth();
 
   return (
@@ -35,25 +33,6 @@ export function Header() {
                 <Link href="/dashboard">Dashboard</Link>
                 </BreadcrumbLink>
             </BreadcrumbItem>
-            {pathSegments.slice(1).map((segment, index) => {
-                const href = `/${pathSegments.slice(0, index + 2).join('/')}`;
-                const isLast = index === pathSegments.length - 2;
-                
-                return (
-                <React.Fragment key={href}>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                    {isLast ? (
-                        <BreadcrumbPage className="font-medium capitalize">{segment}</BreadcrumbPage>
-                    ) : (
-                        <BreadcrumbLink asChild>
-                        <Link href={href} className="capitalize">{segment}</Link>
-                        </BreadcrumbLink>
-                    )}
-                    </BreadcrumbItem>
-                </React.Fragment>
-                );
-            })}
             </BreadcrumbList>
         </Breadcrumb>
       </div>
