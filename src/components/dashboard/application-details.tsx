@@ -582,18 +582,18 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
           <CardContent className="space-y-4">
              <div className="grid md:grid-cols-2 gap-4">
                 <FormField control={control} name="applicant.firstName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={50} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={control} name="applicant.lastName" render={({ field }) => (
-                  <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={50} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={control} name="applicant.phone" render={({ field }) => (
+                <FormField control={control} name="applicant.mobilePhone" render={({ field }) => (
                   <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={control} name="applicant.nationalId" render={({ field }) => (
                   <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={13} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={control} name="applicant.address" render={({ field }) => (
+                <FormField control={control} name="applicant.currentAddress.houseNo" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
@@ -634,11 +634,11 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                 <FormField control={control} name="guarantor.lastName" render={({ field }) => (
                   <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={control} name="guarantor.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                <FormField control={control} name="guarantor.address.houseNo" render={({ field }) => (
+                  <FormItem><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={control} name="guarantor.address" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                 <FormField control={control} name="guarantor.nationalId" render={({ field }) => (
+                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
         </CardContent>
@@ -690,9 +690,9 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                             เลิกจ้าง
                                         </Button>
                                     ) : initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated' ? (
-                                        <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                         <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
                                             {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                            อนุมัติอีกครั้ง
+                                            อนุมัติใบสมัคร
                                         </Button>
                                     ) : (
                                         <>
@@ -759,5 +759,3 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     </Form>
   );
 }
-
-  

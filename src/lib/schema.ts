@@ -6,38 +6,72 @@ export const applicationFormSchema = {
     applicant: {
       type: 'object',
       properties: {
-        firstName: { type: 'string', description: "ชื่อจริง" },
+        prefix: { type: 'string', description: 'คำนำหน้าชื่อ', enum: ['นาย', 'นาง', 'นางสาว'] },
+        firstName: { type: 'string', description: "ชื่อ" },
         lastName: { type: 'string', description: "นามสกุล" },
+        nickname: { type: 'string', description: 'ชื่อเล่น' },
+        nationalId: { type: 'string', description: 'เลขที่บัตรประจำตัวประชาชน' },
+        nationalIdIssueDate: { type: 'string', format: 'date', description: 'วันที่ออกบัตร' },
+        nationalIdExpiryDate: { type: 'string', format: 'date', description: 'วันที่บัตรหมดอายุ' },
+        dateOfBirth: { type: 'string', format: 'date', description: "วัน/เดือน/ปีเกิด" },
+        age: { type: 'integer', description: 'อายุ' },
+        race: { type: 'string', description: 'เชื้อชาติ' },
+        nationality: { type: 'string', description: 'สัญชาติ' },
+        religion: { type: 'string', description: 'ศาสนา' },
+        height: { type: 'number', description: 'ส่วนสูง (ซม.)' },
+        weight: { type: 'number', description: 'น้ำหนัก (กก.)' },
+        gender: { type: 'string', enum: ['ชาย', 'หญิง'], description: 'เพศ' },
+        maritalStatus: { type: 'string', enum: ['โสด', 'แต่งงาน', 'หม้าย', 'หย่าร้าง'], description: 'สถานภาพ' },
+        currentAddress: { type: 'string', description: 'ที่อยู่ปัจจุบัน' },
+        permanentAddress: { type: 'string', description: 'ที่อยู่ตามทะเบียนบ้าน' },
+        homePhone: { type: 'string', description: 'โทรศัพท์ (บ้าน)' },
+        mobilePhone: { type: 'string', description: 'มือถือ' },
         email: { type: 'string', format: 'email', description: "อีเมล" },
-        phone: { type: 'string', description: "เบอร์โทรศัพท์" },
-        address: { type: 'string', description: "ที่อยู่" },
-        dateOfBirth: { type: 'string', format: 'date', description: "วันเกิด" },
+        residenceType: { type: 'string', enum: ['บ้านตัวเอง', 'บ้านเช่า', 'หอพัก'], description: 'ประเภทที่พักอาศัย' },
+        militaryStatus: { type: 'string', enum: ['ยกเว้น', 'ปลดเป็นทหารกองหนุน', 'ยังไม่ได้รับการเกณฑ์'], description: 'ภาวะทางทหาร' },
       },
-      required: ['firstName', 'lastName', 'email', 'phone', 'address', 'dateOfBirth'],
+      required: ['prefix', 'firstName', 'lastName', 'nationalId', 'dateOfBirth', 'mobilePhone'],
     },
-    vehicle: {
-      type: 'object',
-      properties: {
-        make: { type: 'string', description: "ยี่ห้อรถ" },
-        model: { type: 'string', description: "รุ่นรถ" },
-        year: { type: 'integer', minimum: 1900, maximum: new Date().getFullYear() + 1, description: "ปีที่ผลิต" },
-        licensePlate: { type: 'string', description: "ป้ายทะเบียน" },
-        vin: { type: 'string', description: "เลขตัวถัง" },
-      },
-      required: ['make', 'model', 'year', 'licensePlate', 'vin'],
+    applicationDetails: {
+        type: 'object',
+        properties: {
+            position: { type: 'string', description: 'ตำแหน่งที่ต้องการสมัคร' },
+            criminalRecord: { type: 'boolean', description: 'ประวัติอาชญากรรม' },
+            emergencyContact: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string', description: 'ชื่อ' },
+                    relation: { type: 'string', description: 'ความเกี่ยวข้อง' },
+                    phone: { type: 'string', description: 'โทรศัพท์' },
+                },
+                required: ['name', 'relation', 'phone']
+            },
+            applicationDate: { type: 'string', format: 'date', description: 'วันที่สมัครงาน' },
+        },
+        required: ['position', 'applicationDate']
+    },
+    contractDetails: {
+        type: 'object',
+        properties: {
+            contractDate: { type: 'string', format: 'date', description: 'วันที่ทำสัญญา' },
+            vehiclePlateNo: { type: 'string', description: 'หมายเลขทะเบียนรถยนต์' },
+        },
+        required: ['contractDate']
     },
     guarantor: {
       type: 'object',
       properties: {
+        contractDate: { type: 'string', format: 'date', description: 'วันที่ทำสัญญาค้ำประกัน' },
         fullName: { type: 'string', description: "ชื่อ-นามสกุล ผู้ค้ำ" },
-        email: { type: 'string', format: 'email', description: "อีเมล ผู้ค้ำ" },
-        phone: { type: 'string', description: "เบอร์โทรศัพท์ ผู้ค้ำ" },
+        age: { type: 'integer', description: 'อายุ' },
+        nationalId: { type: 'string', description: 'เลขที่บัตรประจำตัวประชาชน' },
         address: { type: 'string', description: "ที่อยู่ ผู้ค้ำ" },
+        applicantStartDate: { type: 'string', format: 'date', description: 'วันที่เริ่มเข้าทำงาน' }
       },
-      required: ['fullName', 'phone'],
+      required: ['fullName', 'nationalId', 'address'],
     },
   },
-  required: ['applicant', 'vehicle'],
+  required: ['applicant'],
 };
 
 export const requiredDocumentsSchema = [

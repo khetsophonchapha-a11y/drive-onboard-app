@@ -1,4 +1,3 @@
-
 // src/app/api/applications/submit/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -73,7 +72,7 @@ export async function POST(req: NextRequest) {
       appId: manifest.appId,
       fullName: manifest.applicant.fullName,
       createdAt: manifest.createdAt,
-      phone: manifest.applicant.phone,
+      phone: manifest.applicant.mobilePhone,
       status: manifest.status.verification,
     };
 

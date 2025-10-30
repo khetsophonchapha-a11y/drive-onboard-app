@@ -6,11 +6,13 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -27,11 +29,16 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { requiredDocumentsSchema } from "@/lib/schema";
-import { carBrands, carColors } from "@/lib/vehicle-data";
-import { FileUp, FileCheck, X, Send, Loader2, AlertCircle, Download } from "lucide-react";
+import { FileUp, FileCheck, X, Send, Loader2, AlertCircle, Download, CalendarIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import type { Manifest, FileRef } from "@/lib/types";
+import { ManifestSchema } from "@/lib/types";
 
 // Helper for safer fetching with better error messages
 async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
@@ -59,32 +66,6 @@ async function md5Base64(file: File) {
   return btoa(bin);
 }
 
-const applicantSchema = z.object({
-  firstName: z.string().min(1, 'ต้องกรอกชื่อจริง').max(50, 'ชื่อจริงต้องไม่เกิน 50 ตัวอักษร'),
-  lastName: z.string().min(1, 'ต้องกรอกนามสกุล').max(50, 'นามสกุลต้องไม่เกิน 50 ตัวอักษร'),
-  phone: z.string().min(10, 'เบอร์โทรต้องมี 10 หลัก').max(10, 'เบอร์โทรต้องมี 10 หลัก').regex(/^[0-9]+$/, 'เบอร์โทรต้องเป็นตัวเลขเท่านั้น'),
-  address: z.string().max(200, 'ที่อยู่ต้องไม่เกิน 200 ตัวอักษร').optional(),
-  nationalId: z.string().length(13, 'เลขบัตรประชาชนต้องมี 13 หลัก').regex(/^[0-9]+$/, 'เลขบัตรประชาชนต้องเป็นตัวเลขเท่านั้น'),
-});
-
-const vehicleSchema = z.object({
-  brand: z.string().optional(),
-  brandOther: z.string().optional(),
-  model: z.string().optional(),
-  modelOther: z.string().optional(),
-  year: z.coerce.number().optional(),
-  plateNo: z.string().optional(),
-  color: z.string().optional(),
-  colorOther: z.string().optional(),
-});
-
-const guarantorSchema = z.object({
-    firstName: z.string().max(50, 'ชื่อจริงผู้ค้ำต้องไม่เกิน 50 ตัวอักษร').optional(),
-    lastName: z.string().max(50, 'นามสกุลผู้ค้ำต้องไม่เกิน 50 ตัวอักษร').optional(),
-    phone: z.string().max(10, 'เบอร์โทรผู้ค้ำต้องมี 10 หลัก').regex(/^[0-9]*$/, 'เบอร์โทรผู้ค้ำต้องเป็นตัวเลขเท่านั้น').optional(),
-    address: z.string().max(200, 'ที่อยู่ผู้ค้ำต้องไม่เกิน 200 ตัวอักษร').optional(),
-});
-
 const documentUploadSchema = z.object({
   status: z.enum(['pending', 'selected', 'uploading', 'success', 'error']),
   progress: z.number(),
@@ -101,10 +82,12 @@ const documentSchema = z.object({
     upload: documentUploadSchema,
 });
 
-const formSchema = z.object({
-    applicant: applicantSchema,
-    vehicle: vehicleSchema,
-    guarantor: guarantorSchema,
+// We create a new schema for the form by picking only the fields we need
+const ApplicationFormSchema = ManifestSchema.pick({
+    applicant: true,
+    applicationDetails: true,
+    guarantor: true,
+}).extend({
     documents: z.array(documentSchema)
       .refine(
         (docs) => docs.filter(d => d.required).every(doc => doc.upload.status === 'selected' || doc.upload.status === 'success'),
@@ -114,14 +97,12 @@ const formSchema = z.object({
       ),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+
+type FormValues = z.infer<typeof ApplicationFormSchema>;
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
-
-const currentYear = new Date().getFullYear();
-const yearOptions = Array.from({ length: 30 }, (_, i) => currentYear - i);
 
 const formTemplates = [
     { name: 'ใบสมัครงาน', filename: 'application-form.pdf' },
@@ -136,11 +117,14 @@ export function ApplicationForm() {
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(ApplicationFormSchema),
     defaultValues: {
-      applicant: { firstName: "", lastName: "", phone: "", address: "", nationalId: "" },
-      vehicle: { brand: "", model: "", plateNo: "", color: "" },
-      guarantor: { firstName: "", lastName: "", phone: "", address: "" },
+      applicant: {
+        isPermanentAddressSame: false,
+      },
+      applicationDetails: {
+        applicationDate: new Date(),
+      },
       documents: requiredDocumentsSchema.map(doc => ({
         ...doc,
         upload: { status: 'pending', progress: 0, file: null }
@@ -154,34 +138,15 @@ export function ApplicationForm() {
     name: "documents"
   });
 
-  const watchBrand = form.watch('vehicle.brand');
-  const watchColor = form.watch('vehicle.color');
-  const watchModel = form.watch('vehicle.model');
-
-  const models = carBrands.find(b => b.name === watchBrand)?.models || [];
+  const watchIsPermanentAddressSame = form.watch('applicant.isPermanentAddressSame');
 
   useEffect(() => {
-    // When brand changes, if it's not "Other", clear the "Other" input and reset model selection
-    if (watchBrand !== 'อื่นๆ') {
-      form.setValue('vehicle.brandOther', '');
-      form.setValue('vehicle.model', '');
+    if(watchIsPermanentAddressSame) {
+      const currentAddress = form.getValues('applicant.currentAddress');
+      form.setValue('applicant.permanentAddress', currentAddress);
     }
-  }, [watchBrand, form]);
-
-  useEffect(() => {
-      // When model changes, if it's not "Other", clear the "Other" input
-      if (watchModel !== 'อื่นๆ') {
-        form.setValue('vehicle.modelOther', '');
-      }
-  }, [watchModel, form]);
-
-  useEffect(() => {
-    // When color changes, if it's not "Other", clear the "Other" input
-    if (watchColor !== 'อื่นๆ') {
-      form.setValue('vehicle.colorOther', '');
-    }
-  }, [watchColor, form]);
-
+  }, [watchIsPermanentAddressSame, form]);
+  
   const handleFileChange = (file: File | null, index: number) => {
     if (!file) return;
     const currentDocument = form.getValues(`documents.${index}`);
@@ -240,7 +205,7 @@ export function ApplicationForm() {
         const totalUploads = filesToUpload.length;
         let uploadedCount = 0;
 
-        const uploadPromises = filesToUpload.map(async (doc, index) => {
+        const uploadPromises = filesToUpload.map(async (doc) => {
              const file = doc.upload.file!;
              const docIndexInForm = values.documents.findIndex(d => d.id === doc.id);
 
@@ -279,19 +244,6 @@ export function ApplicationForm() {
 
         setSubmissionProgress(90);
 
-        // Prepare vehicle data, considering "Other" fields
-        const finalVehicleData = {
-          ...values.vehicle,
-          brand: values.vehicle.brand === 'อื่นๆ' ? values.vehicle.brandOther : values.vehicle.brand,
-          model: values.vehicle.model === 'อื่นๆ' ? values.vehicle.modelOther : values.vehicle.model,
-          color: values.vehicle.color === 'อื่นๆ' ? values.vehicle.colorOther : values.vehicle.color,
-        };
-        // Remove the "Other" temp fields
-        delete finalVehicleData.brandOther;
-        delete finalVehicleData.modelOther;
-        delete finalVehicleData.colorOther;
-
-
         const manifest: Manifest = {
             appId: appId,
             createdAt: new Date().toISOString(),
@@ -299,10 +251,10 @@ export function ApplicationForm() {
                 ...values.applicant,
                 fullName: `${values.applicant.firstName} ${values.applicant.lastName}`.trim(),
             },
-            vehicle: finalVehicleData,
+            applicationDetails: values.applicationDetails,
             guarantor: {
                 ...values.guarantor,
-                fullName: `${values.guarantor?.firstName || ''} ${values.guarantor?.lastName || ''}`.trim() || undefined
+                 fullName: `${values.guarantor?.firstName || ''} ${values.guarantor?.lastName || ''}`.trim() || undefined
             },
             docs: uploadedFileRefs.reduce((acc, fileRef) => {
                 const fileData: FileRef = { r2Key: fileRef.r2Key, mime: fileRef.mime, size: fileRef.size, md5: fileRef.md5 };
@@ -356,319 +308,349 @@ export function ApplicationForm() {
 
 
   return (
-    <Card>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="pt-6 space-y-8">
-            {/* Applicant Section */}
-            <div className="space-y-4">
-              <CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle>
-              <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="applicant.firstName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อจริง<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={50} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="applicant.lastName" render={({ field }) => (
-                  <FormItem><FormLabel>นามสกุล<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={50} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="applicant.nationalId" render={({ field }) => (
-                  <FormItem><FormLabel>เลขบัตรประชาชน<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} placeholder="x-xxxx-xxxxx-xx-x" maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="applicant.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} placeholder="xxx-xxx-xxxx" maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="applicant.address" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ถ้ามี)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={200} /></FormControl><FormMessage /></FormItem>
-                )} />
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Vehicle Section */}
-            <div className="space-y-4">
-                <CardTitle className="font-headline">ข้อมูลยานพาหนะ (ถ้ามี)</CardTitle>
-                <div className="grid md:grid-cols-2 gap-x-4 gap-y-4">
-                     <FormField
-                        control={form.control}
-                        name="vehicle.brand"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>ยี่ห้อรถ</FormLabel>
-                            <div className={`grid ${watchBrand === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
-                                <Select onValueChange={field.onChange} value={field.value || ''}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="เลือกยี่ห้อรถ" /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {carBrands.map(brand => <SelectItem key={brand.name} value={brand.name}>{brand.name}</SelectItem>)}
-                                    <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
-                                </SelectContent>
-                                </Select>
-                                 {watchBrand === 'อื่นๆ' && (
-                                    <FormField
-                                        control={form.control}
-                                        name="vehicle.brandOther"
-                                        render={({ field: brandOtherField }) => (
-                                            <FormItem>
-                                                <FormControl>
-                                                    <Input {...brandOtherField} value={brandOtherField.value || ''} placeholder="ระบุยี่ห้อ" />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                )}
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                     <FormField
-                        control={form.control}
-                        name="vehicle.model"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>รุ่นรถ</FormLabel>
-                             <div className={`grid ${watchModel === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
-                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={!watchBrand || watchBrand === 'อื่นๆ'}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder={!watchBrand || watchBrand === 'อื่นๆ' ? 'กรุณาระบุยี่ห้อก่อน' : 'เลือกรุ่นรถ'} /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {models.map(model => <SelectItem key={model} value={model}>{model}</SelectItem>)}
-                                    <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
-                                </SelectContent>
-                                </Select>
-                                {watchModel === 'อื่นๆ' && (
-                                    <FormField
-                                        control={form.control}
-                                        name="vehicle.modelOther"
-                                        render={({ field: modelOtherField }) => (
-                                            <FormItem>
-                                                <FormControl>
-                                                    <Input {...modelOtherField} value={modelOtherField.value || ''} placeholder="ระบุรุ่น" />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                )}
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="vehicle.year"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>ปีที่ผลิต (ค.ศ.)</FormLabel>
-                            <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString() || ''}>
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="เลือกปี" />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                {yearOptions.map(year => (
-                                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField control={form.control} name="vehicle.plateNo" render={({ field }) => (
-                        <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="เช่น 1กข 1234" /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     <FormField
-                        control={form.control}
-                        name="vehicle.color"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>สีรถ</FormLabel>
-                             <div className={`grid ${watchColor === 'อื่นๆ' ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
-                                <Select onValueChange={field.onChange} value={field.value || ''}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="เลือกสีรถ" /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {carColors.map(color => <SelectItem key={color} value={color}>{color}</SelectItem>)}
-                                    <SelectItem value="อื่นๆ">อื่นๆ (โปรดระบุ)</SelectItem>
-                                </SelectContent>
-                                </Select>
-                                {watchColor === 'อื่นๆ' && (
-                                    <FormField
-                                        control={form.control}
-                                        name="vehicle.colorOther"
-                                        render={({ field: colorOtherField }) => (
-                                            <FormItem>
-                                                <FormControl>
-                                                    <Input {...colorOtherField} value={colorOtherField.value || ''} placeholder="ระบุสี" />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                )}
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                </div>
-            </div>
-
-            <Separator />
-
-            {/* Guarantor Section */}
-            <div className="space-y-4">
-              <CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน (ถ้ามี)</CardTitle>
-              <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="guarantor.firstName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
-                )} />
-                 <FormField control={form.control} name="guarantor.lastName" render={({ field }) => (
-                  <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="guarantor.phone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="xxx-xxx-xxxx" maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="guarantor.address" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={200} /></FormControl><FormMessage /></FormItem>
-                )} />
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Documents Section */}
-            <div className="space-y-4">
-              <CardHeader className="p-0">
-                <CardTitle className="font-headline">อัปโหลดเอกสาร</CardTitle>
-                <CardDescription>กรุณาเซ็นสำเนาถูกต้องและถ่ายรูปให้ชัดเจนก่อนส่ง (JPG, PNG ไม่เกิน 2MB; PDF ไม่เกิน 10MB)</CardDescription>
-              </CardHeader>
-               <div className="space-y-4 pt-4">
-                    <CardDescription>
-                        ดาวน์โหลดแบบฟอร์มเพื่อกรอกและเซ็นชื่อ จากนั้นอัปโหลดในส่วนถัดไป
-                    </CardDescription>
-                <div className="grid sm:grid-cols-3 gap-4">
-                    {formTemplates.map((template) => (
-                        <a 
-                            key={template.name}
-                            href={`/api/download-form?filename=${template.filename}`}
-                            download={template.filename}
-                            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-                        >
-                            <Download className="mr-2 h-4 w-4" />
-                            {template.name}
-                        </a>
-                    ))}
-                </div>
-                <Separator className="!my-6" />
-            </div>
-              <div className="space-y-4">
-                {documentFields.map((field, index) => {
-                  const uploadState = form.watch(`documents.${index}.upload`);
-                  return (
-                  <div key={field.id} className="border rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex-1 w-full">
-                      <div className="flex justify-between items-center">
-                        <p className="font-medium">{field.type}{field.required && <span className="text-destructive ml-1">*</span>}</p>
-                        {uploadState.status !== 'pending' && uploadState.status !== 'uploading' && (
-                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeFile(index)}>
-                            <X className="w-4 h-4"/>
-                          </Button>
-                        )}
-                      </div>
-
-                      {uploadState.status === 'pending' && <p className="text-sm text-muted-foreground">ยังไม่ได้เลือกไฟล์</p>}
-                      
-                      {(uploadState.status === 'selected' || uploadState.status === 'success') && (
-                        <div className="flex items-center gap-2 text-sm text-green-600 mt-1">
-                          <FileCheck className="w-4 h-4" />
-                          <span className="truncate max-w-xs">{uploadState.fileName}</span>
+    <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle>
+                    <CardDescription>ข้อมูลส่วนตัวและข้อมูลที่ใช้ในการติดต่อ</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* Personal Info */}
+                    <div className="space-y-4 border-b pb-6">
+                        <h4 className="text-md font-semibold">ข้อมูลส่วนตัว</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <FormField control={form.control} name="applicant.prefix" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>คำนำหน้าชื่อ<span className="text-destructive ml-1">*</span></FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="เลือกคำนำหน้า..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="นาย">นาย</SelectItem>
+                                            <SelectItem value="นาง">นาง</SelectItem>
+                                            <SelectItem value="นางสาว">นางสาว</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicant.firstName" render={({ field }) => (
+                                <FormItem><FormLabel>ชื่อ<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicant.lastName" render={({ field }) => (
+                                <FormItem><FormLabel>นามสกุล<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={form.control} name="applicant.nickname" render={({ field }) => (
+                                <FormItem><FormLabel>ชื่อเล่น</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
                         </div>
-                      )}
-
-                      {uploadState.status === 'uploading' && (
-                        <div className="mt-2">
-                          <Progress value={uploadState.progress} className="w-full h-2" />
-                          <p className="text-sm text-muted-foreground mt-1">กำลังอัปโหลด... {uploadState.progress}%</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                             <FormField control={form.control} name="applicant.nationalId" render={({ field }) => (
+                                <FormItem><FormLabel>เลขที่บัตรประจำตัวประชาชน<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={form.control} name="applicant.nationalIdIssueDate" render={({ field }) => (
+                                <FormItem className="flex flex-col"><FormLabel>วันที่ออกบัตร</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>เลือกวันที่</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={form.control} name="applicant.nationalIdExpiryDate" render={({ field }) => (
+                                <FormItem className="flex flex-col"><FormLabel>วันที่บัตรหมดอายุ</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>เลือกวันที่</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
+                            )} />
                         </div>
-                      )}
-
-                      {uploadState.status === 'error' && (
-                        <div className="flex flex-col gap-1 text-sm text-destructive mt-1">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                            <span className="font-semibold">การอัปโหลดล้มเหลว</span>
-                          </div>
-                          <p className="pl-6 text-xs break-all">{uploadState.errorMessage}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                             <FormField control={form.control} name="applicant.dateOfBirth" render={({ field }) => (
+                                <FormItem className="flex flex-col"><FormLabel>วัน/เดือน/ปีเกิด<span className="text-destructive ml-1">*</span></FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>เลือกวันที่</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicant.age" render={({ field }) => (
+                                <FormItem><FormLabel>อายุ</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicant.race" render={({ field }) => (
+                                <FormItem><FormLabel>เชื้อชาติ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicant.nationality" render={({ field }) => (
+                                <FormItem><FormLabel>สัญชาติ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicant.religion" render={({ field }) => (
+                                <FormItem><FormLabel>ศาสนา</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={form.control} name="applicant.height" render={({ field }) => (
+                                <FormItem><FormLabel>ส่วนสูง (ซม.)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                              <FormField control={form.control} name="applicant.weight" render={({ field }) => (
+                                <FormItem><FormLabel>น้ำหนัก (กก.)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
                         </div>
-                      )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <FormField control={form.control} name="applicant.gender" render={({ field }) => (
+                                <FormItem className="space-y-3"><FormLabel>เพศ</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4"><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="male" /></FormControl><FormLabel className="font-normal">ชาย</FormLabel></FormItem><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="female" /></FormControl><FormLabel className="font-normal">หญิง</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                             )} />
+                             <FormField control={form.control} name="applicant.maritalStatus" render={({ field }) => (
+                                <FormItem><FormLabel>สถานภาพ</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="เลือกสถานภาพ..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="single">โสด</SelectItem><SelectItem value="married">แต่งงาน</SelectItem><SelectItem value="widowed">หม้าย</SelectItem><SelectItem value="divorced">หย่าร้าง</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                             )} />
+                        </div>
                     </div>
+                    {/* Current Address */}
+                    <div className="space-y-4 border-b pb-6">
+                        <h4 className="text-md font-semibold">ที่อยู่ปัจจุบัน</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                           <FormField control={form.control} name="applicant.currentAddress.houseNo" render={({ field }) => (
+                                <FormItem><FormLabel>บ้านเลขที่</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                           )} />
+                             <FormField control={form.control} name="applicant.currentAddress.moo" render={({ field }) => (
+                                <FormItem><FormLabel>หมู่ที่</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                           )} />
+                             <FormField control={form.control} name="applicant.currentAddress.street" render={({ field }) => (
+                                <FormItem><FormLabel>ถนน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                           )} />
+                            <FormField control={form.control} name="applicant.currentAddress.subDistrict" render={({ field }) => (
+                                <FormItem><FormLabel>ตำบล/แขวง</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                           )} />
+                            <FormField control={form.control} name="applicant.currentAddress.district" render={({ field }) => (
+                                <FormItem><FormLabel>อำเภอ/เขต</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                           )} />
+                           <FormField control={form.control} name="applicant.currentAddress.province" render={({ field }) => (
+                                <FormItem><FormLabel>จังหวัด</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                           )} />
+                           <FormField control={form.control} name="applicant.currentAddress.postalCode" render={({ field }) => (
+                                <FormItem><FormLabel>รหัสไปรษณีย์</FormLabel><FormControl><Input {...field} maxLength={5} /></FormControl><FormMessage /></FormItem>
+                           )} />
+                        </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <FormField control={form.control} name="applicant.homePhone" render={({ field }) => (
+                                <FormItem><FormLabel>โทรศัพท์ (บ้าน)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicant.mobilePhone" render={({ field }) => (
+                                <FormItem><FormLabel>มือถือ<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={form.control} name="applicant.email" render={({ field }) => (
+                                <FormItem><FormLabel>อีเมล์</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                         </div>
+                    </div>
+                     {/* Permanent Address */}
+                    <div className="space-y-4">
+                         <div className="flex items-center justify-between">
+                            <h4 className="text-md font-semibold">ที่อยู่ตามทะเบียนบ้าน</h4>
+                            <FormField control={form.control} name="applicant.isPermanentAddressSame" render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <div className="space-y-1 leading-none"><FormLabel>ใช้ที่อยู่เดียวกับที่อยู่ปัจจุบัน</FormLabel></div>
+                                </FormItem>
+                            )} />
+                         </div>
+                        {!watchIsPermanentAddressSame && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <FormField control={form.control} name="applicant.permanentAddress.houseNo" render={({ field }) => ( <FormItem><FormLabel>บ้านเลขที่</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="applicant.permanentAddress.moo" render={({ field }) => ( <FormItem><FormLabel>หมู่ที่</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="applicant.permanentAddress.street" render={({ field }) => ( <FormItem><FormLabel>ถนน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="applicant.permanentAddress.subDistrict" render={({ field }) => ( <FormItem><FormLabel>ตำบล/แขวง</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="applicant.permanentAddress.district" render={({ field }) => ( <FormItem><FormLabel>อำเภอ/เขต</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="applicant.permanentAddress.province" render={({ field }) => ( <FormItem><FormLabel>จังหวัด</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="applicant.permanentAddress.postalCode" render={({ field }) => ( <FormItem><FormLabel>รหัสไปรษณีย์</FormLabel><FormControl><Input {...field} maxLength={5} /></FormControl><FormMessage /></FormItem> )}/>
+                            </div>
+                        )}
+                    </div>
+                     {/* Other Info */}
+                    <div className="space-y-4 pt-6">
+                        <h4 className="text-md font-semibold">ข้อมูลอื่นๆ</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <FormField control={form.control} name="applicant.residenceType" render={({ field }) => (
+                                <FormItem><FormLabel>ประเภทที่พักอาศัย</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="เลือกประเภท..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="own">บ้านตัวเอง</SelectItem><SelectItem value="rent">บ้านเช่า</SelectItem><SelectItem value="dorm">หอพัก</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicant.militaryStatus" render={({ field }) => (
+                                <FormItem><FormLabel>ภาวะทางทหาร</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="เลือกสถานะ..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="exempt">ยกเว้น</SelectItem><SelectItem value="discharged">ปลดเป็นทหารกองหนุน</SelectItem><SelectItem value="not-drafted">ยังไม่ได้รับการเกณฑ์</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                            )} />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
-                    <FormField
-                      control={form.control} name={`documents.${index}.upload`}
-                      render={() => (
-                        <FormItem>
-                          <FormControl>
-                            <Button asChild variant="outline" disabled={uploadState.status === 'uploading' || isSubmitting}>
-                              <label className="cursor-pointer">
-                                {uploadState.status === 'selected' || uploadState.status === 'success' ? <X className="mr-2 h-4 w-4" /> : <FileUp className="mr-2 h-4 w-4" />}
-                                {uploadState.status === 'selected' || uploadState.status === 'success' ? 'เปลี่ยนไฟล์' : 'เลือกไฟล์'}
-                                <Input
-                                  type="file" className="hidden"
-                                  accept="image/jpeg,image/png,application/pdf"
-                                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null, index)}
-                                  disabled={uploadState.status === 'uploading' || isSubmitting}
-                                />
-                              </label>
-                            </Button>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )})}
-              </div>
-               {form.formState.errors.documents && (
-                    <p className="text-sm font-medium text-destructive">{form.formState.errors.documents.message}</p>
-                )}
-            </div>
+            <Card>
+                 <CardHeader>
+                    <CardTitle className="font-headline">ข้อมูลการสมัครงาน</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField control={form.control} name="applicationDetails.position" render={({ field }) => (
+                            <FormItem><FormLabel>ตำแหน่งที่ต้องการสมัคร</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="applicationDetails.criminalRecord" render={({ field }) => (
+                            <FormItem className="space-y-3"><FormLabel>เคยมีประวัติอาชญากรรมหรือไม่</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4"><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel className="font-normal">ไม่เคย</FormLabel></FormItem><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel className="font-normal">เคย</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                     <div className="space-y-4 border-t pt-6">
+                        <h4 className="text-md font-semibold">บุคคลที่ติดต่อได้กรณีฉุกเฉิน</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <FormField control={form.control} name="applicationDetails.emergencyContact.firstName" render={({ field }) => (
+                                <FormItem><FormLabel>ชื่อ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicationDetails.emergencyContact.lastName" render={({ field }) => (
+                                <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicationDetails.emergencyContact.relation" render={({ field }) => (
+                                <FormItem><FormLabel>ความเกี่ยวข้อง</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={form.control} name="applicationDetails.emergencyContact.occupation" render={({ field }) => (
+                                <FormItem><FormLabel>อาชีพ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="applicationDetails.emergencyContact.mobilePhone" render={({ field }) => (
+                                <FormItem><FormLabel>มือถือ</FormLabel><FormControl><Input {...field} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                        </div>
+                     </div>
+                </CardContent>
+            </Card>
 
-          </CardContent>
-          <CardFooter className="flex-col items-end gap-4">
-             {isSubmitting && (
-                <div className="w-full text-center">
-                    <Progress value={submissionProgress} className="w-full h-2 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                        {submissionProgress < 100 ? `กำลังส่งใบสมัคร... ${Math.round(submissionProgress)}%` : 'ส่งใบสมัครสำเร็จ!'}
-                    </p>
-                </div>
-            )}
-            <Button type="submit" size="lg" disabled={isSubmitting || !form.formState.isValid}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  กำลังบันทึก...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  ส่งใบสมัคร
-                </>
-              )}
-            </Button>
-          </CardFooter>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน (ถ้ามี)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <FormField control={form.control} name="guarantor.firstName" render={({ field }) => (
+                        <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="guarantor.lastName" render={({ field }) => (
+                        <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="guarantor.nationalId" render={({ field }) => (
+                            <FormItem><FormLabel>เลขที่บัตรประจำตัวประชาชน (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                    <div className="space-y-4 pt-4">
+                         <h4 className="text-sm font-semibold">ที่อยู่ผู้ค้ำประกัน</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <FormField control={form.control} name="guarantor.address.houseNo" render={({ field }) => ( <FormItem><FormLabel>บ้านเลขที่</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="guarantor.address.moo" render={({ field }) => ( <FormItem><FormLabel>หมู่ที่</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="guarantor.address.street" render={({ field }) => ( <FormItem><FormLabel>ถนน</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="guarantor.address.subDistrict" render={({ field }) => ( <FormItem><FormLabel>ตำบล/แขวง</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="guarantor.address.district" render={({ field }) => ( <FormItem><FormLabel>อำเภอ/เขต</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="guarantor.address.province" render={({ field }) => ( <FormItem><FormLabel>จังหวัด</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="guarantor.address.postalCode" render={({ field }) => ( <FormItem><FormLabel>รหัสไปรษณีย์</FormLabel><FormControl><Input {...field} maxLength={5} /></FormControl><FormMessage /></FormItem> )}/>
+                            </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">อัปโหลดเอกสาร</CardTitle>
+                    <CardDescription>กรุณาเซ็นสำเนาถูกต้องและถ่ายรูปให้ชัดเจนก่อนส่ง (JPG, PNG ไม่เกิน 2MB; PDF ไม่เกิน 10MB)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                        <FormDescription>
+                            ดาวน์โหลดแบบฟอร์มเพื่อกรอกและเซ็นชื่อ จากนั้นอัปโหลดในส่วนถัดไป
+                        </FormDescription>
+                        <div className="grid sm:grid-cols-3 gap-4">
+                            {formTemplates.map((template) => (
+                                <a 
+                                    key={template.name}
+                                    href={`/api/download-form?filename=${template.filename}`}
+                                    download={template.filename}
+                                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                                >
+                                    <Download className="mr-2 h-4 w-4" />
+                                    {template.name}
+                                </a>
+                            ))}
+                        </div>
+                        <Separator className="!my-6" />
+                    </div>
+                    <div className="space-y-4">
+                        {documentFields.map((field, index) => {
+                        const uploadState = form.watch(`documents.${index}.upload`);
+                        return (
+                        <div key={field.id} className="border rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex-1 w-full">
+                            <div className="flex justify-between items-center">
+                                <p className="font-medium">{field.type}{field.required && <span className="text-destructive ml-1">*</span>}</p>
+                                {uploadState.status !== 'pending' && uploadState.status !== 'uploading' && (
+                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeFile(index)}>
+                                    <X className="w-4 h-4"/>
+                                </Button>
+                                )}
+                            </div>
+
+                            {uploadState.status === 'pending' && <p className="text-sm text-muted-foreground">ยังไม่ได้เลือกไฟล์</p>}
+                            
+                            {(uploadState.status === 'selected' || uploadState.status === 'success') && (
+                                <div className="flex items-center gap-2 text-sm text-green-600 mt-1">
+                                <FileCheck className="w-4 h-4" />
+                                <span className="truncate max-w-xs">{uploadState.fileName}</span>
+                                </div>
+                            )}
+
+                            {uploadState.status === 'uploading' && (
+                                <div className="mt-2">
+                                <Progress value={uploadState.progress} className="w-full h-2" />
+                                <p className="text-sm text-muted-foreground mt-1">กำลังอัปโหลด... {uploadState.progress}%</p>
+                                </div>
+                            )}
+
+                            {uploadState.status === 'error' && (
+                                <div className="flex flex-col gap-1 text-sm text-destructive mt-1">
+                                <div className="flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                    <span className="font-semibold">การอัปโหลดล้มเหลว</span>
+                                </div>
+                                <p className="pl-6 text-xs break-all">{uploadState.errorMessage}</p>
+                                </div>
+                            )}
+                            </div>
+
+                            <FormField
+                            control={form.control} name={`documents.${index}.upload`}
+                            render={() => (
+                                <FormItem>
+                                <FormControl>
+                                    <Button asChild variant="outline" disabled={uploadState.status === 'uploading' || isSubmitting}>
+                                    <label className="cursor-pointer">
+                                        {uploadState.status === 'selected' || uploadState.status === 'success' ? <X className="mr-2 h-4 w-4" /> : <FileUp className="mr-2 h-4 w-4" />}
+                                        {uploadState.status === 'selected' || uploadState.status === 'success' ? 'เปลี่ยนไฟล์' : 'เลือกไฟล์'}
+                                        <Input
+                                        type="file" className="hidden"
+                                        accept="image/jpeg,image/png,application/pdf"
+                                        onChange={(e) => handleFileChange(e.target.files?.[0] ?? null, index)}
+                                        disabled={uploadState.status === 'uploading' || isSubmitting}
+                                        />
+                                    </label>
+                                    </Button>
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                        </div>
+                        )})}
+                    </div>
+                    {form.formState.errors.documents && (
+                            <p className="text-sm font-medium text-destructive">{form.formState.errors.documents.message}</p>
+                        )}
+                </CardContent>
+                 <CardFooter className="flex-col items-end gap-4">
+                    {isSubmitting && (
+                        <div className="w-full text-center">
+                            <Progress value={submissionProgress} className="w-full h-2 mb-2" />
+                            <p className="text-sm text-muted-foreground">
+                                {submissionProgress < 100 ? `กำลังส่งใบสมัคร... ${Math.round(submissionProgress)}%` : 'ส่งใบสมัครสำเร็จ!'}
+                            </p>
+                        </div>
+                    )}
+                    <Button type="submit" size="lg" disabled={isSubmitting || !form.formState.isValid}>
+                    {isSubmitting ? (
+                        <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        กำลังบันทึก...
+                        </>
+                    ) : (
+                        <>
+                        <Send className="mr-2 h-4 w-4" />
+                        ส่งใบสมัคร
+                        </>
+                    )}
+                    </Button>
+                </CardFooter>
+            </Card>
         </form>
-      </Form>
-    </Card>
+    </Form>
   );
 }
-
-  

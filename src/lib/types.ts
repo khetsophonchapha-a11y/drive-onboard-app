@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'terminated';
@@ -22,17 +21,78 @@ export const FileRefSchema = z.object({
 });
 export type FileRef = z.infer<typeof FileRefSchema>;
 
+const AddressSchema = z.object({
+    houseNo: z.string().optional(),
+    moo: z.string().optional(),
+    street: z.string().optional(),
+    subDistrict: z.string().optional(),
+    district: z.string().optional(),
+    province: z.string().optional(),
+    postalCode: z.string().optional(),
+});
+
 // Zod schema for the full manifest
 export const ManifestSchema = z.object({
   appId: z.string(),
   createdAt: z.string(), // ISO date string
   applicant: z.object({
+    prefix: z.string().optional(),
     firstName: z.string().min(1, 'ต้องกรอกชื่อจริง').max(50, 'ชื่อจริงต้องไม่เกิน 50 ตัวอักษร'),
     lastName: z.string().min(1, 'ต้องกรอกนามสกุล').max(50, 'นามสกุลต้องไม่เกิน 50 ตัวอักษร'),
-    phone: z.string().min(10, 'เบอร์โทรต้องมี 10 หลัก').max(10, 'เบอร์โทรต้องมี 10 หลัก').regex(/^[0-9]+$/, 'เบอร์โทรต้องเป็นตัวเลขเท่านั้น'),
-    address: z.string().max(200, 'ที่อยู่ต้องไม่เกิน 200 ตัวอักษร').optional(),
+    nickname: z.string().optional(),
     nationalId: z.string().length(13, 'เลขบัตรประชาชนต้องมี 13 หลัก').regex(/^[0-9]+$/, 'เลขบัตรประชาชนต้องเป็นตัวเลขเท่านั้น'),
+    nationalIdIssueDate: z.date().optional(),
+    nationalIdExpiryDate: z.date().optional(),
+    dateOfBirth: z.date().optional(),
+    age: z.coerce.number().optional(),
+    race: z.string().optional(),
+    nationality: z.string().optional(),
+    religion: z.string().optional(),
+    height: z.coerce.number().optional(),
+    weight: z.coerce.number().optional(),
+    gender: z.enum(['male', 'female']).optional(),
+    maritalStatus: z.enum(['single', 'married', 'widowed', 'divorced']).optional(),
+    currentAddress: AddressSchema,
+    permanentAddress: AddressSchema,
+    isPermanentAddressSame: z.boolean().optional(),
+    homePhone: z.string().optional(),
+    mobilePhone: z.string().min(10, 'เบอร์โทรต้องมี 10 หลัก').max(10, 'เบอร์โทรต้องมี 10 หลัก').regex(/^[0-9]+$/, 'เบอร์โทรต้องเป็นตัวเลขเท่านั้น'),
+    email: z.string().email('อีเมลไม่ถูกต้อง').optional(),
+    residenceType: z.enum(['own', 'rent', 'dorm']).optional(),
+    militaryStatus: z.enum(['exempt', 'discharged', 'not-drafted']).optional(),
   }),
+  applicationDetails: z.object({
+    position: z.string().optional(),
+    criminalRecord: z.enum(['yes', 'no']).optional(),
+    emergencyContact: z.object({
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        occupation: z.string().optional(),
+        relation: z.string().optional(),
+        phone: z.string().optional(),
+        mobilePhone: z.string().optional(),
+    }),
+    applicationDate: z.date().optional(),
+  }).optional(),
+  contractDetails: z.object({
+    contractDate: z.date().optional(),
+    contactAddress: AddressSchema,
+    isContactAddressSame: z.boolean().optional(),
+    phone: z.string().optional(),
+    fax: z.string().optional(),
+    vehiclePlateNo: z.string().optional(),
+  }).optional(),
+  guarantor: z.object({
+    contractDate: z.date().optional(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    age: z.coerce.number().optional(),
+    race: z.string().optional(),
+    nationality: z.string().optional(),
+    address: AddressSchema,
+    nationalId: z.string().optional(),
+    applicantStartDate: z.date().optional(),
+  }).optional(),
   vehicle: z.object({
     brand: z.string().optional(),
     brandOther: z.string().optional(),
@@ -42,12 +102,6 @@ export const ManifestSchema = z.object({
     color: z.string().optional(),
     colorOther: z.string().optional(),
     year: z.number().optional(),
-  }).optional(),
-  guarantor: z.object({
-    firstName: z.string().max(50, 'ชื่อจริงผู้ค้ำต้องไม่เกิน 50 ตัวอักษร').optional(),
-    lastName: z.string().max(50, 'นามสกุลผู้ค้ำต้องไม่เกิน 50 ตัวอักษร').optional(),
-    phone: z.string().max(10, 'เบอร์โทรผู้ค้ำต้องมี 10 หลัก').regex(/^[0-9]*$/, 'เบอร์โทรผู้ค้ำต้องเป็นตัวเลขเท่านั้น').optional(),
-    address: z.string().max(200, 'ที่อยู่ผู้ค้ำต้องไม่เกิน 200 ตัวอักษร').optional(),
   }).optional(),
   docs: z.object({
     applicationForm: FileRefSchema.optional(),
@@ -66,7 +120,7 @@ export const ManifestSchema = z.object({
     }).optional(),
     guarantorCitizenIdCopy: FileRefSchema.optional(),
     guarantorHouseRegCopy: FileRefSchema.optional(),
-  }).partial(), // Use .partial() to allow updating only some doc fields
+  }).partial(),
   status: z.object({
     completeness: z.enum(['incomplete', 'complete']),
     verification: z.enum(['pending', 'approved', 'rejected', 'terminated']),
@@ -83,5 +137,3 @@ export type Manifest = z.infer<typeof ManifestSchema> & {
         fullName?: string;
     }
 };
-
-    
