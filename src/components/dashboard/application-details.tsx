@@ -480,20 +480,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
   const onInvalid = (errors: any) => {
     // A simple, robust way to get the first error message.
-    let firstErrorMessage = "กรุณาตรวจสอบข้อมูลที่กรอกไม่ถูกต้อง";
+    const firstErrorMessage = Object.values(errors)[0]?.message as string || "กรุณาตรวจสอบข้อมูลที่กรอกไม่ถูกต้อง";
     
-    if (errors.applicant?.firstName?.message) {
-      firstErrorMessage = errors.applicant.firstName.message;
-    } else if (errors.applicant?.lastName?.message) {
-      firstErrorMessage = errors.applicant.lastName.message;
-    } else if (errors.applicant?.nationalId?.message) {
-      firstErrorMessage = errors.applicant.nationalId.message;
-    } else if (errors.applicant?.mobilePhone?.message) {
-      firstErrorMessage = errors.applicant.mobilePhone.message;
-    } else if (errors.applicant?.email?.message) {
-        firstErrorMessage = errors.applicant.email.message;
-    }
-
     toast({
       variant: "destructive",
       title: "บันทึกข้อมูลล้มเหลว",
@@ -750,47 +738,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                   </Button>
                               )}
                           </div>
-                      </div>
-                      <Separator />
-                      <div className="w-full">
-                         <h4 className="font-semibold">ให้ผู้สมัครแก้ไข</h4>
-                          <p className="text-sm text-muted-foreground">ส่งลิงก์ให้ผู้สมัครเพื่อกลับมาอัปโหลดเอกสารหรือแก้ไขข้อมูล</p>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" className="mt-2" type="button">
-                                <LinkIcon className="mr-2 h-4 w-4" />
-                                แสดงลิงก์สำหรับแก้ไข
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
-                              <DialogHeader>
-                                <DialogTitle>ลิงก์สำหรับแก้ไขใบสมัคร</DialogTitle>
-                                <DialogDescription>
-                                  ส่งลิงก์นี้ให้ผู้สมัครเพื่อทำการแก้ไขข้อมูลและอัปโหลดเอกสารใหม่
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="flex items-center space-x-2">
-                                <div className="grid flex-1 gap-2">
-                                  <Input
-                                    id="edit-link"
-                                    defaultValue={editLink}
-                                    readOnly
-                                  />
-                                </div>
-                                <Button type="button" size="sm" className="px-3" onClick={handleCopyLink}>
-                                  <span className="sr-only">Copy</span>
-                                  {editLinkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                                </Button>
-                              </div>
-                              <DialogFooter className="sm:justify-start">
-                                <DialogClose asChild>
-                                  <Button type="button" variant="secondary">
-                                    ปิด
-                                  </Button>
-                                </DialogClose>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
                       </div>
                   </div>
              </CardFooter>
