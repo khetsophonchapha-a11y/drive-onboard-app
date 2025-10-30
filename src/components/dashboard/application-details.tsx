@@ -28,6 +28,8 @@ import {
   UserX,
   CheckCircle,
   XCircle,
+  FileClock,
+  Download,
 } from "lucide-react";
 import {
   Form,
@@ -394,9 +396,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         // Add the newly uploaded files
         for (const { docId, ref } of uploadResults) {
             const docMapping = {
-                'doc-application-form': 'applicationForm',
-                'doc-transport-contract': 'transportContract',
-                'doc-guarantee-contract': 'guaranteeContract',
                 'doc-citizen-id': 'citizenIdCopy',
                 'doc-drivers-license': 'driverLicenseCopy',
                 'doc-house-reg': 'houseRegCopy',
@@ -505,9 +504,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         if (!docs) return undefined;
         switch (docId) {
             case 'doc-insurance': return docs.insurance?.policy;
-            case 'doc-application-form': return docs.applicationForm;
-            case 'doc-transport-contract': return docs.transportContract;
-            case 'doc-guarantee-contract': return docs.guaranteeContract;
             case 'doc-citizen-id': return docs.citizenIdCopy;
             case 'doc-drivers-license': return docs.driverLicenseCopy;
             case 'doc-house-reg': return docs.houseRegCopy;
@@ -643,6 +639,33 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
               </div>
         </CardContent>
         </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">เอกสารที่สร้างโดยระบบ</CardTitle>
+                <CardDescription>ดูตัวอย่างและดาวน์โหลดเอกสารที่สร้างจากข้อมูลที่กรอก</CardDescription>
+            </CardHeader>
+            <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                 <a href={`/api/download-form?filename=application-form.pdf`} download className="inline-block">
+                    <Button variant="outline" className="w-full justify-start">
+                        <Download className="mr-2 h-4 w-4" />
+                        ใบสมัครงาน.pdf
+                    </Button>
+                </a>
+                <a href={`/api/download-form?filename=transport-contract.pdf`} download className="inline-block">
+                    <Button variant="outline" className="w-full justify-start">
+                        <Download className="mr-2 h-4 w-4" />
+                        สัญญาจ้างขนส่ง.pdf
+                    </Button>
+                </a>
+                <a href={`/api/download-form?filename=guarantee-contract.pdf`} download className="inline-block">
+                    <Button variant="outline" className="w-full justify-start">
+                        <Download className="mr-2 h-4 w-4" />
+                        สัญญาค้ำประกัน.pdf
+                    </Button>
+                </a>
+            </CardContent>
+        </Card>
          
         
         <Card>
@@ -703,8 +726,8 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                         </Button>
                                     )}
                                      {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
-                                         <Button variant="success" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
-                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                         <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
+                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
                                             พิจารณาใหม่
                                         </Button>
                                     )}

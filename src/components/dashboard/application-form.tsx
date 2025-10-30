@@ -260,9 +260,6 @@ export function ApplicationForm() {
                 const fileData: FileRef = { r2Key: fileRef.r2Key, mime: fileRef.mime, size: fileRef.size, md5: fileRef.md5 };
 
                 switch (fileRef.docId) {
-                    case 'doc-application-form': acc.applicationForm = fileData; break;
-                    case 'doc-transport-contract': acc.transportContract = fileData; break;
-                    case 'doc-guarantee-contract': acc.guaranteeContract = fileData; break;
                     case 'doc-citizen-id': acc.citizenIdCopy = fileData; break;
                     case 'doc-drivers-license': acc.driverLicenseCopy = fileData; break;
                     case 'doc-house-reg': acc.houseRegCopy = fileData; break;
