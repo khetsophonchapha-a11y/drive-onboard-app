@@ -106,7 +106,7 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
         } catch (e) {
             // response body is not json, just use status text
         }
-        console.error("safeFetch error:", errorMessage); // Log error before throwing
+        console.error("safeFetch error:", errorMessage);
         throw new Error(errorMessage);
     }
     return response;
@@ -579,201 +579,201 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
   
   return (
-    <Form {...form}>
-      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="pb-24">
-        <div className="space-y-6">
-          <Card>
+    <div className="space-y-6">
+        <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="font-headline text-2xl">{applicantName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
-                    <CardDescription>รหัสใบสมัคร: {initialApplication.appId}</CardDescription>
-                  </div>
-                   <div className="flex items-center gap-2">
-                      <Badge variant={statusVariantMap[initialApplication.status.verification]} className="capitalize text-base h-8">{statusText[initialApplication.status.verification]}</Badge>
-                  </div>
-              </div>
-            </CardHeader>
-          </Card>
-          
-          <Card>
-              <CardHeader>
-                  <CardTitle className="font-headline">เอกสารที่สร้างโดยระบบ</CardTitle>
-                  <CardDescription>ดูตัวอย่างและดาวน์โหลดเอกสารที่สร้างจากข้อมูลที่กรอก</CardDescription>
-              </CardHeader>
-              <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                   <a href={`/api/download-form?filename=application-form.pdf`} download className="inline-block">
-                      <Button variant="outline" className="w-full justify-start">
-                          <Download className="mr-2 h-4 w-4" />
-                          ใบสมัครงาน.pdf
-                      </Button>
-                  </a>
-                  <a href={`/api/download-form?filename=transport-contract.pdf`} download className="inline-block">
-                      <Button variant="outline" className="w-full justify-start">
-                          <Download className="mr-2 h-4 w-4" />
-                          สัญญาจ้างขนส่ง.pdf
-                      </Button>
-                  </a>
-                  <a href={`/api/download-form?filename=guarantee-contract.pdf`} download className="inline-block">
-                      <Button variant="outline" className="w-full justify-start">
-                          <Download className="mr-2 h-4 w-4" />
-                          สัญญาค้ำประกัน.pdf
-                      </Button>
-                  </a>
-              </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-               <div className="grid md:grid-cols-2 gap-4">
-                  <FormField control={control} name="applicant.firstName" render={({ field }) => (
-                    <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={control} name="applicant.lastName" render={({ field }) => (
-                    <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={control} name="applicant.mobilePhone" render={({ field }) => (
-                    <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={control} name="applicant.nationalId" render={({ field }) => (
-                    <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={control} name="applicant.currentAddress.houseNo" render={({ field }) => (
-                    <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                  )} />
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle className="font-headline text-2xl">{applicantName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
+                        <CardDescription>รหัสใบสมัคร: {initialApplication.appId}</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Badge variant={statusVariantMap[initialApplication.status.verification]} className="capitalize text-base h-8">{statusText[initialApplication.status.verification]}</Badge>
+                    </div>
                 </div>
+            </CardHeader>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">เอกสารที่สร้างโดยระบบ</CardTitle>
+                <CardDescription>ดูตัวอย่างและดาวน์โหลดเอกสารที่สร้างจากข้อมูลที่กรอก</CardDescription>
+            </CardHeader>
+            <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <a href={`/api/download-form?filename=application-form.pdf`} download className="inline-block">
+                    <Button variant="outline" className="w-full justify-start" type="button">
+                        <Download className="mr-2 h-4 w-4" />
+                        ใบสมัครงาน.pdf
+                    </Button>
+                </a>
+                <a href={`/api/download-form?filename=transport-contract.pdf`} download className="inline-block">
+                    <Button variant="outline" className="w-full justify-start" type="button">
+                        <Download className="mr-2 h-4 w-4" />
+                        สัญญาจ้างขนส่ง.pdf
+                    </Button>
+                </a>
+                <a href={`/api/download-form?filename=guarantee-contract.pdf`} download className="inline-block">
+                    <Button variant="outline" className="w-full justify-start" type="button">
+                        <Download className="mr-2 h-4 w-4" />
+                        สัญญาค้ำประกัน.pdf
+                    </Button>
+                </a>
             </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader><CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle></CardHeader>
+        </Card>
+
+        <Form {...form}>
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="pb-24 space-y-6">
+            <Card>
+                <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                    <FormField control={control} name="applicant.firstName" render={({ field }) => (
+                        <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="applicant.lastName" render={({ field }) => (
+                        <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={50} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="applicant.mobilePhone" render={({ field }) => (
+                        <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="applicant.nationalId" render={({ field }) => (
+                        <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="applicant.currentAddress.houseNo" render={({ field }) => (
+                        <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    </div>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader><CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                    <FormField control={control} name="vehicle.brand" render={({ field }) => (
+                        <FormItem><FormLabel>ยี่ห้อ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="vehicle.model" render={({ field }) => (
+                        <FormItem><FormLabel>รุ่น</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                        <FormField control={control} name="vehicle.year" render={({ field }) => (
+                        <FormItem><FormLabel>ปี</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="vehicle.plateNo" render={({ field }) => (
+                        <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="vehicle.color" render={({ field }) => (
+                        <FormItem><FormLabel>สี</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    </div>
+                </CardContent>
+            </Card>
+            
+            
+            <Card>
+            <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
             <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
-                   <FormField control={control} name="vehicle.brand" render={({ field }) => (
-                      <FormItem><FormLabel>ยี่ห้อ</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                   )} />
-                   <FormField control={control} name="vehicle.model" render={({ field }) => (
-                      <FormItem><FormLabel>รุ่น</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                   )} />
-                    <FormField control={control} name="vehicle.year" render={({ field }) => (
-                      <FormItem><FormLabel>ปี</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>
-                   )} />
-                   <FormField control={control} name="vehicle.plateNo" render={({ field }) => (
-                      <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                   )} />
-                   <FormField control={control} name="vehicle.color" render={({ field }) => (
-                      <FormItem><FormLabel>สี</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                   )} />
-                </div>
+                    <FormField control={control} name="guarantor.firstName" render={({ field }) => (
+                        <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="guarantor.lastName" render={({ field }) => (
+                        <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="guarantor.address.houseNo" render={({ field }) => (
+                        <FormItem><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={control} name="guarantor.nationalId" render={({ field }) => (
+                        <FormItem><FormLabel>เลขบัตรประชาชน (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    </div>
             </CardContent>
-          </Card>
-          
-           
-          <Card>
-          <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                  <FormField control={control} name="guarantor.firstName" render={({ field }) => (
-                    <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={control} name="guarantor.lastName" render={({ field }) => (
-                    <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={control} name="guarantor.address.houseNo" render={({ field }) => (
-                    <FormItem><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                   <FormField control={control} name="guarantor.nationalId" render={({ field }) => (
-                    <FormItem><FormLabel>เลขบัตรประชาชน (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
-                  )} />
+            </Card>
+
+            
+            
+            <Card>
+                <CardHeader>
+                <CardTitle className="font-headline">ตรวจสอบเอกสาร</CardTitle>
+                <CardDescription>เอกสารที่ผู้สมัครอัปโหลด</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                {requiredDocumentsSchema.map((reqDoc) => (
+                    <DocumentGroup
+                        key={reqDoc.id}
+                        docSchema={reqDoc}
+                        files={getDisplayFiles(reqDoc.id)}
+                        onFileUpload={handleFileUpload}
+                        onFileDelete={handleFileDelete}
+                    />
+                ))}
+                </CardContent>
+                <CardFooter className="flex-col items-start gap-4">
+                    <div className="w-full space-y-4">
+                        <Separator />
+                        <div className="flex justify-between items-center w-full">
+                            <h4 className="font-semibold">การดำเนินการ</h4>
+                            <div className="flex gap-2">
+                                {initialApplication.status.verification === 'pending' && (
+                                    <>
+                                        <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                            อนุมัติใบสมัคร
+                                        </Button>
+                                        <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
+                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                                            ปฏิเสธใบสมัคร
+                                        </Button>
+                                    </>
+                                )}
+                                {initialApplication.status.verification === 'approved' && (
+                                    <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
+                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                        เลิกจ้าง
+                                    </Button>
+                                )}
+                                {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
+                                    <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
+                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
+                                        พิจารณาใหม่
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </CardFooter>
+            </Card>
+
+            {hasChanges && (
+            <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t">
+                <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-20">
+                    <p className="text-lg font-semibold">ตรวจพบการเปลี่ยนแปลง</p>
+                    <div className="flex items-center gap-4">
+                        <Button variant="ghost" type="button" onClick={handleCancel} disabled={isSubmitting}>
+                            <X className="mr-2 h-4 w-4" />
+                            ยกเลิก
+                        </Button>
+                        <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
+                            {isSubmitting ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                กำลังบันทึก...
+                            </>
+                            ) : (
+                            <>
+                                <Send className="mr-2 h-4 w-4" />
+                                บันทึกการเปลี่ยนแปลง
+                            </>
+                            )}
+                        </Button>
+                    </div>
                 </div>
-          </CardContent>
-          </Card>
-
-           
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline">ตรวจสอบเอกสาร</CardTitle>
-              <CardDescription>เอกสารที่ผู้สมัครอัปโหลด</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {requiredDocumentsSchema.map((reqDoc) => (
-                  <DocumentGroup
-                      key={reqDoc.id}
-                      docSchema={reqDoc}
-                      files={getDisplayFiles(reqDoc.id)}
-                      onFileUpload={handleFileUpload}
-                      onFileDelete={handleFileDelete}
-                  />
-              ))}
-            </CardContent>
-             <CardFooter className="flex-col items-start gap-4">
-                  <div className="w-full space-y-4">
-                      <Separator />
-                       <div className="flex justify-between items-center w-full">
-                          <h4 className="font-semibold">การดำเนินการ</h4>
-                          <div className="flex gap-2">
-                              {initialApplication.status.verification === 'pending' && (
-                                   <>
-                                      <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
-                                          {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                          อนุมัติใบสมัคร
-                                      </Button>
-                                      <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
-                                          {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
-                                          ปฏิเสธใบสมัคร
-                                      </Button>
-                                  </>
-                              )}
-                              {initialApplication.status.verification === 'approved' && (
-                                  <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
-                                      {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
-                                      เลิกจ้าง
-                                  </Button>
-                              )}
-                               {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
-                                   <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
-                                      {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
-                                      พิจารณาใหม่
-                                  </Button>
-                              )}
-                          </div>
-                      </div>
-                  </div>
-             </CardFooter>
-          </Card>
-        </div>
-
-        {hasChanges && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t">
-            <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between h-20">
-                  <p className="text-lg font-semibold">ตรวจพบการเปลี่ยนแปลง</p>
-                  <div className="flex items-center gap-4">
-                      <Button variant="ghost" type="button" onClick={handleCancel} disabled={isSubmitting}>
-                          <X className="mr-2 h-4 w-4" />
-                          ยกเลิก
-                      </Button>
-                      <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
-                          {isSubmitting ? (
-                          <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              กำลังบันทึก...
-                          </>
-                          ) : (
-                          <>
-                              <Send className="mr-2 h-4 w-4" />
-                              บันทึกการเปลี่ยนแปลง
-                          </>
-                          )}
-                      </Button>
-                  </div>
-              </div>
+                </div>
             </div>
-          </div>
-        )}
-      </form>
-    </Form>
+            )}
+        </form>
+        </Form>
+    </div>
   );
 }
