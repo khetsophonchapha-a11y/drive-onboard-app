@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useTransition } from "react";
@@ -248,6 +249,13 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     formState: { isDirty },
     trigger,
   } = form;
+
+   // This useEffect ensures that if the initialApplication prop changes (e.g., after router.refresh()),
+   // the form's default values are updated. This prevents the form from incorrectly
+   // thinking it's "dirty" just because new data has arrived from the server.
+   useEffect(() => {
+        reset(sanitizedInitialApplication);
+   }, [sanitizedInitialApplication, reset]);
 
    // Revoke object URLs on cleanup
     useEffect(() => {
