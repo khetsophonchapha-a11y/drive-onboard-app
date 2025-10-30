@@ -62,7 +62,6 @@ import { useRouter } from "next/navigation";
 import { updateApplicationStatus } from "@/app/actions";
 import { cloneDeepWith } from 'lodash';
 import { z } from "zod";
-import { warmUpFonts } from "@/services/font-service";
 
 
 type ApplicationDetailsProps = {
@@ -260,11 +259,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
    useEffect(() => {
         reset(sanitizedInitialApplication);
    }, [sanitizedInitialApplication, reset]);
-
-    useEffect(() => {
-        // Pre-load fonts when the component mounts
-        warmUpFonts().catch(console.error);
-    }, []);
 
    // Revoke object URLs on cleanup
     useEffect(() => {
@@ -525,8 +519,6 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
     if (isDownloading) return;
     setIsDownloading(filename);
     try {
-        await warmUpFonts(); // Ensure fonts are ready before making the request
-
         const response = await fetch('/api/download-form', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
