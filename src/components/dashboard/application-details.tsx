@@ -477,6 +477,24 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
       }
   };
 
+  const onInvalid = (errors: any) => {
+    console.error("Form validation failed:", errors);
+    let firstErrorMessage = "กรุณาตรวจสอบข้อมูลที่กรอกไม่ถูกต้อง";
+
+    if (errors.applicant?.firstName?.message) {
+      firstErrorMessage = errors.applicant.firstName.message;
+    } else if (errors.applicant?.lastName?.message) {
+      firstErrorMessage = errors.applicant.lastName.message;
+    }
+    // You can add more checks for other fields here
+
+    toast({
+      variant: "destructive",
+      title: "บันทึกข้อมูลล้มเหลว",
+      description: firstErrorMessage,
+    });
+  };
+
 
   const handleUpdateStatus = (status: VerificationStatus) => {
     startStatusTransition(async () => {
@@ -568,7 +586,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   
   return (
     <Form {...form}>
-      <form onSubmit={handleSubmit(onSubmit)} className="pb-24">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="pb-24">
         <div className="space-y-6">
           <Card>
             <CardHeader>
