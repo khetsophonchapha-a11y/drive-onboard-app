@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useTransition } from "react";
@@ -616,7 +617,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   
   return (
     <div className="space-y-6">
-      <Card>
+       <Card>
           <CardHeader>
               <div className="flex justify-between items-start">
                   <div>
