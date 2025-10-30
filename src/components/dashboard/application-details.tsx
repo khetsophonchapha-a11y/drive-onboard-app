@@ -467,7 +467,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
 
       } catch (error: any) {
-        console.error("onSubmit error:", error); // Log any error during the submission process
+        console.error("onSubmit error:", error);
         toast({
             variant: "destructive",
             title: "บันทึกข้อมูลล้มเหลว",
@@ -479,9 +479,9 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   };
 
   const onInvalid = (errors: any) => {
+    // A simple, robust way to get the first error message.
     let firstErrorMessage = "กรุณาตรวจสอบข้อมูลที่กรอกไม่ถูกต้อง";
-
-    // Find the first error message to display in a more direct way
+    
     if (errors.applicant?.firstName?.message) {
       firstErrorMessage = errors.applicant.firstName.message;
     } else if (errors.applicant?.lastName?.message) {
