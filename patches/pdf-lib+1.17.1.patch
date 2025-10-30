@@ -1,0 +1,84 @@
+diff --git a/node_modules/pdf-lib/cjs/core/PDFContext.js b/node_modules/pdf-lib/cjs/core/PDFContext.js
+index 455e2d1..8f141dd 100644
+--- a/node_modules/pdf-lib/cjs/core/PDFContext.js
++++ b/node_modules/pdf-lib/cjs/core/PDFContext.js
+@@ -102,7 +102,7 @@
+         var indirectObjects = this.header.indirectObjects;
+         for (var i = 0, len = indirectObjects.length; i < len; i++) {
+             var indirectObject = indirectObjects[i];
+-            var ref = indirectObject.ref, object = indirectObject.object;
++            var ref = indirectObject.ref, object = indirectObject.object; 
+             // Update the ref's generation number if it has been modified.
+             if (this.largestObjectNumber > this.trailer.lastXRefOffset) {
+                 var _a = this.refToDummyRefs.get(ref) || [undefined, undefined], realRef = _a[0], _ = _a[1];
+diff --git a/node_modules/pdf-lib/cjs/core/pdf-operators/text/showText.js b/node_modules/pdf-lib/cjs/core/pdf-operators/text/showText.js
+index e3e721a..011a43a 100644
+--- a/node_modules/pdf-lib/cjs/core/pdf-operators/text/showText.js
++++ b/node_modules/pdf-lib/cjs/core/pdf-operators/text/showText.js
+@@ -47,7 +47,7 @@
+             var TJ = PDFOperator.of(operators_1.Ops.ShowTextAdjusted);
+             TJ.args.push(arg);
+             _this.operators.push(TJ);
+-            _this.contents.push(arg.toString() + " " + operators_1.Ops.ShowTextAdjusted);
++            _this.contents.push(arg.toHexString() + " " + operators_1.Ops.ShowTextAdjusted);
+             return _this;
+         };
+         this.toString = function () { return _this.contents.join('\n') + '\n'; };
+diff --git a/node_modules/pdf-lib/esm/core/PDFContext.js b/node_modules/pdf-lib/esm/core/PDFContext.js
+index 77fd512..b4d1f2b 100644
+--- a/node_modules/pdf-lib/esm/core/PDFContext.js
++++ b/node_modules/pdf-lib/esm/core/PDFContext.js
+@@ -93,7 +93,7 @@
+         const indirectObjects = this.header.indirectObjects;
+         for (let i = 0, len = indirectObjects.length; i < len; i++) {
+             const indirectObject = indirectObjects[i];
+-            const { ref, object } = indirectObject;
++            const { ref, object } = indirectObject; 
+             // Update the ref's generation number if it has been modified.
+             if (this.largestObjectNumber > this.trailer.lastXRefOffset) {
+                 const [realRef, _] = this.refToDummyRefs.get(ref) || [undefined, undefined];
+diff --git a/node_modules/pdf-lib/esm/core/pdf-operators/text/showText.js b/node_modules/pdf-lib/esm/core/pdf-operators/text/showText.js
+index c8706d8..8f9e618 100644
+--- a/node_modules/pdf-lib/esm/core/pdf-operators/text/showText.js
++++ b/node_modules/pdf-lib/esm/core/pdf-operators/text/showText.js
+@@ -42,7 +42,7 @@
+             const TJ = PDFOperator.of(Ops.ShowTextAdjusted);
+             TJ.args.push(arg);
+             this.operators.push(TJ);
+-            this.contents.push(`${arg.toString()} ${Ops.ShowTextAdjusted}`);
++            this.contents.push(`${arg.toHexString()} ${Ops.ShowTextAdjusted}`);
+             return this;
+         };
+         this.toString = () => this.contents.join('\n') + '\n';
+diff --git a/node_modules/pdf-lib/types/core/PDFContext.d.ts b/node_modules/pdf-lib/types/core/PDFContext.d.ts
+index c61e7a5..870ac66 100644
+--- a/node_modules/pdf-lib/types/core/PDFContext.d.ts
++++ b/node_modules/pdf-lib/types/core/PDFContext.d.ts
+@@ -82,7 +82,7 @@
+     protected constructor();
+     static create: () => PDFContext;
+     static load: (bytes: Uint8Array, customFontkit?: any) => Promise<PDFContext>;
+-    register(object: PDFObject): PDFRef;
++    register(object: PDFObject, dryRun?: boolean): PDFRef;
+     delete(ref: PDFRef): boolean;
+     maybeHydrate(object: PDFObject): void;
+     lookup(ref: PDFRef | undefined, type: typeof PDFArray): PDFArray | undefined;
+diff --git a/node_modules/pdf-lib/types/core/pdf-operators/text/showText.d.ts b/node_modules/pdf-lib/types/core/pdf-operators/text/showText.d.ts
+index 7254559..0df6e89 100644
+--- a/node_modules/pdf-lib/types/core/pdf-operators/text/showText.d.ts
++++ b/node_modules/pdf-lib/types/core/pdf-operators/text/showText.d.ts
+@@ -1,5 +1,6 @@
+ import { PDFArray, PDFHexString, PDFName, PDFNumber, PDFOperator, PDFString } from "../../objects";
+ import { PDFContentStream } from "../../structures";
++import { FontFlags } from "../../embedders";
+ export declare class Tj extends PDFContentStream {
+     static of: (arg: (string | number)[]) => Tj;
+     private static from;
+@@ -8,6 +9,7 @@
+     private contents;
+     private constructor();
+     Tj: (arg: PDFHexString | PDFString) => Tj;
++    TjWithGlyphs: (text: any, font: any) => Tj;
+     TJ: (arg: PDFArray<(PDFHexString | PDFString | PDFNumber)>) => Tj;
+     toString: () => string;
+     sizeInBytes: () => number;

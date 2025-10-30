@@ -1,11 +1,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import path from 'path';
-import fs from 'fs/promises';
 import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
 import type { Manifest } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { th } from 'date-fns/locale';
+import { getFont } from '@/services/font-service';
 
 // --- HELPER FUNCTIONS ---
 
@@ -24,19 +23,20 @@ async function loadFonts(pdfDoc: PDFDocument) {
     let boldFont: PDFFont;
     let isThaiFontLoaded = false;
 
-    // ตำแหน่งฟอนต์ที่คาดหวังในโปรเจกต์ Next.js
-    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Regular.ttf');
-    const boldFontPath = path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Bold.ttf');
-
     try {
-        const fontBytes = await fs.readFile(fontPath);
-        const boldFontBytes = await fs.readFile(boldFontPath);
+        // Get font data from the service
+        const fontData = await getFont('Sarabun-Regular');
+        const boldFontData = await getFont('Sarabun-Bold');
+        
+        if (!fontData || !boldFontData) {
+            throw new Error('Font data could not be loaded from service.');
+        }
 
-        font = await pdfDoc.embedFont(fontBytes);
-        boldFont = await pdfDoc.embedFont(boldFontBytes);
+        font = await pdfDoc.embedFont(fontData);
+        boldFont = await pdfDoc.embedFont(boldFontData);
         isThaiFontLoaded = true;
     } catch (error) {
-        console.warn(`[Font Loading Warning] Could not load Thai fonts from ${fontPath}. Falling back to Helvetica. Thai text will not render correctly.`);
+        console.warn(`[Font Loading Warning] Could not load Thai fonts from service. Falling back to Helvetica. Thai text will not render correctly.`, error);
         font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
         isThaiFontLoaded = false;
