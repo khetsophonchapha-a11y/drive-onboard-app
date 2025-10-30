@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
-import fs from 'fs/promises';
+import fs from 'fs'; // เปลี่ยนจาก fs/promises
 import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
 import type { Manifest } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
@@ -28,15 +28,22 @@ async function loadFonts(pdfDoc: PDFDocument) {
     const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Regular.ttf');
     const boldFontPath = path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Bold.ttf');
 
+    // พยายามแสดง path ที่กำลังอ่าน
+    console.log(`[Font Loader] Current working directory: ${process.cwd()}`);
+    console.log(`[Font Loader] Attempting to read regular font from: ${fontPath}`);
+    console.log(`[Font Loader] Attempting to read bold font from: ${boldFontPath}`);
+
     try {
-        const fontBytes = await fs.readFile(fontPath);
-        const boldFontBytes = await fs.readFile(boldFontPath);
+        // เปลี่ยนเป็น readFileSync (แบบ Synchronous)
+        const fontBytes = fs.readFileSync(fontPath);
+        const boldFontBytes = fs.readFileSync(boldFontPath);
 
         font = await pdfDoc.embedFont(fontBytes);
         boldFont = await pdfDoc.embedFont(boldFontBytes);
         isThaiFontLoaded = true;
     } catch (error) {
         console.warn(`[Font Loading Warning] Could not load Thai fonts from ${fontPath}. Falling back to Helvetica. Thai text will not render correctly.`);
+        console.error(error); // แสดง error แบบเต็มใน console
         font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
         isThaiFontLoaded = false;
