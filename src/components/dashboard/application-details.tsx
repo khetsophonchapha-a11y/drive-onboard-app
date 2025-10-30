@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useTransition } from "react";
@@ -550,11 +551,13 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
         return displayFiles;
     }, [initialApplication.docs, fileChanges]);
 
+  const hasChanges = isDirty || fileChanges.toUpload.length > 0 || fileChanges.toDelete.length > 0;
+
   
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="space-y-6">
+      <div className="space-y-6 pb-24">
         <Card>
           <CardHeader>
             <div className="flex justify-between items-start">
@@ -562,12 +565,14 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                   <CardTitle className="font-headline text-2xl">{applicantName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
                   <CardDescription>รหัสใบสมัคร: {initialApplication.appId}</CardDescription>
                 </div>
-                 <div className="flex items-center gap-4">
+                 <div className="flex items-center gap-2">
                     <Badge variant={statusVariantMap[initialApplication.status.verification]} className="capitalize text-base h-8">{statusText[initialApplication.status.verification]}</Badge>
-                    <Button type="button" size="icon" variant={isEditMode ? "destructive" : "outline"} onClick={handleEditToggle} className="h-8 w-8">
-                      {isEditMode ? <X /> : <Pencil />}
-                      <span className="sr-only">{isEditMode ? "Cancel Edit" : "Edit Application"}</span>
-                    </Button>
+                    {!isEditMode && (
+                        <Button type="button" size="icon" variant="outline" onClick={handleEditToggle} className="h-8 w-8">
+                            <Pencil />
+                            <span className="sr-only">Edit Application</span>
+                        </Button>
+                    )}
                 </div>
             </div>
           </CardHeader>
@@ -690,50 +695,34 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                     <Separator />
                      <div className="flex justify-between items-center w-full">
                         <h4 className="font-semibold">การดำเนินการ</h4>
-                        <div className="flex gap-2">
-                             {isEditMode && (isDirty || fileChanges.toUpload.length > 0 || fileChanges.toDelete.length > 0) ? (
-                                <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
-                                {isSubmitting ? (
-                                    <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    กำลังบันทึก...
-                                    </>
-                                ) : (
-                                    <>
-                                    <Send className="mr-2 h-4 w-4" />
-                                    บันทึกการเปลี่ยนแปลง
+                        {!isEditMode && (
+                            <div className="flex gap-2">
+                                {initialApplication.status.verification === 'pending' && (
+                                     <>
+                                        <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                            อนุมัติใบสมัคร
+                                        </Button>
+                                        <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
+                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                                            ปฏิเสธใบสมัคร
+                                        </Button>
                                     </>
                                 )}
-                                </Button>
-                            ) : (
-                                <>
-                                    {initialApplication.status.verification === 'pending' && (
-                                         <>
-                                            <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
-                                                {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                                อนุมัติใบสมัคร
-                                            </Button>
-                                            <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
-                                                {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
-                                                ปฏิเสธใบสมัคร
-                                            </Button>
-                                        </>
-                                    )}
-                                    {initialApplication.status.verification === 'approved' && (
-                                        <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
-                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
-                                            เลิกจ้าง
-                                        </Button>
-                                    )}
-                                     {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
-                                         <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
-                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
-                                            พิจารณาใหม่
-                                        </Button>
-                                    )}
-                                </>
-                            )}
-                        </div>
+                                {initialApplication.status.verification === 'approved' && (
+                                    <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
+                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                        เลิกจ้าง
+                                    </Button>
+                                )}
+                                 {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
+                                     <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
+                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
+                                        พิจารณาใหม่
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <Separator />
                     <div className="w-full">
@@ -780,7 +769,38 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
            </CardFooter>
         </Card>
       </div>
+
+       {isEditMode && hasChanges && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t">
+          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-20">
+                <p className="text-lg font-semibold">ตรวจพบการเปลี่ยนแปลง</p>
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" onClick={handleEditToggle} disabled={isSubmitting}>
+                        <X className="mr-2 h-4 w-4" />
+                        ยกเลิก
+                    </Button>
+                    <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
+                        {isSubmitting ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            กำลังบันทึก...
+                        </>
+                        ) : (
+                        <>
+                            <Send className="mr-2 h-4 w-4" />
+                            บันทึกการเปลี่ยนแปลง
+                        </>
+                        )}
+                    </Button>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
       </form>
     </Form>
   );
 }
+
+    
