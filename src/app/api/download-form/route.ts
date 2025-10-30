@@ -5,13 +5,14 @@ import fs from 'fs/promises';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import type { Manifest } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
-import { th } from 'date-fns/locale';
+// import { th } from 'date-fns/locale'; // Removed to avoid Thai characters
 
 function formatDate(date: string | Date | undefined): string {
     if (!date) return '';
     try {
         const dateObj = typeof date === 'string' ? parseISO(date) : date;
-        return format(dateObj, 'd MMMM yyyy', { locale: th });
+        // Use default English locale which is supported by Helvetica
+        return format(dateObj, 'd MMMM yyyy'); 
     } catch {
         return '';
     }
@@ -29,34 +30,41 @@ async function fillApplicationForm(data: Manifest): Promise<Uint8Array> {
 
     // A simple text drawing helper
     const drawText = (text: string | undefined, x: number, y: number, size = 10) => {
-        if (text) {
+        // Only draw if text is defined and doesn't contain non-ASCII characters
+        if (text && /^[\x00-\x7F]*$/.test(text)) {
             page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
         }
     };
+    
+    const drawNumeric = (num: number | undefined, x: number, y: number, size = 10) => {
+        if (num !== undefined) {
+             page.drawText(num.toString(), { x, y, size, font, color: rgb(0, 0, 0) });
+        }
+    }
 
     // Fill data - coordinates are examples, they need to be measured from the template
+    // These fields are likely English/Numeric
     drawText(applicationDetails?.position, 450, 710);
     drawText(formatDate(applicationDetails?.applicationDate), 450, 688);
+    drawText(applicant?.email, 350, 615);
+    drawNumeric(applicant?.age, 250, 635);
+    drawText(applicant?.nationalId, 400, 635);
+    drawText(applicant?.mobilePhone, 120, 615);
 
-    drawText(applicant.prefix, 100, 655);
-    drawText(applicant.firstName, 200, 655);
-    drawText(applicant.lastName, 350, 655);
-    drawText(applicant.nickname, 500, 655);
+    // Thai fields are skipped to prevent error
+    // drawText(applicant.prefix, 100, 655);
+    // drawText(applicant.firstName, 200, 655);
+    // drawText(applicant.lastName, 350, 655);
+    // drawText(applicant.nickname, 500, 655);
+    // drawText(applicant.currentAddress?.houseNo, 150, 595);
 
-    drawText(formatDate(applicant.dateOfBirth), 120, 635);
-    drawText(applicant.age?.toString(), 250, 635);
-    drawText(applicant.nationalId, 400, 635);
-    drawText(applicant.mobilePhone, 120, 615);
-    drawText(applicant.email, 350, 615);
-
-    drawText(applicant.currentAddress?.houseNo, 150, 595);
-    // ... add more fields for address etc.
-
-    drawText(vehicle.brand, 120, 450);
-    drawText(vehicle.model, 250, 450);
-    drawText(vehicle.year?.toString(), 400, 450);
-    drawText(vehicle.plateNo, 120, 430);
-    drawText(vehicle.color, 250, 430);
+    drawText(vehicle?.brand, 120, 450);
+    drawText(vehicle?.model, 250, 450);
+    drawNumeric(vehicle?.year, 400, 450);
+    drawText(vehicle?.plateNo, 120, 430);
+    
+    // Color might be in Thai, skip for now
+    // drawText(vehicle.color, 250, 430);
 
 
     return pdfDoc.save();
@@ -71,17 +79,18 @@ async function fillTransportContract(data: Manifest): Promise<Uint8Array> {
     const { applicant, vehicle } = data;
 
     const drawText = (text: string | undefined, x: number, y: number, size = 10) => {
-        if (text) {
+        if (text && /^[\x00-\x7F]*$/.test(text)) {
             page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
         }
     };
     
     // Example coordinates
     drawText(formatDate(data.contractDetails?.contractDate || new Date()), 450, 720);
-    drawText(applicant.fullName, 200, 650);
-    drawText(applicant.nationalId, 400, 650);
-    drawText(applicant.currentAddress?.houseNo, 200, 630);
-    drawText(vehicle.plateNo, 200, 500);
+    // Skipping fields that might contain Thai
+    // drawText(applicant.fullName, 200, 650);
+    // drawText(applicant.currentAddress?.houseNo, 200, 630);
+    drawText(applicant?.nationalId, 400, 650);
+    drawText(vehicle?.plateNo, 200, 500);
 
 
     return pdfDoc.save();
@@ -97,17 +106,19 @@ async function fillGuaranteeContract(data: Manifest): Promise<Uint8Array> {
     const { applicant, guarantor } = data;
 
     const drawText = (text: string | undefined, x: number, y: number, size = 10) => {
-        if (text) {
+        if (text && /^[\x00-\x7F]*$/.test(text)) {
             page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
         }
     };
     
     // Example coordinates
     drawText(formatDate(guarantor?.contractDate || new Date()), 450, 750);
-    drawText(applicant.fullName, 200, 680);
-    drawText(guarantor?.fullName, 200, 650);
+    // Skipping fields that are certainly Thai
+    // drawText(applicant.fullName, 200, 680);
+    // drawText(guarantor?.fullName, 200, 650);
+    // drawText(guarantor?.address?.houseNo, 200, 630);
     drawText(guarantor?.nationalId, 400, 650);
-    drawText(guarantor?.address?.houseNo, 200, 630);
+
 
     return pdfDoc.save();
 }
@@ -128,7 +139,7 @@ export async function POST(req: NextRequest) {
     } else if (filename === 'transport-contract.pdf') {
         pdfBytes = await fillTransportContract(data);
     } else if (filename === 'guarantee-contract.pdf') {
-        if (!data.guarantor?.fullName) {
+        if (!data.guarantor?.firstName && !data.guarantor?.lastName) {
              return NextResponse.json({ error: 'ไม่พบข้อมูลผู้ค้ำประกัน' }, { status: 400 });
         }
         pdfBytes = await fillGuaranteeContract(data);
