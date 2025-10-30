@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useTransition } from "react";
@@ -557,250 +556,248 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="space-y-6 pb-24">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="font-headline text-2xl">{applicantName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
-                  <CardDescription>รหัสใบสมัคร: {initialApplication.appId}</CardDescription>
-                </div>
-                 <div className="flex items-center gap-2">
-                    <Badge variant={statusVariantMap[initialApplication.status.verification]} className="capitalize text-base h-8">{statusText[initialApplication.status.verification]}</Badge>
-                    {!isEditMode && (
-                        <Button type="button" size="icon" variant="outline" onClick={handleEditToggle} className="h-8 w-8">
-                            <Pencil />
-                            <span className="sr-only">Edit Application</span>
-                        </Button>
-                    )}
-                </div>
-            </div>
-          </CardHeader>
-        </Card>
-        
-        <Card>
-          <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-             <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={control} name="applicant.firstName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={50} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={control} name="applicant.lastName" render={({ field }) => (
-                  <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={50} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={control} name="applicant.mobilePhone" render={({ field }) => (
-                  <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={control} name="applicant.nationalId" render={({ field }) => (
-                  <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={13} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={control} name="applicant.currentAddress.houseNo" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
-                )} />
+        <div className="space-y-6 pb-24">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="font-headline text-2xl">{applicantName || "ผู้สมัครไม่มีชื่อ"}</CardTitle>
+                    <CardDescription>รหัสใบสมัคร: {initialApplication.appId}</CardDescription>
+                  </div>
+                   <div className="flex items-center gap-2">
+                      <Badge variant={statusVariantMap[initialApplication.status.verification]} className="capitalize text-base h-8">{statusText[initialApplication.status.verification]}</Badge>
+                      {!isEditMode && (
+                          <Button type="button" size="icon" variant="outline" onClick={handleEditToggle} className="h-8 w-8">
+                              <Pencil />
+                              <span className="sr-only">Edit Application</span>
+                          </Button>
+                      )}
+                  </div>
               </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader><CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle></CardHeader>
+            </CardHeader>
+          </Card>
+          
+          <Card>
+            <CardHeader><CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+               <div className="grid md:grid-cols-2 gap-4">
+                  <FormField control={control} name="applicant.firstName" render={({ field }) => (
+                    <FormItem><FormLabel>ชื่อจริง</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={50} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={control} name="applicant.lastName" render={({ field }) => (
+                    <FormItem><FormLabel>นามสกุล</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={50} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={control} name="applicant.mobilePhone" render={({ field }) => (
+                    <FormItem><FormLabel>เบอร์โทรศัพท์</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={control} name="applicant.nationalId" render={({ field }) => (
+                    <FormItem><FormLabel>เลขบัตรประชาชน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={13} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={control} name="applicant.currentAddress.houseNo" render={({ field }) => (
+                    <FormItem className="md:col-span-2"><FormLabel>ที่อยู่</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader><CardTitle className="font-headline">ข้อมูลยานพาหนะ</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                   <FormField control={control} name="vehicle.brand" render={({ field }) => (
+                      <FormItem><FormLabel>ยี่ห้อ</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                   )} />
+                   <FormField control={control} name="vehicle.model" render={({ field }) => (
+                      <FormItem><FormLabel>รุ่น</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                   )} />
+                    <FormField control={control} name="vehicle.year" render={({ field }) => (
+                      <FormItem><FormLabel>ปี</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                   )} />
+                   <FormField control={control} name="vehicle.plateNo" render={({ field }) => (
+                      <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                   )} />
+                   <FormField control={control} name="vehicle.color" render={({ field }) => (
+                      <FormItem><FormLabel>สี</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                   )} />
+                </div>
+            </CardContent>
+          </Card>
+          
+           
+          <Card>
+          <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
           <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                 <FormField control={control} name="vehicle.brand" render={({ field }) => (
-                    <FormItem><FormLabel>ยี่ห้อ</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
-                 )} />
-                 <FormField control={control} name="vehicle.model" render={({ field }) => (
-                    <FormItem><FormLabel>รุ่น</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
-                 )} />
-                  <FormField control={control} name="vehicle.year" render={({ field }) => (
-                    <FormItem><FormLabel>ปี</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
-                 )} />
-                 <FormField control={control} name="vehicle.plateNo" render={({ field }) => (
-                    <FormItem><FormLabel>ป้ายทะเบียน</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
-                 )} />
-                 <FormField control={control} name="vehicle.color" render={({ field }) => (
-                    <FormItem><FormLabel>สี</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
-                 )} />
-              </div>
+                  <FormField control={control} name="guarantor.firstName" render={({ field }) => (
+                    <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={control} name="guarantor.lastName" render={({ field }) => (
+                    <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={control} name="guarantor.address.houseNo" render={({ field }) => (
+                    <FormItem><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                   <FormField control={control} name="guarantor.nationalId" render={({ field }) => (
+                    <FormItem><FormLabel>เลขบัตรประชาชน (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
           </CardContent>
-        </Card>
-        
-         
-        <Card>
-        <CardHeader><CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-                <FormField control={control} name="guarantor.firstName" render={({ field }) => (
-                  <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={control} name="guarantor.lastName" render={({ field }) => (
-                  <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={control} name="guarantor.address.houseNo" render={({ field }) => (
-                  <FormItem><FormLabel>ที่อยู่ (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} /></FormControl><FormMessage /></FormItem>
-                )} />
-                 <FormField control={control} name="guarantor.nationalId" render={({ field }) => (
-                  <FormItem><FormLabel>เลขบัตรประชาชน (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly={!isEditMode} maxLength={13} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
-                )} />
-              </div>
-        </CardContent>
-        </Card>
+          </Card>
 
-        <Card>
+          <Card>
+              <CardHeader>
+                  <CardTitle className="font-headline">เอกสารที่สร้างโดยระบบ</CardTitle>
+                  <CardDescription>ดูตัวอย่างและดาวน์โหลดเอกสารที่สร้างจากข้อมูลที่กรอก</CardDescription>
+              </CardHeader>
+              <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                   <a href={`/api/download-form?filename=application-form.pdf`} download className="inline-block">
+                      <Button variant="outline" className="w-full justify-start">
+                          <Download className="mr-2 h-4 w-4" />
+                          ใบสมัครงาน.pdf
+                      </Button>
+                  </a>
+                  <a href={`/api/download-form?filename=transport-contract.pdf`} download className="inline-block">
+                      <Button variant="outline" className="w-full justify-start">
+                          <Download className="mr-2 h-4 w-4" />
+                          สัญญาจ้างขนส่ง.pdf
+                      </Button>
+                  </a>
+                  <a href={`/api/download-form?filename=guarantee-contract.pdf`} download className="inline-block">
+                      <Button variant="outline" className="w-full justify-start">
+                          <Download className="mr-2 h-4 w-4" />
+                          สัญญาค้ำประกัน.pdf
+                      </Button>
+                  </a>
+              </CardContent>
+          </Card>
+           
+          
+          <Card>
             <CardHeader>
-                <CardTitle className="font-headline">เอกสารที่สร้างโดยระบบ</CardTitle>
-                <CardDescription>ดูตัวอย่างและดาวน์โหลดเอกสารที่สร้างจากข้อมูลที่กรอก</CardDescription>
+              <CardTitle className="font-headline">ตรวจสอบเอกสาร</CardTitle>
+              <CardDescription>เอกสารที่ผู้สมัครอัปโหลด</CardDescription>
             </CardHeader>
-            <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                 <a href={`/api/download-form?filename=application-form.pdf`} download className="inline-block">
-                    <Button variant="outline" className="w-full justify-start">
-                        <Download className="mr-2 h-4 w-4" />
-                        ใบสมัครงาน.pdf
-                    </Button>
-                </a>
-                <a href={`/api/download-form?filename=transport-contract.pdf`} download className="inline-block">
-                    <Button variant="outline" className="w-full justify-start">
-                        <Download className="mr-2 h-4 w-4" />
-                        สัญญาจ้างขนส่ง.pdf
-                    </Button>
-                </a>
-                <a href={`/api/download-form?filename=guarantee-contract.pdf`} download className="inline-block">
-                    <Button variant="outline" className="w-full justify-start">
-                        <Download className="mr-2 h-4 w-4" />
-                        สัญญาค้ำประกัน.pdf
-                    </Button>
-                </a>
+            <CardContent className="space-y-4">
+              {requiredDocumentsSchema.map((reqDoc) => (
+                  <DocumentGroup
+                      key={reqDoc.id}
+                      docSchema={reqDoc}
+                      isEditMode={isEditMode}
+                      files={getDisplayFiles(reqDoc.id)}
+                      onFileUpload={handleFileUpload}
+                      onFileDelete={handleFileDelete}
+                  />
+              ))}
             </CardContent>
-        </Card>
-         
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">ตรวจสอบเอกสาร</CardTitle>
-            <CardDescription>เอกสารที่ผู้สมัครอัปโหลด</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {requiredDocumentsSchema.map((reqDoc) => (
-                <DocumentGroup
-                    key={reqDoc.id}
-                    docSchema={reqDoc}
-                    isEditMode={isEditMode}
-                    files={getDisplayFiles(reqDoc.id)}
-                    onFileUpload={handleFileUpload}
-                    onFileDelete={handleFileDelete}
-                />
-            ))}
-          </CardContent>
-           <CardFooter className="flex-col items-start gap-4">
-                <div className="w-full space-y-4">
-                    <Separator />
-                     <div className="flex justify-between items-center w-full">
-                        <h4 className="font-semibold">การดำเนินการ</h4>
-                        {!isEditMode && (
-                            <div className="flex gap-2">
-                                {initialApplication.status.verification === 'pending' && (
-                                     <>
-                                        <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
-                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                            อนุมัติใบสมัคร
-                                        </Button>
-                                        <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
-                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
-                                            ปฏิเสธใบสมัคร
-                                        </Button>
-                                    </>
-                                )}
-                                {initialApplication.status.verification === 'approved' && (
-                                    <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
-                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
-                                        เลิกจ้าง
-                                    </Button>
-                                )}
-                                 {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
-                                     <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
-                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
-                                        พิจารณาใหม่
-                                    </Button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    <Separator />
-                    <div className="w-full">
-                       <h4 className="font-semibold">ให้ผู้สมัครแก้ไข</h4>
-                        <p className="text-sm text-muted-foreground">ส่งลิงก์ให้ผู้สมัครเพื่อกลับมาอัปโหลดเอกสารหรือแก้ไขข้อมูล</p>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" className="mt-2" type="button">
-                              <LinkIcon className="mr-2 h-4 w-4" />
-                              แสดงลิงก์สำหรับแก้ไข
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>ลิงก์สำหรับแก้ไขใบสมัคร</DialogTitle>
-                              <DialogDescription>
-                                ส่งลิงก์นี้ให้ผู้สมัครเพื่อทำการแก้ไขข้อมูลและอัปโหลดเอกสารใหม่
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="flex items-center space-x-2">
-                              <div className="grid flex-1 gap-2">
-                                <Input
-                                  id="edit-link"
-                                  defaultValue={editLink}
-                                  readOnly
-                                />
+             <CardFooter className="flex-col items-start gap-4">
+                  <div className="w-full space-y-4">
+                      <Separator />
+                       <div className="flex justify-between items-center w-full">
+                          <h4 className="font-semibold">การดำเนินการ</h4>
+                          {!isEditMode && (
+                              <div className="flex gap-2">
+                                  {initialApplication.status.verification === 'pending' && (
+                                       <>
+                                          <Button variant="success" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                              {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                              อนุมัติใบสมัคร
+                                          </Button>
+                                          <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
+                                              {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                                              ปฏิเสธใบสมัคร
+                                          </Button>
+                                      </>
+                                  )}
+                                  {initialApplication.status.verification === 'approved' && (
+                                      <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
+                                          {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                          เลิกจ้าง
+                                      </Button>
+                                  )}
+                                   {(initialApplication.status.verification === 'rejected' || initialApplication.status.verification === 'terminated') && (
+                                       <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
+                                          {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
+                                          พิจารณาใหม่
+                                      </Button>
+                                  )}
                               </div>
-                              <Button type="button" size="sm" className="px-3" onClick={handleCopyLink}>
-                                <span className="sr-only">Copy</span>
-                                {editLinkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          )}
+                      </div>
+                      <Separator />
+                      <div className="w-full">
+                         <h4 className="font-semibold">ให้ผู้สมัครแก้ไข</h4>
+                          <p className="text-sm text-muted-foreground">ส่งลิงก์ให้ผู้สมัครเพื่อกลับมาอัปโหลดเอกสารหรือแก้ไขข้อมูล</p>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" className="mt-2" type="button">
+                                <LinkIcon className="mr-2 h-4 w-4" />
+                                แสดงลิงก์สำหรับแก้ไข
                               </Button>
-                            </div>
-                            <DialogFooter className="sm:justify-start">
-                              <DialogClose asChild>
-                                <Button type="button" variant="secondary">
-                                  ปิด
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>ลิงก์สำหรับแก้ไขใบสมัคร</DialogTitle>
+                                <DialogDescription>
+                                  ส่งลิงก์นี้ให้ผู้สมัครเพื่อทำการแก้ไขข้อมูลและอัปโหลดเอกสารใหม่
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="flex items-center space-x-2">
+                                <div className="grid flex-1 gap-2">
+                                  <Input
+                                    id="edit-link"
+                                    defaultValue={editLink}
+                                    readOnly
+                                  />
+                                </div>
+                                <Button type="button" size="sm" className="px-3" onClick={handleCopyLink}>
+                                  <span className="sr-only">Copy</span>
+                                  {editLinkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                                 </Button>
-                              </DialogClose>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                    </div>
-                </div>
-           </CardFooter>
-        </Card>
-      </div>
+                              </div>
+                              <DialogFooter className="sm:justify-start">
+                                <DialogClose asChild>
+                                  <Button type="button" variant="secondary">
+                                    ปิด
+                                  </Button>
+                                </DialogClose>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                      </div>
+                  </div>
+             </CardFooter>
+          </Card>
+        </div>
 
-       {isEditMode && hasChanges && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t">
-          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-20">
-                <p className="text-lg font-semibold">ตรวจพบการเปลี่ยนแปลง</p>
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" onClick={handleEditToggle} disabled={isSubmitting}>
-                        <X className="mr-2 h-4 w-4" />
-                        ยกเลิก
-                    </Button>
-                    <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
-                        {isSubmitting ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            กำลังบันทึก...
-                        </>
-                        ) : (
-                        <>
-                            <Send className="mr-2 h-4 w-4" />
-                            บันทึกการเปลี่ยนแปลง
-                        </>
-                        )}
-                    </Button>
-                </div>
+        {isEditMode && hasChanges && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t">
+            <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-20">
+                  <p className="text-lg font-semibold">ตรวจพบการเปลี่ยนแปลง</p>
+                  <div className="flex items-center gap-4">
+                      <Button variant="ghost" onClick={handleEditToggle} disabled={isSubmitting}>
+                          <X className="mr-2 h-4 w-4" />
+                          ยกเลิก
+                      </Button>
+                      <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[150px]">
+                          {isSubmitting ? (
+                          <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              กำลังบันทึก...
+                          </>
+                          ) : (
+                          <>
+                              <Send className="mr-2 h-4 w-4" />
+                              บันทึกการเปลี่ยนแปลง
+                          </>
+                          )}
+                      </Button>
+                  </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </form>
     </Form>
   );
 }
-
-    
