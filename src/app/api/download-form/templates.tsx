@@ -1,442 +1,463 @@
+/**
+ * src/app/api/download-form/templates.tsx
+ * * This file contains React components used as HTML templates for PDF generation.
+ * These components are rendered to a static string by 'react-dom/server'
+ * and then sent to the PDF generation service (e.g., Google Apps Script).
+ */
+
+// Import React and Manifest types
 import React from 'react';
-import type { Manifest } from '@/lib/types';
-import { format, parseISO } from 'date-fns';
-import { th } from 'date-fns/locale';
+// We need to define or import the 'Manifest' type here for props.
+// Let's define a minimal one based on usage.
+type Manifest = {
+  applicant?: {
+    prefix?: string;
+    firstName?: string;
+    lastName?: string;
+    nickname?: string;
+    currentAddress?: {
+      houseNo?: string;
+      moo?: string;
+      street?: string;
+      subDistrict?: string;
+      district?: string;
+      province?: string;
+      postalCode?: string;
+    };
+    homePhone?: string;
+    mobilePhone?: string;
+    email?: string;
+    permanentAddress?: {
+      houseNo?: string;
+      moo?: string;
+      street?: string;
+      subDistrict?: string;
+      district?: string;
+      province?: string;
+      postalCode?: string;
+    };
+    residenceType?: string;
+    dateOfBirth?: string | Date;
+    age?: number;
+    race?: string;
+    nationality?: string;
+    religion?: string;
+    nationalId?: string;
+    nationalIdIssueDate?: string | Date;
+    nationalIdExpiryDate?: string | Date;
+    height?: number;
+    weight?: number;
+    militaryStatus?: string;
+    maritalStatus?: string;
+    gender?: string;
+  };
+  applicationDetails?: {
+    applicationDate?: string | Date;
+    position?: string;
+    criminalRecord?: string;
+    emergencyContact?: {
+      firstName?: string;
+      lastName?: string;
+      occupation?: string;
+      relation?: string;
+      mobilePhone?: string;
+    };
+  };
+  guarantor?: {
+    firstName?: string;
+    lastName?: string;
+    contractDate?: string | Date;
+    address?: {
+        houseNo?: string;
+        moo?: string;
+        street?: string;
+        subDistrict?: string;
+        district?: string;
+        province?: string;
+        postalCode?: string;
+    };
+    nationalId?: string;
+  };
+  contractDetails?: {
+      contractDate?: string | Date;
+  };
+  vehicle?: {
+      plateNo?: string;
+  };
+};
 
-// --- Helpers ---
+// --- Helper Components ---
 
 /**
- * ดึงค่า string หรือ '' ถ้าเป็น null/undefined
- */
-const val = (text: string | undefined | null) => (text || '');
-
-/**
- * ดึงค่า number เป็น string หรือ ''
- */
-const num = (n: number | undefined | null) => (n !== undefined && n !== null ? n.toString() : '');
-
-/**
- * จัดรูปแบบวันที่
+ * Helper to safely format dates.
+ * Note: date-fns/th locale is not available here, so we format simply.
  */
 function formatDate(date: string | Date | undefined): string {
     if (!date) return '..............................';
     try {
-        const dateObj = typeof date === 'string' ? parseISO(date) : date;
-        // ใช้ Locale ไทย และ +543 ปี
-        const year = parseInt(format(dateObj, 'yyyy')) + 543;
-        const dayAndMonth = format(dateObj, 'd MMMM', { locale: th });
-        return `${dayAndMonth} ${year}`;
+        const dateObj = typeof date === 'string' ? new Date(date) : date;
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        return `${dd} / ${mm} / ${yyyy}`;
     } catch {
         return '..............................';
     }
 }
 
 /**
- * Style สำหรับหน้ากระดาษ A4
- * ใช้ Inline Styles ทั้งหมด เพราะ Puppeteer จะอ่านได้ง่ายที่สุด
+ * Helper for optional string/number values
  */
-const pageStyle: React.CSSProperties = {
-    width: '100%', // ให้เต็มความกว้าง A4 ที่ตั้งค่าใน puppeteer
-    minHeight: '297mm',
-    padding: '0', // เราคุมระยะขอบด้วย puppeteer margin
-    margin: '0 auto',
-    boxSizing: 'border-box',
-    fontFamily: '"Sarabun", "Arial", sans-serif', // **สำคัญ: Chrome จะโหลดจาก @font-face ที่เราใส่ใน <head>**
-    fontSize: '10pt',
-    color: '#000',
-    lineHeight: 1.5,
+const val = (text: string | number | undefined | null) => (text || '');
+
+// *** FIX 1: Define props for Checkbox ***
+type CheckboxProps = {
+  checked?: boolean;
+  style?: React.CSSProperties; // Allow style prop
 };
 
-const h1Style: React.CSSProperties = {
-    fontSize: '16pt',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    margin: '0 0 20px 0',
-};
-
-// Style สำหรับช่องกรอกข้อมูล (Label + ขีดเส้นใต้)
-const fieldStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: '8px',
-};
-
-const labelStyle: React.CSSProperties = {
-    flexShrink: 0, // ไม่ให้ย่อ
-    marginRight: '5px',
-    paddingBottom: '2px', // ยก label ให้ตรงกับ value
-};
-
-const valueStyle: React.CSSProperties = {
-    flexGrow: 1, // เติมเต็มพื้นที่
-    borderBottom: '1px dotted #555',
-    minHeight: '20px',
-    paddingLeft: '5px',
-    whiteSpace: 'nowrap', // ไม่ตัดคำ
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    lineHeight: '1.2', // ปรับ line-height ให้พอดี
-};
-
-// Style สำหรับ Checkbox
-const checkRootStyle: React.CSSProperties = {
-    marginRight: '15px', 
-    whiteSpace: 'nowrap',
-    display: 'inline-block', // ทำให้เป็นแถวเดียวกัน
-};
-
-const checkStyle: React.CSSProperties = {
+/**
+ * Helper for checkbox
+ */
+const Checkbox = ({ checked = false, style = {} }: CheckboxProps) => ( // Apply props
+  <span style={{
     display: 'inline-block',
     width: '12px',
     height: '12px',
     border: '1px solid #000',
     marginRight: '5px',
     verticalAlign: 'middle',
-    position: 'relative',
-    top: '-1px',
-    backgroundColor: '#fff', // ทำให้พื้นหลังเป็นสีขาวเสมอ
-};
-
-const checkStyleChecked: React.CSSProperties = {
-    ...checkStyle,
     textAlign: 'center',
     lineHeight: '12px',
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica, sans-serif', // Use a font that has 'X'
+    ...style // Merge passed-in style (e.g., marginLeft)
+  }}>
+    {checked ? 'X' : '\u00A0'}
+  </span>
+);
+
+// *** FIX 2: Define props for Field ***
+type FieldProps = {
+  label: string;
+  value: string | number | undefined | null;
+  labelWidth?: string;
+  fieldWidth?: string;
+  fullWidth?: boolean;
+  style?: React.CSSProperties;
 };
 
 /**
- * Checkbox Component (ง่ายๆ)
+ * Helper for a labeled field with an underline
  */
-const Checkbox = ({ label, checked }: { label: string, checked: boolean }) => (
-    <span style={checkRootStyle}>
-        <span style={checked ? checkStyleChecked : checkStyle}>
-            {checked ? 'X' : <>&nbsp;</>}
-        </span>
-        <label>{label}</label>
+const Field = ({ 
+  label, 
+  value, 
+  labelWidth = 'auto', 
+  fieldWidth = '100px', 
+  fullWidth = false, 
+  style = {} 
+}: FieldProps) => ( // Apply props
+  <div style={{ 
+    display: fullWidth ? 'block' : 'inline-block', 
+    marginRight: '15px', 
+    marginBottom: '10px',
+    ...style 
+  }}>
+    <span>{label}</span>
+    <span style={{
+      display: 'inline-block',
+      width: fieldWidth,
+      borderBottom: '1px solid #999',
+      paddingLeft: '5px',
+      marginLeft: labelWidth === 'auto' ? '5px' : labelWidth,
+      fontFamily: 'Helvetica, sans-serif', // Ensure value font is set
+      color: '#000',
+    }}>
+      {val(value) || '\u00A0'}
     </span>
+  </div>
 );
 
+// --- Main PDF Templates ---
 
-// --- 1. TEMPLATE: ใบสมัครงาน ---
-
+/**
+ * 1. Application Form Template
+ */
 export const ApplicationFormTemplate = ({ data }: { data: Manifest }) => {
-    const app = data.applicant || {};
-    const addr = app.currentAddress || {};
-    const permAddr = app.permanentAddress || {};
-    const emCon = data.applicationDetails?.emergencyContact || {};
-    const appDetails = data.applicationDetails || {};
-    
-    // แยกวัน/เดือน/ปีเกิด
-    let dobDay = '', dobMonth = '', dobYear = '';
-    if (app.dateOfBirth) {
-        try {
-            const dob = parseISO(app.dateOfBirth as unknown as string);
-            dobDay = format(dob, 'd');
-            dobMonth = format(dob, 'MMMM', { locale: th });
-            dobYear = (parseInt(format(dob, 'yyyy')) + 543).toString();
-        } catch {}
-    }
+  const app = data.applicant || {};
+  const appDetails = data.applicationDetails || {};
+  const currentAddr = app.currentAddress || {};
+  const permAddr = app.permanentAddress || {};
+  const emCon = appDetails.emergencyContact || {};
 
-    return (
-        <div style={pageStyle}>
-            {/* Header */}
-            <div style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '14pt', fontWeight: 'bold' }}>บริษัทเบิกฟ้ากรุ๊ปจำกัด</div>
-                <div style={{ fontSize: '10pt' }}>เลขที่ 202/357 ซอยเคหะร่มเกล้า 27 ถนนเคหะร่มเกล้า แขวงคลองสองต้นนุ่น</div>
-                <div style={{ fontSize: '10pt' }}>เขตลาดกระบัง กรุงเทพมหานคร 10520 โทรศัพท์-แฟ็กซ์ 02-047-7979</div>
-            </div>
+  // Date formatting
+  const dob = app.dateOfBirth ? new Date(app.dateOfBirth) : null;
+  const dobDay = dob ? dob.getDate() : '';
+  const dobMonth = dob ? dob.getMonth() + 1 : ''; // Using number as locale is complex here
+  const dobYear = dob ? dob.getFullYear() : ''; // Using A.D. for simplicity
 
-            <h1 style={h1Style}>ใบสมัครงาน</h1>
+  return (
+    <html lang="th">
+      <head>
+        <meta charSet="UTF-8" />
+        <title>ใบสมัครงาน</title>
+        {/* We must inline all styles. CSS <link> won't work. */}
+        <style>{`
+          body {
+            font-family: 'Sarabun', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 10pt;
+            color: #000;
+            margin: 0;
+            padding: 0;
+          }
+          .page {
+            width: 210mm; /* A4 width */
+            min-height: 297mm; /* A4 height */
+            padding: 20mm;
+            box-sizing: border-box;
+            background: #fff;
+          }
+          .header {
+            margin-bottom: 10px;
+          }
+          .header h1 {
+            font-size: 14pt;
+            margin: 0;
+          }
+          .header p {
+            font-size: 10pt;
+            margin: 2px 0;
+          }
+          .title {
+            text-align: center;
+            font-size: 16pt;
+            font-weight: bold;
+            margin: 20px 0;
+          }
+          .section {
+            margin-bottom: 15px;
+          }
+          .checkbox-group {
+            margin-bottom: 15px;
+          }
+          .field-group {
+            width: 100%;
+            display: block;
+          }
+          .declaration {
+            font-size: 8pt;
+            margin: 20px 0;
+          }
+          .signature-area {
+            margin-top: 40px;
+            text-align: right;
+          }
+          .signature-field {
+            width: 250px; 
+            display: inline-block; 
+            text-align: center;
+          }
+        `}</style>
+      </head>
+      <body>
+        <div className="page">
+          <div className="header">
+            <h1>บริษัทเบิกฟ้ากรุ๊ปจำกัด</h1>
+            <p>เลขที่ 202/357 ซอยเคหะร่มเกล้า 27 ถนนเคหะร่มเกล้า แขวงคลองสองต้นนุ่น</p>
+            <p>เขตลาดกระบัง กรุงเทพมหานคร 10520 โทรศัพท์-แฟ็กซ์ 02-047-7979</p>
+          </div>
 
-            {/* Personal Info */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <div>
-                    <Checkbox label="นาย" checked={app.prefix === 'นาย'} />
-                    <Checkbox label="นาง" checked={app.prefix === 'นาง'} />
-                    <Checkbox label="นางสาว" checked={app.prefix === 'นางสาว'} />
-                </div>
-                <div style={{ flex: 1, display: 'flex', marginLeft: '20px' }}>
-                    <div style={{...fieldStyle, flex: 1}}>
-                        <span style={labelStyle}>ชื่อ</span>
-                        <span style={valueStyle}>{val(app.firstName)}</span>
-                    </div>
-                    <div style={{...fieldStyle, flex: 1, marginLeft: '10px'}}>
-                        <span style={labelStyle}>นามสกุล</span>
-                        <span style={valueStyle}>{val(app.lastName)}</span>
-                    </div>
-                </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                 <div style={{...fieldStyle, width: '48%', marginLeft: 'auto'}}>
-                    <span style={labelStyle}>ชื่อเล่น</span>
-                    <span style={valueStyle}>{val(app.nickname)}</span>
-                </div>
-            </div>
+          <div className="title">ใบสมัครงาน</div>
 
-            {/* Current Address */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                 <div style={{...fieldStyle, flex: 2}}>
-                    <span style={labelStyle}>ที่อยู่ปัจจุบันบ้านเลขที่</span>
-                    <span style={valueStyle}>{val(addr.houseNo)}</span>
-                </div>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>หมู่ที่</span>
-                    <span style={valueStyle}>{val(addr.moo)}</span>
-                </div>
-                <div style={{...fieldStyle, flex: 2}}>
-                    <span style={labelStyle}>ถนน</span>
-                    <span style={valueStyle}>{val(addr.street)}</span>
-                </div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>ตำบล/แขวง</span>
-                    <span style={valueStyle}>{val(addr.subDistrict)}</span>
-                </div>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>อำเภอ/เขต</span>
-                    <span style{...valueStyle}>{val(addr.district)}</span>
-                </div>
-            </div>
-             <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>จังหวัด</span>
-                    <span style={valueStyle}>{val(addr.province)}</span>
-                </div>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>รหัสไปรษณีย์</span>
-                    <span style={valueStyle}>{val(addr.postalCode)}</span>
-                </div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>โทรศัพท์</span>
-                    <span style={valueStyle}>{val(app.homePhone)}</span>
-                </div>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>มือถือ</span>
-                    <span style={valueStyle}>{val(app.mobilePhone)}</span>
-                </div>
-            </div>
-            <div style={{...fieldStyle, flex: 1, marginBottom: '15px'}}>
-                <span style={labelStyle}>อีเมล์</span>
-                <span style={valueStyle}>{val(app.email)}</span>
-            </div>
+          <div className="section checkbox-group">
+            <Checkbox checked={app.prefix === 'นาย'} /> นาย
+            <Checkbox checked={app.prefix === 'นาง'} style={{ marginLeft: '15px' }} /> นาง
+            <Checkbox checked={app.prefix === 'นางสาว'} style={{ marginLeft: '15px' }} /> นางสาว
+            <Field label="ชื่อ" value={app.firstName} labelWidth="80px" fieldWidth="150px" style={{ marginLeft: '20px' }} />
+            <Field label="นามสกุล" value={app.lastName} labelWidth="50px" fieldWidth="150px" />
+            <Field label="ชื่อเล่น" value={app.nickname} labelWidth="auto" fieldWidth="150px" style={{ float: 'right' }} />
+          </div>
 
-            {/* Permanent Address */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                 <div style={{...fieldStyle, flex: 2}}>
-                    <span style={labelStyle}>ที่อยู่ตามทะเบียนบ้านเลขที่</span>
-                    <span style={valueStyle}>{val(permAddr.houseNo)}</span>
-                </div>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>หมู่ที่</span>
-                    <span style={valueStyle}>{val(permAddr.moo)}</span>
-                </div>
-                <div style={{...fieldStyle, flex: 2}}>
-                    <span style={labelStyle}>ถนน</span>
-                    <span style={valueStyle}>{val(permAddr.street)}</span>
-                </div>
+          <div className="section">
+            <div className="field-group">
+              <Field label="ที่อยู่ปัจจุบันบ้านเลขที่" value={currentAddr.houseNo} labelWidth="120px" fieldWidth="100px" />
+              <Field label="หมู่ที่" value={currentAddr.moo} labelWidth="30px" fieldWidth="80px" />
+              <Field label="ถนน" value={currentAddr.street} labelWidth="30px" fieldWidth="150px" />
             </div>
-            {/* ... (เติมส่วนที่เหลือของ Permanent Address) ... */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>จังหวัด</span>
-                    <span style={valueStyle}>{val(permAddr.province)}</span>
-                </div>
-                 <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>รหัสไปรษณีย์</span>
-                    <span style={valueStyle}>{val(permAddr.postalCode)}</span>
-                </div>
+            <div className="field-group">
+              <Field label="ตำบล/แขวง" value={currentAddr.subDistrict} labelWidth="60px" fieldWidth="160px" />
+              <Field label="อำเภอ/เขต" value={currentAddr.district} labelWidth="60px" fieldWidth="160px" />
             </div>
-            
-            {/* Residence Status */}
-            <div style={{ marginBottom: '15px' }}>
-                <span style={labelStyle}>อาศัยอยู่กับ</span>
-                <Checkbox label="บ้านตัวเอง" checked={app.residenceType === 'own'} />
-                <Checkbox label="บ้านเช่า" checked={app.residenceType === 'rent'} />
-                <Checkbox label="หอพัก" checked={app.residenceType === 'dorm'} />
+            <div className="field-group">
+              <Field label="จังหวัด" value={currentAddr.province} labelWidth="60px" fieldWidth="160px" />
+              <Field label="รหัสไปรษณีย์" value={currentAddr.postalCode} labelWidth="70px" fieldWidth="150px" />
             </div>
+            <div className="field-group">
+              <Field label="โทรศัพท์" value={app.homePhone} labelWidth="60px" fieldWidth="160px" />
+              <Field label="มือถือ" value={app.mobilePhone} labelWidth="40px" fieldWidth="180px" />
+            </div>
+            <Field label="อีเมล์" value={app.email} labelWidth="60px" fieldWidth="400px" fullWidth={true} />
+          </div>
 
-            {/* Personal Details (DOB, Age, etc) */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center' }}>
-                <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>เกิดวันที่</span>
-                    <span style={valueStyle}>{dobDay}</span>
-                </div>
-                <div style={{...fieldStyle, flex: 1.5}}>
-                    <span style={labelStyle}>เดือน</span>
-                    <span style={valueStyle}>{dobMonth}</span>
-                </div>
-                <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>พ.ศ.</span>
-                    <span style={valueStyle}>{dobYear}</span>
-                </div>
-                 <div style={{...fieldStyle, flex: 0.8}}>
-                    <span style={labelStyle}>อายุ</span>
-                    <span style={valueStyle}>{num(app.age)}</span>
-                </div>
-                 <span style={labelStyle}>ปี</span>
+          <div className="section">
+            <div className="field-group">
+              <Field label="ที่อยู่ตามทะเบียนบ้านเลขที่" value={permAddr.houseNo} labelWidth="140px" fieldWidth="80px" />
+              <Field label="หมู่ที่" value={permAddr.moo} labelWidth="30px" fieldWidth="80px" />
+              <Field label="ถนน" value={permAddr.street} labelWidth="30px" fieldWidth="150px" />
             </div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>เชื้อชาติ</span>
-                    <span style={valueStyle}>{val(app.race)}</span>
-                </div>
-                <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>สัญชาติ</span>
-                    <span style={valueStyle}>{val(app.nationality)}</span>
-                </div>
-                <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>ศาสนา</span>
-                    <span style={valueStyle}>{val(app.religion)}</span>
-                </div>
+            <div className="field-group">
+              <Field label="ตำบล/แขวง" value={permAddr.subDistrict} labelWidth="60px" fieldWidth="160px" />
+              <Field label="อำเภอ/เขต" value={permAddr.district} labelWidth="60px" fieldWidth="160px" />
             </div>
-            <div style={{...fieldStyle, flex: 1, marginBottom: '8px'}}>
-                <span style={labelStyle}>บัตรประชาชนเลขที่</span>
-                <span style={valueStyle}>{val(app.nationalId)}</span>
+            <div className="field-group">
+              <Field label="จังหวัด" value={permAddr.province} labelWidth="60px" fieldWidth="160px" />
+              <Field label="รหัสไปรษณีย์" value={permAddr.postalCode} labelWidth="70px" fieldWidth="150px" />
             </div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>วันที่ออกบัตร</span>
-                    <span style={valueStyle}>{formatDate(app.nationalIdIssueDate)}</span>
-                </div>
-                <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>วันที่บัตรหมดอายุ</span>
-                    <span style={valueStyle}>{formatDate(app.nationalIdExpiryDate)}</span>
-                </div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', alignItems: 'center' }}>
-                <div style={{...fieldStyle, flex: 1}}>
-                    <span style={labelStyle}>ส่วนสูง</span>
-                    <span style={valueStyle}>{num(app.height)}</span>
-                </div>
-                <span style={labelStyle}>ซม.</span>
-                 <div style={{...fieldStyle, flex: 1, marginLeft: '10px'}}>
-                    <span style={labelStyle}>น้ำหนัก</span>
-                    <span style={valueStyle}>{num(app.weight)}</span>
-                </div>
-                <span style={labelStyle}>กก.</span>
-            </div>
-            
-            {/* Military, Marital, Gender */}
-             <div style={{ marginBottom: '8px' }}>
-                <span style={labelStyle}>ภาวะทางทหาร</span>
-                <Checkbox label="ยกเว้น" checked={app.militaryStatus === 'exempt'} />
-                <Checkbox label="ปลดเป็นทหารกองหนุน" checked={app.militaryStatus === 'discharged'} />
-                <Checkbox label="ยังไม่ได้รับการเกณฑ์" checked={app.militaryStatus === 'not-drafted'} />
-            </div>
-             <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <span style={labelStyle}>สถานภาพ</span>
-                    <Checkbox label="โสด" checked={app.maritalStatus === 'single'} />
-                    <Checkbox label="แต่งงาน" checked={app.maritalStatus === 'married'} />
-                    <Checkbox label="หม้าย" checked={app.maritalStatus === 'widowed'} />
-                    <Checkbox label="หย่าร้าง" checked={app.maritalStatus === 'divorced'} />
-                </div>
-                 <div>
-                    <span style={labelStyle}>เพศ</span>
-                    <Checkbox label="หญิง" checked={app.gender === 'female'} />
-                    <Checkbox label="ชาย" checked={app.gender === 'male'} />
-                </div>
-            </div>
+          </div>
+          
+          <div className="section checkbox-group">
+            อาศัยอยู่กับ
+            <Checkbox checked={app.residenceType === 'own'} style={{ marginLeft: '15px' }} /> บ้านตัวเอง
+            <Checkbox checked={app.residenceType === 'rent'} style={{ marginLeft: '15px' }} /> บ้านเช่า
+            <Checkbox checked={app.residenceType === 'dorm'} style={{ marginLeft: '15px' }} /> หอพัก
+          </div>
 
-            {/* Emergency Contact */}
-            <div style={{ marginTop: '15px' }}>
-                <span style={{...labelStyle, fontWeight: 'bold'}}>บุคคลที่ติดต่อได้กรณีฉุกเฉิน</span>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                    <div style={{...fieldStyle, flex: 1}}>
-                        <span style={labelStyle}>ชื่อ</span>
-                        <span style={valueStyle}>{val(emCon.firstName)}</span>
-                    </div>
-                    <div style={{...fieldStyle, flex: 1}}>
-                        <span style={labelStyle}>นามสกุล</span>
-                        <span style={valueStyle}>{val(emCon.lastName)}</span>
-                    </div>
-                    <div style={{...fieldStyle, flex: 1}}>
-                        <span style={labelStyle}>อาชีพ</span>
-                        <span style={valueStyle}>{val(emCon.occupation)}</span>
-                    </div>
-                </div>
-                 <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                    <div style={{...fieldStyle, flex: 1}}>
-                        <span style={labelStyle}>เกี่ยวข้องเป็น</span>
-                        <span style={valueStyle}>{val(emCon.relation)}</span>
-                    </div>
-                    <div style={{...fieldStyle, flex: 1}}>
-                        <span style={labelStyle}>มือถือ</span>
-                        <span style={valueStyle}>{val(emCon.mobilePhone)}</span>
-                    </div>
-                </div>
+          <div className="section">
+            <div className="field-group">
+              <Field label="เกิดวันที่" value={dobDay} labelWidth="50px" fieldWidth="50px" />
+              <Field label="เดือน" value={dobMonth} labelWidth="30px" fieldWidth="100px" />
+              <Field label="พ.ศ." value={dobYear} labelWidth="30px" fieldWidth="60px" />
+              <Field label="อายุ" value={app.age} labelWidth="30px" fieldWidth="40px" /> ปี
             </div>
+            <div className="field-group">
+              <Field label="เชื้อชาติ" value={app.race} labelWidth="50px" fieldWidth="100px" />
+              <Field label="สัญชาติ" value={app.nationality} labelWidth="50px" fieldWidth="100px" />
+              <Field label="ศาสนา" value={app.religion} labelWidth="50px" fieldWidth="100px" />
+            </div>
+            <Field label="บัตรประชาชนเลขที่" value={app.nationalId} labelWidth="100px" fieldWidth="200px" fullWidth={true} />
+            <div className="field-group">
+              <Field label="วันที่ออกบัตร" value={formatDate(app.nationalIdIssueDate)} labelWidth="80px" fieldWidth="150px" />
+              <Field label="วันที่บัตรหมดอายุ" value={formatDate(app.nationalIdExpiryDate)} labelWidth="100px" fieldWidth="150px" />
+            </div>
+            <div className="field-group">
+              <Field label="ส่วนสูง" value={app.height} labelWidth="50px" fieldWidth="50px" /> ซม.
+              <Field label="น้ำหนัก" value={app.weight} labelWidth="50px" fieldWidth="50px" style={{ marginLeft: '15px' }} /> กก.
+            </div>
+          </div>
 
-            {/* Application Details */}
-            <div style={{...fieldStyle, flex: 1, marginBottom: '8px'}}>
-                <span style={labelStyle}>ตำแหน่งที่ต้องการสมัคร</span>
-                <span style={valueStyle}>{val(appDetails.position)}</span>
+          <div className="section">
+            <div className="checkbox-group">
+              ภาวะทางทหาร
+              <Checkbox checked={app.militaryStatus === 'exempt'} style={{ marginLeft: '10px' }} /> ยกเว้น
+              <Checkbox checked={app.militaryStatus === 'discharged'} style={{ marginLeft: '10px' }} /> ปลดเป็นทหารกองหนุน
+              <Checkbox checked={app.militaryStatus === 'not-drafted'} style={{ marginLeft: '10px' }} /> ยังไม่ได้รับการเกณฑ์
             </div>
-             <div style={{ marginBottom: '15px' }}>
-                <span style={labelStyle}>เคยต้องโทษทางคดีอาญาหรือไม่</span>
-                <Checkbox label="เคย" checked={appDetails.criminalRecord === 'yes'} />
-                <Checkbox label="ไม่เคย" checked={appDetails.criminalRecord === 'no'} />
+            <div className="checkbox-group">
+              สถานภาพ
+              <Checkbox checked={app.maritalStatus === 'single'} style={{ marginLeft: '10px' }} /> โสด
+              <Checkbox checked={app.maritalStatus === 'married'} style={{ marginLeft: '10px' }} /> แต่งงาน
+              <Checkbox checked={app.maritalStatus === 'widowed'} style={{ marginLeft: '10px' }} /> หม้าย
+              <Checkbox checked={app.maritalStatus === 'divorced'} style={{ marginLeft: '10px' }} /> หย่าร้าง
+              <span style={{ marginLeft: '30px' }}>เพศ</span>
+              <Checkbox checked={app.gender === 'female'} style={{ marginLeft: '10px' }} /> หญิง
+              <Checkbox checked={app.gender === 'male'} style={{ marginLeft: '10px' }} /> ชาย
             </div>
+          </div>
+          
+          <div className="section">
+            บุคคลที่ติดต่อได้กรณีฉุกเฉิน
+            <div className="field-group" style={{ marginTop: '10px' }}>
+              <Field label="ชื่อ" value={emCon.firstName} labelWidth="30px" fieldWidth="150px" />
+              <Field label="นามสกุล" value={emCon.lastName} labelWidth="50px" fieldWidth="150px" />
+              <Field label="อาชีพ" value={emCon.occupation} labelWidth="40px" fieldWidth="120px" />
+            </div>
+            <div className="field-group">
+              <Field label="เกี่ยวข้องเป็น" value={emCon.relation} labelWidth="70px" fieldWidth="110px" />
+              <Field label="มือถือ" value={emCon.mobilePhone} labelWidth="40px" fieldWidth="150px" />
+            </div>
+          </div>
 
-            {/* Declaration & Signature */}
-            <div style={{ marginTop: '20px', fontSize: '9pt' }}>
-                <p style={{margin: '3px 0'}}>ข้าพเจ้าขอสัญญาว่าถ้าได้รับการพิจารณาได้เป็นพนักงานของบริษัทฯจะตั้งใจปฏิบัติหน้าที่อย่างเต็มที่จะซื่อตรง</p>
-                <p style={{margin: '3px 0'}}>พร้อมทั้งจะรักษาผลประโยชน์ของบริษัททุกกรณี และหวังเป็นอย่างยิ่งว่าจะได้รับการพิจารณารับเข้าทำงาน</p>
-                <p style={{margin: '3px 0'}}>จึงขอขอบพระคุณมา ณ โอกาสนี้</p>
+          <div className="section">
+            <Field label="ตำแหน่งที่ต้องการสมัคร" value={appDetails.position} labelWidth="130px" fieldWidth="250px" fullWidth={true} />
+            <div className="checkbox-group" style={{ marginTop: '10px' }}>
+              เคยต้องโทษทางคดีอาญาหรือไม่
+              <Checkbox checked={appDetails.criminalRecord === 'yes'} style={{ marginLeft: '10px' }} /> เคย
+              <Checkbox checked={appDetails.criminalRecord === 'no'} style={{ marginLeft: '10px' }} /> ไม่เคย
             </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
-                <div style={{ width: '280px' }}>
-                    <div style={{...fieldStyle}}>
-                        <span style={labelStyle}>ลงชื่อ</span>
-                        <span style={valueStyle}>&nbsp;</span> {/* ช่องว่างสำหรับเซ็น */}
-                        <span style={{...labelStyle, marginLeft: '5px'}}>ผู้สมัคร</span>
-                    </div>
-                    <div style={{ textAlign: 'center', marginTop: '5px', paddingRight: '40px' }}>
-                        ( {val(app.prefix)}{val(app.firstName)} {val(app.lastName)} )
-                    </div>
-                     <div style={{...fieldStyle, marginTop: '10px'}}>
-                        <span style={labelStyle}>ลงวันที่สมัครงาน</span>
-                        <span style={valueStyle}>{formatDate(appDetails.applicationDate)}</span>
-                    </div>
-                </div>
+          </div>
+
+          <div className="declaration">
+            <p>ข้าพเจ้าขอสัญญาว่าถ้าได้รับการพิจารณาได้เป็นพนักงานของบริษัทฯจะตั้งใจปฏิบัติหน้าที่อย่างเต็มที่จะซื่อตรง พร้อมทั้งจะรักษาผลประโยชน์ของบริษัททุกกรณี และหวังเป็นอย่างยิ่งว่าจะได้รับการพิจารณารับเข้าทำงาน จึงขอขอบพระคุณมา ณ โอกาสนี้</p>
+          </div>
+
+          <div className="signature-area">
+            <div className="signature-field">
+              <Field label="ลงชื่อ" value="" labelWidth="40px" fieldWidth="150px" /> ผู้สมัคร
+              <p style={{ marginTop: '5px' }}>( {`${val(app.firstName)} ${val(app.lastName)}`} )</p>
             </div>
+            <div className="signature-field" style={{ marginTop: '10px' }}>
+              <Field label="ลงวันที่สมัครงาน" value={formatDate(appDetails.applicationDate)} labelWidth="80px" fieldWidth="150px" />
+            </div>
+          </div>
+
         </div>
-    );
+      </body>
+    </html>
+  );
 };
 
+/**
+ * 2. Transport Contract Template
+ */
+export const TransportContractTemplate = ({ data }: { data: Manifest }) => (
+  <html lang="th">
+    <head>
+      <meta charSet="UTF-8" />
+      <title>สัญญาจ้างขนส่ง</title>
+      <style>{`
+        body { font-family: 'Sarabun', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12pt; margin: 25mm; }
+        h1 { text-align: center; font-size: 16pt; }
+        p { line-height: 1.6; }
+      `}</style>
+    </head>
+    <body>
+      <h1>สัญญาจ้างขนส่ง</h1>
+      <p>วันที่ทำสัญญา: {formatDate(data.contractDetails?.contractDate || new Date())}</p>
+      <br />
+      <p>ผู้ว่าจ้าง: บริษัท ไดร์ฟออนบอร์ด จำกัด</p>
+      <p>ผู้รับจ้าง (พนักงานขับรถ): {`${val(data.applicant?.prefix)}${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)}`}</p>
+      <p>ที่อยู่: {`${val(data.applicant?.currentAddress?.houseNo)} ${val(data.applicant?.currentAddress?.moo)} ${val(data.applicant?.currentAddress?.subDistrict)} ${val(data.applicant?.currentAddress?.district)} ${val(data.applicant?.currentAddress?.province)}`}</p>
+      <p>เลขบัตรประชาชน: {val(data.applicant?.nationalId)}</p>
+      <p>รถยนต์ที่ใช้: {val(data.vehicle?.plateNo)}</p>
+    </body>
+  </html>
+);
 
-// --- 2. TEMPLATE: สัญญาจ้างขนส่ง ---
-
-export const TransportContractTemplate = ({ data }: { data: Manifest }) => {
-    // ... (สร้าง Template HTML สำหรับสัญญาขนส่งที่นี่) ...
-    return (
-        <div style={pageStyle}>
-            <h1 style={h1Style}>สัญญาจ้างขนส่ง</h1>
-            <p>วันที่ทำสัญญา: {formatDate(data.contractDetails?.contractDate || new Date())}</p>
-            <p>ผู้ว่าจ้าง: บริษัท ไดร์ฟออนบอร์ด จำกัด</p>
-            <p>ผู้รับจ้าง: {val(data.applicant?.prefix)}{val(data.applicant?.firstName)} {val(data.applicant?.lastName)}</p>
-            {/* ... (รายละเอียดอื่นๆ) ... */}
-        </div>
-    );
-};
-
-// --- 3. TEMPLATE: สัญญาค้ำประกัน ---
-
-export const GuaranteeContractTemplate = ({ data }: { data: Manifest }) => {
-    // ... (สร้าง Template HTML สำหรับสัญญาค้ำประกันที่นี่) ...
-     return (
-        <div style={pageStyle}>
-            <h1 style={h1Style}>สัญญาค้ำประกันการทำงาน</h1>
-            <p>วันที่ทำสัญญา: {formatDate(data.guarantor?.contractDate || new Date())}</p>
-            <p>ผู้ค้ำประกัน: {val(data.guarantor?.firstName)} {val(data.guarantor?.lastName)}</p>
-            <p>ตกลงค้ำประกัน: {val(data.applicant?.prefix)}{val(data.applicant?.firstName)} {val(data.applicant?.lastName)}</p>
-            {/* ... (รายละเอียดอื่นๆ) ... */}
-        </div>
-    );
-};
+/**
+ * 3. Guarantee Contract Template
+ */
+export const GuaranteeContractTemplate = ({ data }: { data: Manifest }) => (
+  <html lang="th">
+    <head>
+      <meta charSet="UTF-8" />
+      <title>สัญญาค้ำประกันการทำงาน</title>
+      <style>{`
+        body { font-family: 'Sarabun', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12pt; margin: 25mm; }
+        h1 { text-align: center; font-size: 16pt; }
+        p { line-height: 1.6; }
+      `}</style>
+    </head>
+    <body>
+      <h1>สัญญาค้ำประกันการทำงาน</h1>
+      <p>วันที่ทำสัญญา: {formatDate(data.guarantor?.contractDate || new Date())}</p>
+      <br />
+      <p>ผู้ค้ำประกัน: {`${val(data.guarantor?.firstName)} ${val(data.guarantor?.lastName)}`}</p>
+      <p>ที่อยู่ผู้ค้ำประกัน: {`${val(data.guarantor?.address?.houseNo)} ${val(data.guarantor?.address?.moo)} ${val(data.guarantor?.address?.subDistrict)} ${val(data.guarantor?.address?.district)} ${val(data.guarantor?.address?.province)}`}</p>
+      <p>เลขบัตรประชาชนผู้ค้ำประกัน: {val(data.guarantor?.nationalId)}</p>
+      <br />
+      <p>ตกลงค้ำประกัน: {`${val(data.applicant?.prefix)}${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)}`}</p>
+      <p>ซึ่งเป็นพนักงานของ บริษัท ไดร์ฟออนบอร์ด จำกัด</p>
+    </body>
+  </html>
+);
 
