@@ -1,537 +1,96 @@
+// ส่วนที่ 1: Imports และ Constants
+export const runtime = 'nodejs'; // Use Node.js runtime
+
 import { NextRequest, NextResponse } from 'next/server';
-import path from 'path';
-import { readFile } from 'fs/promises'; // ใช้อ่านไฟล์แบบ async
-import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
-import * as fontkit from 'fontkit'; // แก้ไขการ import
-import type { Manifest } from '@/lib/types';
-import { format, parseISO } from 'date-fns';
-import { th } from 'date-fns/locale';
+import { renderToStaticMarkup } from 'react-dom/server';
+import type { Manifest } from '@/lib/types'; // (ต้องมั่นใจว่า path นี้ถูกต้อง)
 
-// --- HELPER FUNCTIONS ---
+// Import aot templates จากไฟล์ที่แยกไว้
+import { 
+    ApplicationFormTemplate, 
+    TransportContractTemplate, 
+    GuaranteeContractTemplate 
+} from './templates'; // (ต้องมั่นใจว่า path นี้ถูกต้อง)
 
-const LINE_HEIGHT = 18;
-const FONT_SIZE = 10;
-const FONT_SIZE_SMALL = 8;
-const PAGE_MARGIN = 50;
+// URL ของ Google Apps Script ที่ Deploy แล้ว
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-K0rRj8ibF1aasEOo2jBPWDq765Nm5doz9LePYfzz3ZoPoqUTEXEEKJxLqVKhRHOu/exec";
+// ส่วนที่ 2: ฟังก์ชันเลือก Template HTML
 
 /**
- * โหลดฟอนต์ภาษาไทย (Sarabun) และฟอนต์สำรอง (Helvetica)
- * @param pdfDoc เอกสาร PDF ที่จะฝังฟอนต์
- * @returns อ็อบเจกต์ที่มีฟอนต์หลักและฟอนต์สำรอง
+ * เลือก React template ที่ถูกต้องตามชื่อไฟล์
  */
-async function loadFonts(pdfDoc: PDFDocument) {
-    // 1. ลงทะเบียน Fontkit
-    pdfDoc.registerFontkit(fontkit);
-
-    let font: PDFFont;
-    let boldFont: PDFFont;
-    let isThaiFontLoaded = false;
-
-    // ตำแหน่งฟอนต์ที่คาดหวังในโปรเจกต์ Next.js
-    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Regular.ttf');
-    const boldFontPath = path.join(process.cwd(), 'public', 'fonts', 'Sarabun-Bold.ttf');
+function getHtmlTemplate(filename: string, data: Manifest): string {
+    let template;
     
-    // เพิ่ม Console Log เพื่อ Debug
-    console.log(`[Font Loader] Current working directory: ${process.cwd()}`);
-    console.log(`[Font Loader] Attempting to read regular font from: ${fontPath}`);
-    console.log(`[Font Loader] Attempting to read bold font from: ${boldFontPath}`);
-
-    try {
-        // เปลี่ยนกลับมาใช้ readFile (async)
-        const fontBytes = await readFile(fontPath);
-        const boldFontBytes = await readFile(boldFontPath);
-
-        font = await pdfDoc.embedFont(fontBytes);
-        boldFont = await pdfDoc.embedFont(boldFontBytes);
-        isThaiFontLoaded = true;
-        console.log(`[Font Loader] Successfully read font files.`);
-
-    } catch (error) {
-        console.warn(`[Font Loading Error] Could not load Thai fonts. Falling back to Helvetica. Thai text will not render correctly.`);
-        console.error(error); // แสดง Error ที่เกิดขึ้นจริง
-        font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-        isThaiFontLoaded = false;
-    }
-
-    return { font, boldFont, isThaiFontLoaded };
-}
-
-/**
- * จัดรูปแบบวันที่
- * @param date วันที่ (string หรือ Date)
- * @param useThaiLocale ถ้าเป็น true จะใช้ Locale ไทย
- * @returns string วันที่ที่จัดรูปแบบแล้ว
- */
-function formatDate(date: string | Date | undefined, useThaiLocale = false): string {
-    if (!date) return '..............................';
-    try {
-        const dateObj = typeof date === 'string' ? parseISO(date) : date;
-        const locale = useThaiLocale ? { locale: th } : {};
-        // ถ้าใช้ฟอนต์ไทย ให้แสดงผลแบบไทย
-        if (useThaiLocale) {
-            return format(dateObj, 'd MMMM yyyy', locale);
-        }
-        // ถ้าไม่ (เช่น ใช้ Helvetica) ให้แสดงผลแบบสากล
-        return format(dateObj, 'dd / MM / yyyy');
-    } catch {
-        return '..............................';
-    }
-}
-
-/**
- * ดึงค่า string หรือ '' ถ้าเป็น null/undefined
- */
-const val = (text: string | undefined | null) => (text || '');
-
-/**
- * ดึงค่า number เป็น string หรือ ''
- */
-const num = (n: number | undefined | null) => (n !== undefined && n !== null ? n.toString() : '');
-
-/**
- * วาดข้อความ (ปรับปรุง - จัดการ Zero-Width Space)
- */
-function drawText(
-    page: any,
-    text: string,
-    x: number,
-    y: number,
-    font: PDFFont,
-    size: number,
-    fallbackFont: PDFFont,
-    isThaiFontLoaded: boolean
-) {
-    // ลบ Zero-Width Space (U+200B) ที่เราอาจจะเพิ่มไว้เอง
-    const cleanText = text.replace(/\u200B/g, '');
-    
-    // ตรวจสอบว่าเป็น ASCII (ภาษาอังกฤษ) หรือไม่
-    const isAscii = /^[\x00-\x7F]*$/.test(cleanText);
-
-    if (isThaiFontLoaded || isAscii) {
-        // ถ้าโหลดฟอนต์ไทยสำเร็จ หรือ ข้อความเป็นภาษาอังกฤษ ให้วาดตามปกติ
-        try {
-            page.drawText(cleanText, { x, y, font, size, color: rgb(0, 0, 0) });
-        } catch (e) {
-            // กรณีฉุกเฉิน ถ้ายังพลาด
-            page.drawText('[?]', { x, y, font: fallbackFont, size, color: rgb(1, 0, 0) });
-        }
+    if (filename === 'application-form.pdf') {
+      template = <ApplicationFormTemplate data={data} />;
+    } else if (filename === 'transport-contract.pdf') {
+      template = <TransportContractTemplate data={data} />;
+    } else if (filename === 'guarantee-contract.pdf') {
+      // ตรวจสอบว่ามีข้อมูลผู้ค้ำประกันก่อน
+      if (!data.guarantor?.firstName && !data.guarantor?.lastName) {
+        throw new Error('ไม่พบข้อมูลผู้ค้ำประกัน (Guarantor data is missing)');
+      }
+      template = <GuaranteeContractTemplate data={data} />;
     } else {
-        // ถ้าโหลดฟอนต์ไทยไม่สำเร็จ และ ข้อความเป็นภาษาไทย (ไม่ใช่ ASCII)
-        // ให้วาด [?] ทันที เพื่อป้องกัน Error "WinAnsi cannot encode"
-        page.drawText('[?]', { x, y, font: fallbackFont, size, color: rgb(1, 0, 0) });
+      throw new Error('Invalid filename for template selection');
     }
-}
+  
+    // Render React component ใหเ้ป็น HTML string
+    return renderToStaticMarkup(template);
+  }
+// ส่วนที่ 3: ฟังก์ชัน POST (API Endpoint หลัก)
 
 /**
- * วาดกล่อง Checkbox
- */
-function drawCheckbox(page: any, x: number, y: number, checked = false) {
-    const boxSize = 10;
-    const yPos = y - boxSize / 2 + 1;
-    page.drawRectangle({
-        x,
-        y: yPos,
-        width: boxSize,
-        height: boxSize,
-        borderWidth: 0.5,
-        borderColor: rgb(0, 0, 0),
-    });
-
-    if (checked) {
-        // วาดเครื่องหมาย 'X'
-        page.drawLine({
-            start: { x: x + 2, y: yPos + 8 },
-            end: { x: x + 8, y: yPos + 2 },
-            thickness: 1,
-            color: rgb(0, 0, 0),
-        });
-        page.drawLine({
-            start: { x: x + 2, y: yPos + 2 },
-            end: { x: x + 8, y: yPos + 8 },
-            thickness: 1,
-            color: rgb(0, 0, 0),
-        });
-    }
-}
-
-/**
- * วาดช่อง Checkbox พร้อมข้อความ - **ปรับปรุง**
- */
-function drawCheckField(
-    page: any,
-    text: string,
-    x: number,
-    y: number,
-    checked: boolean,
-    font: PDFFont,
-    fallbackFont: PDFFont,
-    isThaiFontLoaded: boolean // <-- ส่งต่อ
-) {
-    drawCheckbox(page, x, y, checked);
-    drawText(page, text, x + 15, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-}
-
-/**
- * วาดช่องกรอกข้อมูลพร้อมเส้นใต้ - **ปรับปรุง**
- */
-function drawField(
-    page: any,
-    label: string,
-    value: string,
-    x: number,
-    y: number,
-    font: PDFFont,
-    fallbackFont: PDFFont,
-    isThaiFontLoaded: boolean, // <-- เพิ่มการตรวจสอบนี้
-    options: {
-        labelWidth?: number,
-        fieldWidth?: number,
-        valueXOffset?: number
-    } = {}
-) {
-    const { labelWidth = 0, fieldWidth = 100, valueXOffset = 5 } = options;
-    const valueYPos = y - 3;
-    const lineYPos = y - 5;
-    
-    // วาด Label
-    drawText(page, label, x, valueYPos, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    
-    const fieldStartX = x + labelWidth;
-    
-    // วาดเส้นใต้
-    page.drawLine({
-        start: { x: fieldStartX, y: lineYPos },
-        end: { x: fieldStartX + fieldWidth, y: lineYPos },
-        thickness: 0.5,
-        color: rgb(0.5, 0.5, 0.5),
-    });
-
-    // วาด Value
-    if (value) {
-        drawText(page, value, fieldStartX + valueXOffset, valueYPos, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    }
-}
-
-
-// --- PDF GENERATION FUNCTIONS ---
-
-/**
- * สร้าง PDF ใบสมัครงาน (แก้ไขใหม่ทั้งหมด)
- */
-async function fillApplicationForm(data: Manifest): Promise<Uint8Array> {
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
-    
-    // โหลดฟอนต์
-    const { font, boldFont, isThaiFontLoaded } = await loadFonts(pdfDoc); 
-    const fallbackFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    
-    let y = height - PAGE_MARGIN;
-    const xCol1 = PAGE_MARGIN;
-    const xCol2 = 250;
-    const xCol3 = 400;
-    const contentWidth = width - (PAGE_MARGIN * 2);
-
-    // --- Header ---
-    drawText(page, 'บริษัทเบิกฟ้ากรุ๊ปจำกัด', xCol1, y, boldFont, 14, fallbackFont, isThaiFontLoaded);
-    y -= 16;
-    drawText(page, 'เลขที่ 202/357 ซอยเคหะร่มเกล้า 27 ถนนเคหะร่มเกล้า แขวงคลองสองต้นนุ่น', xCol1, y, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawText(page, 'เขตลาดกระบัง กรุงเทพมหานคร 10520 โทรศัพท์-แฟ็กซ์ 02-047-7979', xCol1, y, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    y -= (LINE_HEIGHT * 1.5);
-
-    // --- Title ---
-    const title = 'ใบสมัครงาน';
-    const titleWidth = isThaiFontLoaded ? boldFont.widthOfTextAtSize(title, 16) : 100; // ประมาณค่าถ้าฟอนต์ไม่โหลด
-    drawText(page, title, (width / 2) - (titleWidth / 2), y, boldFont, 16, fallbackFont, isThaiFontLoaded);
-    y -= (LINE_HEIGHT * 2);
-
-    // --- Personal Info ---
-    const prefix = data.applicant?.prefix;
-    drawCheckField(page, 'นาย', xCol1, y, prefix === 'นาย', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'นาง', xCol1 + 50, y, prefix === 'นาง', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'นางสาว', xCol1 + 100, y, prefix === 'นางสาว', font, fallbackFont, isThaiFontLoaded);
-    
-    drawField(page, 'ชื่อ', val(data.applicant?.firstName), xCol2, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 25, fieldWidth: 100 });
-    drawField(page, 'นามสกุล', val(data.applicant?.lastName), xCol3, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 45, fieldWidth: 100 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'ชื่อเล่น', val(data.applicant?.nickname), xCol3, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 45, fieldWidth: 100 });
-    y -= (LINE_HEIGHT * 1.5);
-    
-    // --- Current Address ---
-    const addr = data.applicant?.currentAddress;
-    // พยายามแก้ปัญหาการเว้นวรรคด้วย Zero-Width Space (U+200B)
-    drawField(page, 'ที่อยู่\u200Bปัจจุบัน\u200Bบ้านเลขที่', val(addr?.houseNo), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 110, fieldWidth: 100 });
-    drawField(page, 'หมู่ที่', val(addr?.moo), xCol2 + 60, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 30, fieldWidth: 65 });
-    drawField(page, 'ถนน', val(addr?.street), xCol3, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 45, fieldWidth: 100 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'ตำบล/แขวง', val(addr?.subDistrict), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 60, fieldWidth: 150 });
-    drawField(page, 'อำเภอ/เขต', val(addr?.district), xCol2 + 60, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 55, fieldWidth: 110 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'จังหวัด', val(addr?.province), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 60, fieldWidth: 150 });
-    drawField(page, 'รหัส\u200Bไปรษณีย์', val(addr?.postalCode), xCol2 + 60, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 70, fieldWidth: 95 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'โทรศัพท์', val(data.applicant?.homePhone), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 60, fieldWidth: 150 });
-    drawField(page, 'มือถือ', val(data.applicant?.mobilePhone), xCol2 + 60, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 35, fieldWidth: 130 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'อีเมล์', val(data.applicant?.email), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 60, fieldWidth: 305 });
-    y -= (LINE_HEIGHT * 1.5);
-
-    // --- Permanent Address ---
-    const permAddr = data.applicant?.permanentAddress;
-    drawField(page, 'ที่อยู่\u200Bตาม\u200Bทะเบียน\u200Bบ้านเลขที่', val(permAddr?.houseNo), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 125, fieldWidth: 85 });
-    drawField(page, 'หมู่ที่', val(permAddr?.moo), xCol2 + 60, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 30, fieldWidth: 65 });
-    drawField(page, 'ถนน', val(permAddr?.street), xCol3, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 45, fieldWidth: 100 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'ตำบล/แขวง', val(permAddr?.subDistrict), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 60, fieldWidth: 150 });
-    drawField(page, 'อำเภอ/เขต', val(permAddr?.district), xCol2 + 60, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 55, fieldWidth: 110 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'จังหวัด', val(permAddr?.province), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 60, fieldWidth: 150 });
-    drawField(page, 'รหัส\u200Bไปรษณีย์', val(permAddr?.postalCode), xCol2 + 60, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 70, fieldWidth: 95 });
-    y -= (LINE_HEIGHT * 1.5);
-
-    // --- Residence Status ---
-    drawText(page, 'อาศัย\u200Bอยู่กับ', xCol1, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    const resType = data.applicant?.residenceType;
-    drawCheckField(page, 'บ้าน\u200Bตัวเอง', xCol1 + 70, y, resType === 'own', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'บ้านเช่า', xCol1 + 150, y, resType === 'rent', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'หอพัก', xCol1 + 220, y, resType === 'dorm', font, fallbackFont, isThaiFontLoaded);
-    y -= (LINE_HEIGHT * 1.5);
-    
-    // --- Personal Details (DOB, Age, etc) ---
-    let dobDay = '', dobMonth = '', dobYear = '';
-    if (data.applicant?.dateOfBirth) {
-        try {
-            const dob = parseISO(data.applicant.dateOfBirth as unknown as string);
-            dobDay = format(dob, 'd');
-            dobMonth = isThaiFontLoaded ? format(dob, 'MMMM', { locale: th }) : format(dob, 'MM');
-            dobYear = isThaiFontLoaded ? (parseInt(format(dob, 'yyyy')) + 543).toString() : format(dob, 'yyyy');
-        } catch {}
-    }
-    
-    drawField(page, 'เกิด\u200Bวันที่', dobDay, xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 45, fieldWidth: 40 });
-    drawField(page, 'เดือน', dobMonth, xCol1 + 95, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 30, fieldWidth: 65 });
-    drawField(page, 'พ.ศ.', dobYear, xCol1 + 200, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 25, fieldWidth: 45 });
-    drawField(page, 'อายุ', num(data.applicant?.age), xCol1 + 280, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 25, fieldWidth: 30 });
-    drawText(page, 'ปี', xCol1 + 340, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawField(page, 'เชื้อชาติ', val(data.applicant?.race), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 45, fieldWidth: 80 });
-    drawField(page, 'สัญชาติ', val(data.applicant?.nationality), xCol1 + 135, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 40, fieldWidth: 80 });
-    drawField(page, 'ศาสนา', val(data.applicant?.religion), xCol1 + 265, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 40, fieldWidth: 80 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'บัตร\u200Bประชาชน\u200Bเลขที่', val(data.applicant?.nationalId), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 100, fieldWidth: 150 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'วันที่\u200Bออกบัตร', formatDate(data.applicant?.nationalIdIssueDate, isThaiFontLoaded), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 70, fieldWidth: 130 });
-    drawField(page, 'วันที่\u200Bบัตร\u200Bหมดอายุ', formatDate(data.applicant?.nationalIdExpiryDate, isThaiFontLoaded), xCol1 + 210, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 90, fieldWidth: 130 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'ส่วนสูง', num(data.applicant?.height), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 40, fieldWidth: 50 });
-    drawText(page, 'ซม.', xCol1 + 95, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    drawField(page, 'น้ำหนัก', num(data.applicant?.weight), xCol1 + 130, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 40, fieldWidth: 50 });
-    drawText(page, 'กก.', xCol1 + 185, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    y -= (LINE_HEIGHT * 1.5);
-    
-    // --- Military, Marital, Gender ---
-    drawText(page, 'ภาวะ\u200Bทาง\u200Bทหาร', xCol1, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    const milStatus = data.applicant?.militaryStatus;
-    drawCheckField(page, 'ยกเว้น', xCol1 + 80, y, milStatus === 'exempt', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'ปลด\u200Bเป็น\u200Bทหาร\u200Bกองหนุน', xCol1 + 140, y, milStatus === 'discharged', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'ยัง\u200Bไม่\u200Bได้รับ\u200Bการ\u200Bเกณฑ์', xCol1 + 280, y, milStatus === 'not-drafted', font, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    
-    drawText(page, 'สถานภาพ', xCol1, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    const marStatus = data.applicant?.maritalStatus;
-    drawCheckField(page, 'โสด', xCol1 + 80, y, marStatus === 'single', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'แต่งงาน', xCol1 + 140, y, marStatus === 'married', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'หม้าย', xCol1 + 210, y, marStatus === 'widowed', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'หย่าร้าง', xCol1 + 270, y, marStatus === 'divorced', font, fallbackFont, isThaiFontLoaded);
-    
-    drawText(page, 'เพศ', xCol3 + 50, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    const gender = data.applicant?.gender;
-    drawCheckField(page, 'หญิง', xCol3 + 80, y, gender === 'female', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'ชาย', xCol3 + 130, y, gender === 'male', font, fallbackFont, isThaiFontLoaded);
-    y -= (LINE_HEIGHT * 1.5);
-
-    // --- Emergency Contact ---
-    const emCon = data.applicationDetails?.emergencyContact;
-    drawText(page, 'บุคคล\u200Bที่\u200Bติดต่อ\u200Bได้\u200Bกรณี\u200Bฉุกเฉิน', xCol1, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawField(page, 'ชื่อ', val(emCon?.firstName), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 20, fieldWidth: 140 });
-    drawField(page, 'นามสกุล', val(emCon?.lastName), xCol1 + 170, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 45, fieldWidth: 140 });
-    drawField(page, 'อาชีพ', val(emCon?.occupation), xCol1 + 365, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 35, fieldWidth: 100 });
-    y -= LINE_HEIGHT;
-    drawField(page, 'เกี่ยวข้อง\u200Bเป็น', val(emCon?.relation), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 70, fieldWidth: 130 });
-    drawField(page, 'มือถือ', val(emCon?.mobilePhone), xCol1 + 210, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 35, fieldWidth: 130 });
-    y -= (LINE_HEIGHT * 1.5);
-    
-    // --- Application Details ---
-    drawField(page, 'ตำแหน่ง\u200Bที่\u200Bต้องการ\u200Bสมัคร', val(data.applicationDetails?.position), xCol1, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 120, fieldWidth: 200 });
-    y -= (LINE_HEIGHT * 1.5);
-    
-    drawText(page, 'เคย\u200Bต้อง\u200Bโทษ\u200Bทาง\u200Bคดี\u200Bอาญา\u200Bหรือไม่', xCol1, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    const crimRec = data.applicationDetails?.criminalRecord;
-    drawCheckField(page, 'เคย', xCol1 + 150, y, crimRec === 'yes', font, fallbackFont, isThaiFontLoaded);
-    drawCheckField(page, 'ไม่เคย', xCol1 + 200, y, crimRec === 'no', font, fallbackFont, isThaiFontLoaded);
-    y -= (LINE_HEIGHT * 2);
-
-    // --- Declaration ---
-    const declarationText1 = 'ข้าพเจ้า\u200Bขอ\u200Bสัญญา\u200Bว่า\u200Bถ้า\u200Bได้รับ\u200Bการ\u200Bพิจารณา\u200Bได้\u200Bเป็น\u200Bพนักงาน\u200Bของ\u200Bบริษัทฯ\u200Bจะ\u200Bตั้งใจ\u200Bปฏิบัติ\u200Bหน้าที่\u200Bอย่าง\u200Bเต็มที่\u200Bจะ\u200Bซื่อตรง';
-    const declarationText2 = 'พร้อม\u200Bทั้ง\u200Bจะ\u200Bรักษา\u200Bผล\u200Bประโยชน์\u200Bของ\u200Bบริษัท\u200Bทุก\u200Bกรณี และ\u200Bหวัง\u200Bเป็น\u200Bอย่าง\u200Bยิ่ง\u200Bว่า\u200Bจะ\u200Bได้\u200Bรับ\u200Bการ\u200Bพิจารณา\u200Bรับ\u200Bเข้า\u200Bทำงาน';
-    const declarationText3 = 'จึง\u200Bขอ\u200Bขอบพระคุณ\u200Bมา ณ โอกาส\u200Bนี้';
-    
-    drawText(page, declarationText1, xCol1, y, font, FONT_SIZE_SMALL, fallbackFont, isThaiFontLoaded);
-    y -= (LINE_HEIGHT * 0.75);
-    drawText(page, declarationText2, xCol1, y, font, FONT_SIZE_SMALL, fallbackFont, isThaiFontLoaded);
-    y -= (LINE_HEIGHT * 0.75);
-    drawText(page, declarationText3, xCol1, y, font, FONT_SIZE_SMALL, fallbackFont, isThaiFontLoaded);
-    y -= (LINE_HEIGHT * 3);
-
-    // --- Signature ---
-    const applicantName = `${val(data.applicant?.prefix)}${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)}`.trim();
-    drawField(page, 'ลงชื่อ', '', xCol3 - 20, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 35, fieldWidth: 150, valueXOffset: 40 });
-    drawText(page, 'ผู้\u200Bสมัคร', xCol3 + 170, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawText(page, `( ${applicantName} )`, xCol3, y - 3, font, FONT_SIZE, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawField(page, 'ลง\u200Bวันที่\u200Bสมัครงาน', formatDate(data.applicationDetails?.applicationDate, isThaiFontLoaded), xCol3 - 20, y, font, fallbackFont, isThaiFontLoaded, { labelWidth: 85, fieldWidth: 120 });
-    
-    // --- Warning if font failed ---
-    if (!isThaiFontLoaded) {
-        drawText(page, 'Warning: Thai font not loaded. Text is incomplete.', xCol1, 40, fallbackFont, 12, fallbackFont, true); // This text is ASCII
-    }
-    
-    return pdfDoc.save();
-}
-
-/**
- * สร้าง PDF สัญญาขนส่ง (อัปเดตให้ใช้ฟอนต์ไทย)
- */
-async function fillTransportContract(data: Manifest): Promise<Uint8Array> {
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
-    
-    const { font, boldFont, isThaiFontLoaded } = await loadFonts(pdfDoc);
-    const fallbackFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    let y = height - PAGE_MARGIN;
-    const x = PAGE_MARGIN;
-    
-    const title = 'สัญญา\u200Bจ้าง\u200Bขนส่ง';
-    const titleWidth = isThaiFontLoaded ? boldFont.widthOfTextAtSize(title.replace(/\u200B/g, ''), 16) : 100;
-    drawText(page, title, (width / 2) - (titleWidth / 2), y, boldFont, 16, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT * 2;
-    
-    const contractDate = formatDate(data.contractDetails?.contractDate || new Date(), isThaiFontLoaded);
-    drawText(page, `วันที่\u200Bทำ\u200Bสัญญา: ${contractDate}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT * 2;
-
-    const fullName = `${val(data.applicant?.prefix)}${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)}`.trim();
-    
-    const addr = data.applicant?.currentAddress;
-    
-    const address = `${val(addr?.houseNo)} ${val(addr?.moo)} ${val(addr?.street)} ${val(addr?.subDistrict)} ${val(addr?.district)} ${val(addr?.province)} ${val(addr?.postalCode)}`.trim();
-
-    drawText(page, 'ผู้\u200Bว่าจ้าง: บริษัท ไดร์ฟ\u200Bออน\u200Bบอร์ด จำกัด', x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawText(page, `ผู้\u200Bรับจ้าง (พนักงาน\u200Bขับรถ): ${fullName}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawText(page, `ที่อยู่: ${address}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawText(page, `เลข\u200Bบัตร\u200Bประชาชน: ${val(data.applicant?.nationalId)}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawText(page, `รถยนต์\u200Bที่ใช้: ${val(data.vehicle?.plateNo)}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-
-    if (!isThaiFontLoaded) {
-        drawText(page, 'Warning: Thai font not loaded.', x, 40, fallbackFont, 12, fallbackFont, true);
-    }
-
-    return pdfDoc.save();
-}
-
-/**
- * สร้าง PDF สัญญาค้ำประกัน (อัปเดตให้ใช้ฟอนต์ไทย)
- */
-async function fillGuaranteeContract(data: Manifest): Promise<Uint8Array> {
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
-
-    const { font, boldFont, isThaiFontLoaded } = await loadFonts(pdfDoc);
-    const fallbackFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    let y = height - PAGE_MARGIN;
-    const x = PAGE_MARGIN;
-
-    const title = 'สัญญา\u200Bค้ำ\u200Bประกัน\u200Bการ\u200Bทำงาน';
-    const titleWidth = isThaiFontLoaded ? boldFont.widthOfTextAtSize(title.replace(/\u200B/g, ''), 16) : 120;
-    drawText(page, title, (width / 2) - (titleWidth / 2), y, boldFont, 16, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT * 2;
-
-    const contractDate = formatDate(data.guarantor?.contractDate || new Date(), isThaiFontLoaded);
-    drawText(page, `วันที่\u200Bทำ\u200Bสัญญา: ${contractDate}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT * 2;
-    
-    const applicantFullName = `${val(data.applicant?.prefix)}${val(data.applicant?.firstName)} ${val(data.applicant?.lastName)}`.trim();
-    const guarantorFullName = `${val(data.guarantor?.firstName)} ${val(data.guarantor?.lastName)}`.trim();
-    const guarantorAddr = data.guarantor?.address;
-    const guarantorAddress = `${val(guarantorAddr?.houseNo)} ${val(guarantorAddr?.moo)} ${val(guarantorAddr?.street)} ${val(guarantorAddr?.subDistrict)} ${val(guarantorAddr?.district)} ${val(guarantorAddr?.province)} ${val(guarantorAddr?.postalCode)}`.trim();
-
-    drawText(page, `ผู้\u200Bค้ำ\u200Bประกัน: ${guarantorFullName}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawText(page, `ที่อยู่\u200Bผู้\u200Bค้ำ\u200Bประกัน: ${guarantorAddress}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawText(page, `เลข\u200Bบัตร\u200Bประชาชน\u200Bผู้\u200Bค้ำ\u200Bประกัน: ${val(data.guarantor?.nationalId)}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT * 2;
-    drawText(page, `ตกลง\u200Bค้ำ\u200Bประกัน: ${applicantFullName}`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    y -= LINE_HEIGHT;
-    drawText(page, `ซึ่ง\u200Bเป็น\u200Bพนักงาน\u200Bของ บริษัท ไดร์ฟ\u200Bออน\u200Bบอร์ด จำกัด`, x, y, font, 12, fallbackFont, isThaiFontLoaded);
-    
-    if (!isThaiFontLoaded) {
-        drawText(page, 'Warning: Thai font not loaded.', x, 40, fallbackFont, 12, fallbackFont, true);
-    }
-
-    return pdfDoc.save();
-}
-
-
-/**
- * POST Handler (Main Logic)
+ * API Endpoint หลัก
  */
 export async function POST(req: NextRequest) {
-  const { filename, data } = (await req.json()) as { filename: string; data: Manifest };
-
-  if (!filename || !data) {
-    return NextResponse.json({ error: 'Filename and data are required' }, { status: 400 });
-  }
+    try {
+      const { filename, data } = (await req.json()) as { filename: string; data: Manifest };
   
-  try {
-    let pdfBytes: Uint8Array;
-
-    if (filename === 'application-form.pdf') {
-        pdfBytes = await fillApplicationForm(data);
-    } else if (filename === 'transport-contract.pdf') {
-        pdfBytes = await fillTransportContract(data);
-    } else if (filename === 'guarantee-contract.pdf') {
-        if (!data.guarantor?.firstName && !data.guarantor?.lastName) {
-             return NextResponse.json({ error: 'ไม่พบข้อมูลผู้ค้ำประกัน' }, { status: 400 });
-        }
-        pdfBytes = await fillGuaranteeContract(data);
-    } else {
-         return NextResponse.json({ error: 'Invalid filename for dynamic PDF generation' }, { status: 400 });
+      if (!filename || !data) {
+        return NextResponse.json({ error: 'Filename and data are required' }, { status: 400 });
+      }
+  
+      // 1. สร้าง HTML string จาก React template
+      const htmlContent = getHtmlTemplate(filename, data);
+  
+      // 2. ส่ง HTML ไปให้ Google Apps Script เพื่อแปลง
+      const gasResponse = await fetch(GAS_WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          html: htmlContent,
+          filename: filename
+        }),
+        // เพิ่ม timeout (เช่น 30 วินาที)
+        signal: AbortSignal.timeout(30000), 
+      });
+  
+      if (!gasResponse.ok) {
+        const errorText = await gasResponse.text();
+        throw new Error(`Google Apps Script failed: ${gasResponse.status} ${errorText}`);
+      }
+  
+      const result = await gasResponse.json();
+      if (result.error) {
+        throw new Error(`Google Apps Script Error: ${result.error}`);
+      }
+  
+      // 3. ถอดรหัส Base64 PDF ที่ได้กลับมา
+      const pdfBytes = Buffer.from(result.base64, 'base64');
+  
+      // 4. ส่งไฟล์ PDF กลับไปให้ผู้ใช้
+      const headers = new Headers();
+      headers.set('Content-Type', 'application/pdf');
+      headers.set('Content-Disposition', `attachment; filename="${filename}"`);
+  
+      return new NextResponse(pdfBytes, { status: 200, headers });
+  
+    } catch (error) {
+      console.error('[Download Form Error]', error);
+      const message = error instanceof Error ? error.message : 'An internal server error occurred.';
+      return NextResponse.json({ error: `PDF Generation Failed: ${message}` }, { status: 500 });
     }
-
-    const headers = new Headers();
-    headers.set('Content-Type', 'application/pdf');
-    headers.set('Content-Disposition', `attachment; filename="${filename}"`);
-
-    return new NextResponse(pdfBytes, { status: 200, headers });
-
-  } catch (error) {
-    console.error(`[Download Form Error] for file ${filename}:`, error);
-    const message = error instanceof Error ? error.message : 'An internal server error occurred.';
-    // This is the error that gets thrown back to the client
-    return NextResponse.json({ error: `PDF Generation Failed: ${message}` }, { status: 500 });
   }
-}
+    
