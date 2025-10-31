@@ -1,67 +1,47 @@
-"use client";
 
-import { useEffect, useState } from "react";
-import { useParams, notFound } from "next/navigation";
 import { ApplicationDetails } from "@/components/dashboard/application-details";
 import type { Manifest } from "@/lib/types";
-import { Skeleton } from "@/components/ui/skeleton";
+import { notFound } from "next/navigation";
 
-export default function ApplicationDetailPage() {
-  const params = useParams();
-  const id = params.id as string;
-  
-  const [application, setApplication] = useState<Manifest | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Helper to fetch data directly on the server
+async function getApplication(id: string): Promise<Manifest | null> {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+    try {
+        // Use fetch with a specific tag for on-demand revalidation
+        const res = await fetch(`${baseUrl}/api/applications/${id}`, { 
+            next: { tags: [`r2-app-${id}`] } 
+        });
 
-  useEffect(() => {
-    if (!id) return;
-
-    const fetchApplication = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/applications/${id}`);
         if (res.status === 404) {
-          notFound();
-          return;
+            return null;
         }
+
         if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ error: 'Failed to fetch application details' }));
-          throw new Error(errorData.error);
+            const errorText = await res.text();
+            console.error(`Failed to fetch application ${id}:`, errorText);
+            throw new Error(`Failed to fetch application: ${res.statusText}`);
         }
-        const data: Manifest = await res.json();
-        setApplication(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchApplication();
-  }, [id]);
+        return await res.json();
+    } catch (error) {
+        console.error(`Error in getApplication(${id}):`, error);
+        // In case of a network or parsing error, we treat it as not found on the server.
+        return null;
+    }
+}
 
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
+export default async function ApplicationDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
+
+  if (!id) {
+    notFound();
   }
 
-  if (error) {
-    return <div className="text-destructive-foreground bg-destructive p-4 rounded-md">Error: {error}</div>;
-  }
-  
+  const application = await getApplication(id);
+
   if (!application) {
-     notFound();
+    notFound();
   }
-
 
   return (
     <div className="space-y-6">
