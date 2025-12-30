@@ -7,8 +7,6 @@ compatibility_flags = ["nodejs_compat"]
 # Secret should be set via `wrangler secret put Secret` in production
 # For local dev, we can set a default or use .dev.vars
 # Secret = "dev-secret-token"
-NEXT_PUBLIC_BASE_URL = "https://drive-onboard-app.pages.dev"
-WORKER_URL = "https://drive-onboard-app.pages.dev"
 
 [[d1_databases]]
 binding = "DB"
