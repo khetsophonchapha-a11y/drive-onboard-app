@@ -486,7 +486,7 @@ export function ApplicationForm() {
                     const signResponse = await safeFetch('/api/r2/sign-put-applicant', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            applicationId: appId, docType: doc.type, fileName: file.name,
+                            applicationId: appId, docType: doc.id, fileName: file.name,
                             mime: file.type, size: file.size, md5,
                         }),
                     });
@@ -761,9 +761,18 @@ export function ApplicationForm() {
         form.setValue("guarantorSignature", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNiAAAABgDNjd8YNAAAAABJRU5ErkJggg==", { shouldValidate: true });
     };
 
+    const onInvalid = (errors: any) => {
+        console.error("Form Validation Errors:", errors);
+        toast({
+            variant: "destructive",
+            title: "ข้อมูลไม่ครบถ้วน",
+            description: "กรุณากรอกข้อมูลในช่องที่มีเครื่องหมายดอกจัน (*) ให้ครบถ้วน รวมถึงการอัปโหลดเอกสารและการลงลายมือชื่อ",
+        });
+    };
+
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle>
@@ -1087,6 +1096,66 @@ export function ApplicationForm() {
                                                     <SelectItem value="divorced">หย่าร้าง</SelectItem>
                                                 </SelectContent>
                                             </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="applicant.mobilePhone"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>เบอร์โทรศัพท์มือถือ<span className="text-destructive ml-1">*</span></FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    value={field.value ?? ''}
+                                                    type="tel"
+                                                    maxLength={10}
+                                                    placeholder="ex. 0812345678"
+                                                    onChange={(event) =>
+                                                        field.onChange(event.target.value.replace(/\D/g, '').slice(0, 10))
+                                                    }
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="applicant.homePhone"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>เบอร์โทรศัพท์บ้าน</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    value={field.value ?? ''}
+                                                    type="tel"
+                                                    maxLength={15}
+                                                    placeholder="ex. 021234567"
+                                                    onChange={(event) => field.onChange(event.target.value)}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="applicant.email"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>อีเมล</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    value={field.value ?? ''}
+                                                    type="email"
+                                                    placeholder="ex. user@example.com"
+                                                    onChange={(event) => field.onChange(event.target.value)}
+                                                />
+                                            </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}

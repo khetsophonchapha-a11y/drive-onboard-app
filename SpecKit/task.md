@@ -244,42 +244,20 @@
             - `wrangler pages deploy .open-next/assets` (หรือ Deploy ผ่าน CI/CD) - **SUCCESS** ✅
 
 - [ ] **[T-060] End-to-End System Verification (ตรวจสอบระบบโดยรวม)**
-    - [x] **Verify Production Login**: Confirmed `test@gmail.com` works on both Local & Prod.
-    - [ ] **Verify Dashboard Data**: Check if reports load correctly.
-    - [ ] **Verify Local (Port 9002)**: Ensure `dev:remote` connect to Prod DB.
-
-    - **Next Actions (สิ่งที่จะทำต่อไป)**:
-        - [x] **Deploy Updated Code**: Run CORRECTED build command (Split Build Strategy).
-        - [x] **Fix Local Signals**: Restored `crypto` import and added `.dev.vars`.
-        - [ ] **Verify Local**: Restart `npm run dev:all` and check port 9002.
-    - **Resolved Incidents**:
-        - **Incident 7: Persistent Build Failure (Mac AppleDouble `._`)**:
-            - **Symptom**: `Unknown file extension` error during OpenNext build despite multiple cleanup attempts.
-            - **Root Cause**: External volume (`/Volumes/BriteBrain`) regenerates metadata files instantly.
-            - **Solution**: Created `scripts/deploy_safe.sh` to copy source to `/tmp` (Local Disk) -> **Bundle Assets** (Worker + Server Functions) -> Deploy.
-            - **Result**: **SUCCESS** (Deployed to `https://drive-onboard-app.pages.dev/`).
-    - [x] **Verify Dashboard Data**: Check if reports load correctly.
-
-- [ ] **[T-060] End-to-End System Verification (ตรวจสอบระบบโดยรวม)**
-    - **Concept/Goal**: ตรวจสอบความถูกต้องและเสถียรภาพของระบบในมุมมอง User ทุกระดับ
-    - **Checkpoints**:
-        1.  **Authentication & Security**:
-            - [ ] Login/Logout Flow (Admin & User)
-            - [ ] Idle Timeout Lock (3 mins inactivity)
-            - [ ] Protected Routes (User cannot access /admin)
-        2.  **Daily Report Management (Admin)**:
-            - [ ] Dashboard Loading (Infinite Scroll, Performance)
-            - [ ] Parsing & Display of Images (R2 Worker Proxy)
-            - [ ] Edit/Delete Reports (Data Consistency D1/R2)
-            - [ ] Export CSV
-        3.  **Application Management (Admin)**:
-            - [ ] View Application Details (Signature, Documents)
-            - [ ] Verify Document Links (Legacy & New)
-            - [ ] Status Updates (Approve/Reject)
-        4.  **Resilience & Edge Cases**:
-            - [ ] Network Failure Handling (Offline mode behavior)
-            - [ ] Invalid Input Handling
-            - [ ] Concurrent Uploads
+    - **Concept/Goal**: ตรวจสอบความถูกต้องและเสถียรภาพของระบบในมุมมอง User ทุกระดับ (UAT)
+    - **Artifact**: ตรวจสอบตามรายการใน `verification_checklist.md`
+    - **Key Checkpoints**:
+        1.  **Authentication**: Test Login, Logout, Role Access, Idle Timeout.
+        2.  **Daily Report**: Test Dashboard View, Upload/Delete Images, Export CSV.
+        3.  **Driver Application**: Test Wizard Flow, File Upload (Thai names), Submission.
+        4.  **Admin Functions**: Test Verification, Approval/Rejection.
+        5.  **Mobile Support**: Check Responsive Layouts.
+    - **Resolved Incidents (Verification Blockers)**:
+        - **Incident 7 (Build Failure)**: Fixed by `deploy_safe.sh`.
+        - **Incident (Submission Error)**: Fixed by T-079 (API Logic).
+    - **Next Actions**:
+        - [ ] Execute Checklist manually on Production.
+        - [ ] Report any new findings.
 
 - [x] **[T-042] Performance Optimization (ปรับปรุงประสิทธิภาพ)**
     - **Concept/Goal (แนวคิด)**: ลดการใช้ทรัพยากรและแก้ปัญหาคอขวด (Bottlenecks)
@@ -543,3 +521,109 @@
         - **Download**: Trigger browser download.
         - **Delete**: Execute existing delete logic (move from overlay button).
     - **Refactor**: Remove the standalone red trash icon from the image container.
+
+- [x] **[T-078] Fix R2 CORS & Thai Filename Upload Errors**
+    - **Goal**: Resolve `Access-Control-Allow-Origin` errors and `TypeError: Load failed` when uploading files with Thai names.
+    - **Error Analysis**: 
+        - Origin `https://drive-onboard-app.pages.dev` blocked by CORS.
+        - Upload failures for filenames like `สำเนาบัตรประชาชน (ผู้ค้ำ)`.
+    - **Resolution**:
+        - **Primary Fix**: Refactored `application-form.tsx` to use English `docId` (e.g., `doc-citizen-id`) instead of Thai `docType` (e.g., `สำเนาบัตรประชาชน`) for generating R2 Storage Keys. This eliminates URL encoding mismatches which caused Signature Validation to fail.
+        - **CORS Status**: Attempted to update CORS via `wrangler` and `aws-sdk`, but failed due to `AccessDenied` (API Token lacks Admin persistence) and `JSON Malformed` (Wrangler schema issues).
+    - **Prevention**: Always use ASCII-safe identifiers for Storage Keys. User-facing labels can be Thai, but internal IDs must be English.
+    - **Note to User**: If "Access-Control-Allow-Origin" errors persist, please manually add `https://drive-onboard-app.pages.dev` to the R2 Bucket CORS settings via Cloudflare Dashboard.
+
+- [x] **[T-079] Fix Application Submission Error (Strict Protocol)**
+    - **Concept/Goal**: ตรวจสอบและแก้ไขปัญหา "ส่งใบสมัครแล้ว Error" ให้ใช้งานได้จริง อย่างเคร่งครัดตาม Protocol ใหม่
+    - **Problem**: User รายงานว่าการ "สมัครงานส่ง Error" (Submit Application Failed). อาจเกิดจาก API, Database, หรือ Data Validation.
+    - **Investigation Plan**:
+        1.  Analyze `application-form.tsx` (Submit Handler).
+        2.  Check API `/api/applications` logic.
+        3.  Verify Data Structure vs D1 Schema.
+    - **Sub-tasks**:
+        - [x] Analyze Code & Root Cause.
+        - [x] Apply Fixes (API/Frontend).
+        - [x] Verify Submission.
+
+- [x] **[T-080] Deploy Fix T-079 to Production**
+    - **Concept/Goal**: นำ Source Code ที่แก้ไขแล้วใน T-079 ขึ้นสู่ Production (Cloudflare Pages)
+    - **Problem**: Fix ใน Local (T-079) ยังไม่ได้ Sync ขึ้น Production ทำให้ User ยังเจอปัญหาเดิม
+    - **Execution Plan**:
+        1.  Build Project (Local Check).
+        2.  Deploy via `wrangler pages deploy`.
+        3.  Verify Live URL (`https://drive-onboard-app.pages.dev/`).
+    - **Sub-tasks**:
+        - [x] Build & Deploy.
+        - [x] Verify Production API.
+
+
+---
+
+## Incident Log & Case Studies (บันทึกปัญหาและกรณีศึกษา)
+> **Goal**: Record interesting cases to prevent recurrence.
+> (บันทึก Case ที่น่าสนใจเพื่อป้องกันไม่ให้เกิดซ้ำ)
+
+### Case Study: R2 `fs.readFile` Error in Cloudflare Pages
+*   **Date**: 2025-12-27
+*   **Symptom**:
+    *   API `POST /api/r2/sign-put` Return 500
+    *   Log: `Error: [unenv] fs.readFile is not implemented yet!`
+*   **Root Cause**:
+    *   Node.js Runtime in Cloudflare Pages tried to load AWS Credentials from a file (`~/.aws/credentials`) because Env Vars were missing.
+    *   AWS SDK V3 falls back to filesystem (which doesn't exist on Edge) when Env Vars are missing.
+*   **Resolution**:
+    1.  Confirm Env Vars via `console.log`.
+    2.  Update Secrets using `wrangler pages secret put`.
+    3.  Redeploy.
+*   **Prevention Rule**:
+    *   **Check Env Vars** before initializing AWS Client in Edge Environment.
+    *   Use `requireR2Bucket()` or a fail-fast helper.
+    *   **Global Search**: When fixing a bug, search for similar patterns across the entire project.
+
+*   **Incident 2: Deployment 404**
+    *   **Root Cause**: User Error (Agent) - Deployed wrong directory (`.open-next/assets`).
+    *   **Resolution**: Deploy the correct folder logic.
+
+*   **Incident 3: Data Discrepancy**
+    *   **Root Cause**: OpenNext Env hides Bindings (`env.DB`).
+    *   **Fix**: Use `getCloudflareContext()` to access `env.DB`.
+
+*   **Incident 4: Stale Deployment**
+    *   **Root Cause**: `wrangler pages deploy` does NOT build the project.
+    *   **Fix**: Always run `npx @opennextjs/cloudflare build` before deploy.
+
+*   **Incident 5: Build Failure & Native Modules**
+    *   **Root Cause**: `better-sqlite3` traced into production build.
+    *   **Fix**: Use Dynamic Import + `serverExternalPackages`.
+
+*   **Incident 6: "Upload Failed" (Deployment Blocked by Localhost)**
+    *   **Date**: 2025-12-28
+    *   **Symptom**: `npm run build` fails with `rm: .next: Directory not empty` or `copyTracedFiles` error.
+    *   **Root Cause 1 (File Lock)**: `npm run dev` (Localhost) locks `.next` folder, preventing Build Script from cleaning it.
+    *   **Root Cause 2 (Native Module)**: `better-sqlite3` (used for Local D1) gets traced into Production Build, causing OpenNext to fail on Edge.
+    *   **Resolution**:
+        1.  **Stop Localhost** (Kill Port 9002) before Building.
+        2.  **Webpack Alias**: Set `better-sqlite3: false` in `next.config.mjs` to forcibly exclude it.
+    *   **Prevention**:
+        *   Do not run Build and Dev Server simultaneously.
+        *   Always check `next.config.mjs` exclusion rules if Build fails on `copyTracedFiles`.
+
+*   **Incident 7: macOS Metadata Files (._*) Breaking OpenNext Build**
+    *   **Date**: 2025-12-28
+    *   **Symptom**: Build fails with `WARN Unknown file extension` and `Error: app/._page cannot use the edge runtime`.
+    *   **Root Cause**: macOS creates hidden `._` files on external drives (AppleDouble). OpenNext tries to bundle them as source files.
+    *   **Fix**: Run `find . -type f -name "._*" -delete` before building.
+    *   **Prevention**: Added cleanup step to `deploy_prod.sh`.
+
+
+*   [ ] **[T-081] Fix Application Form Issues** <!-- id: 4 -->
+    *   [x] Fix Signature Persistence on Resize (SignatureInput.tsx)
+    *   [x] Add Validation Error Feedback (Toast in ApplicationForm.tsx)
+    *   [x] Deploy Fixes to Production
+
+    *   [ ] Verify Fixes (User)
+
+*   [ ] **[T-082] Fix Missing Phone Fields** <!-- id: 5 -->
+    *   [x] Add Mobile Phone, Home Phone, and Email fields to ApplicationForm.tsx
+    *   [x] Deploy Fixes to Production
+    *   [ ] Verify Fixes (User)

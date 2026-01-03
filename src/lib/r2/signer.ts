@@ -8,7 +8,7 @@
 const UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
 const ALGORITHM = "AWS4-HMAC-SHA256";
 
-async function hmac(key: CryptoKey | BufferSource, stringToSign: string): Promise<ArrayBuffer> {
+export async function hmac(key: CryptoKey | BufferSource, stringToSign: string): Promise<ArrayBuffer> {
     const cryptoKey = key instanceof ArrayBuffer || ArrayBuffer.isView(key)
         ? await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
         : key;
@@ -16,12 +16,12 @@ async function hmac(key: CryptoKey | BufferSource, stringToSign: string): Promis
     return crypto.subtle.sign("HMAC", cryptoKey as CryptoKey, new TextEncoder().encode(stringToSign));
 }
 
-async function sha256(str: string): Promise<string> {
+export async function sha256(str: string): Promise<string> {
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function hex(buf: ArrayBuffer): string {
+export function hex(buf: ArrayBuffer): string {
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -36,6 +36,7 @@ interface PresignOptions {
     expiresIn?: number;
     contentType?: string; // Important for PUT
     contentMD5?: string;
+    customQuery?: Record<string, string>;
 }
 
 export async function createPresignedUrl(options: PresignOptions): Promise<string> {
@@ -49,7 +50,8 @@ export async function createPresignedUrl(options: PresignOptions): Promise<strin
         region = "auto",
         expiresIn = 600,
         contentType,
-        contentMD5
+        contentMD5,
+        customQuery
     } = options;
 
     const now = new Date();
@@ -66,7 +68,9 @@ export async function createPresignedUrl(options: PresignOptions): Promise<strin
     // NOTE: AWS SDK 'forcePathStyle: true' puts bucket in path.
     // We will construct the full URL manually.
     const host = url.host;
-    const normalizedKey = key.startsWith('/') ? key.slice(1) : key;
+    // Normalize Key:
+    // If key matches empty string or root, path is just /bucket/
+    const normalizedKey = key ? (key.startsWith('/') ? key.slice(1) : key) : '';
     const path = `/${bucket}/${normalizedKey}`;
 
     const canonicalUri = path.split('/').map(c => encodeURIComponent(c)).join('/').replace(/%2F/g, '/');
@@ -93,10 +97,22 @@ export async function createPresignedUrl(options: PresignOptions): Promise<strin
     queryParams.set("X-Amz-Expires", expiresIn.toString());
     queryParams.set("X-Amz-SignedHeaders", signedHeaders);
 
+    if (customQuery) {
+        Object.entries(customQuery).forEach(([k, v]) => {
+            queryParams.set(k, v);
+        });
+    }
+
     // Sort query params
     const sortedQuery = Array.from(queryParams.entries())
         .sort(([k1], [k2]) => k1.localeCompare(k2))
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .map(([k, v]) => {
+            // Encode key and value
+            // AWS Signature requires specific encoding (e.g. space to %20 not +)
+            // encodeURIComponent handles spaces as %20.
+            if (v === '') return encodeURIComponent(k) + '='; // Handle empty value params like ?cors=
+            return `${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
+        })
         .join('&');
 
     // Canonical Request

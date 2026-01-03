@@ -5,7 +5,7 @@
 | Feature ID | Spec Header | Tasks | Key Code Files | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | **[F-001]** | Admin Authentication (ระบบล็อกอินแอดมิน) | [T-010] | `src/auth.ts`, `.env.local` | Done (เสร็จแล้ว) |
-| **[F-002]** | Driver App Form (ฟอร์มใบสมัครคนขับ) | [T-011], [T-020], [T-047] | `src/app/driver/*`, `src/app/api/applications/*`, `docs/d1-summary.sql` | Done (Merged) |
+| **[F-002]** | Driver App Form (ฟอร์มใบสมัครคนขับ) | [T-011], [T-020], [T-047], [T-079], [T-080] | `src/app/driver/*`, `src/app/api/applications/*`, `docs/d1-summary.sql` | Done (Merged) <br> *Strict Protocol Fix applied* |
 | **[F-003]** | Document Upload R2 (อัปโหลดเอกสาร) | [T-012], [T-048], [T-049], [T-050] | `src/lib/r2.ts`, `docs/worker-d1-summary.js` | Done (เสร็จแล้ว) <br> *Fix: CORS & Auth logic for /files/* <br> *Support: English (new) & Thai (legacy) folder paths* |
 | **[F-004]** | Completeness Check (เช็คความครบถ้วน) | [T-021] | `src/lib/validation.ts` | Planned (วางแผน) |
 | **[F-005]** | Verification Workflow (ระบบตรวจสอบ) | [T-022] | `src/app/admin/verify/page.tsx` | Planned (วางแผน) |
@@ -31,3 +31,24 @@
 | **DailyReport** | `DailyReportResponse` | `report`, `reportCache` | `daily-report/daily-report-view.tsx`, `lib/daily-report.ts` | มี LRU Cache |
 | **DailyReportSlot** | `DailyReportResponseSlot` | `slots` | `daily-report/daily-report-view.tsx` | ใช้ `id` เป็น Key |
 | **DailyReportSummary** | `DailyReportSummaryRow` | `rows`, `filteredRows` | `dashboard/daily-report-tracker.tsx`, `lib/daily-report.ts` | หน้า Overview |
+
+## Component Registry (ทะเบียนส่วนประกอบ) [C-XXX]
+ตารางนี้ใช้สำหรับลงทะเบียน Component ที่ถูกใช้งานบ่อย (Reusable) เพื่อให้อ้างอิงได้ง่าย
+
+| Component ID | Component Name | File Path | Usage Context | Related Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| **[C-UI-001]** | IdleLockScreen | `src/components/ui/idle-lock-screen.tsx` | Global Overlay (Security) | [F-012] |
+| **[C-DASH-001]** | DailyReportTracker | `src/components/dashboard/daily-report-tracker.tsx` | Overview Page (Table) | [F-010], [F-013] |
+| **[C-DASH-002]** | ApplicationForm | `src/components/dashboard/application-form.tsx` | Apply Page (Wizard) | [F-002], [F-016] |
+| **[C-DASH-003]** | ApplicationDetails | `src/components/dashboard/application-details.tsx` | Admin Verify Page | [F-002], [F-003] |
+| **[C-DASH-004]** | ApplicationsTable | `src/components/dashboard/applications-table.tsx` | Application List | [F-002], [F-014] |
+| **[C-DASH-005]** | UsersTable | `src/components/dashboard/users-table.tsx` | User Management | [F-001] |
+| **[C-DASH-006]** | UserForm | `src/components/dashboard/user-form.tsx` | Create/Edit User | [F-001] |
+| **[C-DASH-007]** | DocumentViewer | `src/components/dashboard/document-viewer.tsx` | Shared (Image/PDF) | [F-003], [F-015] |
+| **[C-DASH-008]** | Header | `src/components/dashboard/header.tsx` | Admin Layout | Navigation |
+| **[C-DASH-009]** | SidebarNav | `src/components/dashboard/sidebar-nav.tsx` | Admin Layout | Navigation |
+| **[C-DASH-010]** | DashboardTabs | `src/components/dashboard/dashboard-tabs.tsx` | Dashboard (Segmented Control) | Layout |
+| **[C-DASH-011]** | OverviewCards | `src/components/dashboard/overview-cards.tsx` | Dashboard (Stats) | [F-010] |
+| **[C-REP-001]** | DailyReportView | `src/components/daily-report/daily-report-view.tsx` | Edit Popup & Page | [F-010], [F-008] |
+| **[C-REP-002]** | DailyReportSlotCard | `src/components/daily-report/daily-report-slot-card.tsx` | Single Time Slot | [F-010] |
+

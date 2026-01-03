@@ -31,21 +31,25 @@ export const SignatureInput = forwardRef<HTMLDivElement, SignatureInputProps>(
                     const canvas = sigPadRef.current.getCanvas();
                     const container = containerRef.current;
                     const width = container.offsetWidth;
-                    // Maintain aspect ratio or fixed height? 
-                    // Fixed height 200px seems good for signatures.
-                    // But we need to set width attribute explicitly for canvas resolution.
 
                     // We only update if significantly changed to avoid flicker
                     if (Math.abs(width - canvas.width) > 10) {
-                        // Store current signature data
+                        // Store current stroke data
                         const data = sigPadRef.current.toData();
 
+                        // Resize clears the canvas
                         canvas.width = width;
                         canvas.height = 200; // Fixed height
 
-                        // Restore data - BUT resampling might be needed if aspect changed. 
-                        // `fromData` replays strokes.
-                        sigPadRef.current.fromData(data);
+                        if (data && data.length > 0) {
+                            // Restore stroke data if it exists
+                            sigPadRef.current.fromData(data);
+                        } else if (value) {
+                            // If no strokes (e.g. loaded from image), try to restore from value (DataURL)
+                            // This might be redundant with the other useEffect but ensures it persists on resize
+                            // Note: fromDataURL is async-ish in nature if loading from URL, but here value is usually dataURL
+                            sigPadRef.current.fromDataURL(value);
+                        }
                     }
                 }
             }
@@ -55,7 +59,7 @@ export const SignatureInput = forwardRef<HTMLDivElement, SignatureInputProps>(
 
             window.addEventListener('resize', resizeCanvas);
             return () => window.removeEventListener('resize', resizeCanvas);
-        }, []);
+        }, [value]); // Added value dependency so we can re-apply it if needed during resize logic check
 
 
         const handleEnd = () => {
