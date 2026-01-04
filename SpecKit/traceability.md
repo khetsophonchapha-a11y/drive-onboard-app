@@ -51,4 +51,5 @@
 | **[C-DASH-011]** | OverviewCards | `src/components/dashboard/overview-cards.tsx` | Dashboard (Stats) | [F-010] |
 | **[C-REP-001]** | DailyReportView | `src/components/daily-report/daily-report-view.tsx` | Edit Popup & Page | [F-010], [F-008] |
 | **[C-REP-002]** | DailyReportSlotCard | `src/components/daily-report/daily-report-slot-card.tsx` | Single Time Slot | [F-010] |
+| **[C-DASH-012]** | LegalAgreement | `src/components/dashboard/legal-agreement.tsx` | Terms & Conditions | [F-002] |
 
