@@ -1,7 +1,8 @@
 
 import { ApplicationDetails } from "@/components/dashboard/application-details";
-import type { Manifest } from "@/lib/types";
-import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import type { Manifest, User } from "@/lib/types";
+import { notFound, redirect } from "next/navigation";
 
 // Helper to fetch data directly on the server, leveraging Next.js fetch caching
 async function getApplication(id: string): Promise<Manifest | null> {
@@ -40,6 +41,12 @@ async function getApplication(id: string): Promise<Manifest | null> {
 
 
 export default async function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  const userRole = (session?.user as User | undefined)?.role;
+  if (userRole !== "admin") {
+    redirect("/employee");
+  }
+
   const { id } = await params;
 
   // Validate that an ID is present

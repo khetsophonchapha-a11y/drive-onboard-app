@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { SessionProvider } from "next-auth/react";
 import type { ReactNode } from "react";
 
@@ -8,5 +9,11 @@ import type { ReactNode } from "react";
  * calls inside the tree (e.g., AuthProvider) have the required context.
  */
 export function NextAuthProvider({ children }: { children: ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>;
+  const [baseUrl, setBaseUrl] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setBaseUrl(window.location.origin);
+  }, []);
+
+  return <SessionProvider baseUrl={baseUrl}>{children}</SessionProvider>;
 }

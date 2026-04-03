@@ -95,6 +95,7 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 type ApplicationDetailsProps = {
     application: Manifest;
+    readOnly?: boolean;
 };
 
 type TempFile = {
@@ -346,7 +347,7 @@ const calculateAge = (date: Date | undefined) => {
 };
 
 
-export function ApplicationDetails({ application: initialApplication }: ApplicationDetailsProps) {
+export function ApplicationDetails({ application: initialApplication, readOnly = false }: ApplicationDetailsProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDownloading, setIsDownloading] = useState<string | null>(null);
     const [editLinkCopied, setEditLinkCopied] = useState(false);
@@ -1625,6 +1626,7 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
 
             <Form {...form}>
                 <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="pb-24 space-y-6">
+                    <fieldset disabled={readOnly} className="space-y-6 disabled:opacity-100">
                     <Card>
                         <CardHeader>
                             <CardTitle className="font-headline">ข้อมูลผู้สมัคร</CardTitle>
@@ -3307,43 +3309,47 @@ export function ApplicationDetails({ application: initialApplication }: Applicat
                                 />
                             </div>
                         </CardContent>
-                        <CardFooter className="flex-col items-start gap-4">
-                            <div className="w-full space-y-4">
-                                <Separator />
-                                <div className="flex justify-between items-center w-full">
-                                    <h4 className="font-semibold">การดำเนินการ</h4>
-                                    <div className="flex gap-2">
-                                        {initialApplication.status?.verification === 'pending' && (
-                                            <>
-                                                <Button variant="default" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
-                                                    {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                                    อนุมัติใบสมัคร
+                        {!readOnly && (
+                            <CardFooter className="flex-col items-start gap-4">
+                                <div className="w-full space-y-4">
+                                    <Separator />
+                                    <div className="flex justify-between items-center w-full">
+                                        <h4 className="font-semibold">การดำเนินการ</h4>
+                                        <div className="flex gap-2">
+                                            {initialApplication.status?.verification === 'pending' && (
+                                                <>
+                                                    <Button variant="default" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                                        อนุมัติใบสมัคร
+                                                    </Button>
+                                                    <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
+                                                        {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                                                        ปฏิเสธใบสมัคร
+                                                    </Button>
+                                                </>
+                                            )}
+                                            {initialApplication.status?.verification === 'approved' && (
+                                                <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
+                                                    {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                                    เลิกจ้าง
                                                 </Button>
-                                                <Button variant="destructive" onClick={() => handleUpdateStatus('rejected')} disabled={isStatusPending}>
-                                                    {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
-                                                    ปฏิเสธใบสมัคร
+                                            )}
+                                            {(initialApplication.status?.verification === 'rejected' || initialApplication.status?.verification === 'terminated') && (
+                                                <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
+                                                    {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
+                                                    พิจารณาใหม่
                                                 </Button>
-                                            </>
-                                        )}
-                                        {initialApplication.status?.verification === 'approved' && (
-                                            <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
-                                                {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
-                                                เลิกจ้าง
-                                            </Button>
-                                        )}
-                                        {(initialApplication.status?.verification === 'rejected' || initialApplication.status?.verification === 'terminated') && (
-                                            <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
-                                                {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileClock className="mr-2 h-4 w-4" />}
-                                                พิจารณาใหม่
-                                            </Button>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </CardFooter>
+                            </CardFooter>
+                        )}
                     </Card>
 
-                    {hasChanges && (
+                    </fieldset>
+
+                    {!readOnly && hasChanges && (
                         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t">
                             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                                 <div className="flex items-center justify-between h-20">

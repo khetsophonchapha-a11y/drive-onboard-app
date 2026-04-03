@@ -19,6 +19,8 @@
 | **[F-014]** | **Mobile Responsiveness** | รองรับการใช้งานมือถือเต็มรูปแบบ พร้อม Mobile Navigation และ Responsive Tables |
 | **[F-015]** | **Smart Image Handling** | ลดขนาดรูปอัตโนมัติ (WebP/JPEG Fallback), จัดโฟลเดอร์ใน R2, ลบไฟล์เก่าอัตโนมัติ, เน้นการใช้กล้องถ่ายรูป |
 | **[F-016]** | **Form Safety** | ระบบป้องกันข้อมูลหาย (Unsaved Changes Warning) เมื่อออกจากหน้า Apply |
+| **[F-017]** | **Employee Auto Provisioning** | เมื่อ Admin อนุมัติใบสมัคร ระบบสร้างบัญชี `employee` อัตโนมัติจาก email ในใบสมัคร ตั้งรหัสผ่านเริ่มต้นจากเลขท้าย 6 หลักของบัตรประชาชน และอนุญาตให้ login ได้เฉพาะใบสมัครที่มีสถานะ `approved` เท่านั้น |
+| **[F-018]** | **Access Segregation & Duplicate Email Guard** | ป้องกันการส่งใบสมัครซ้ำด้วย email เดียวกันตั้งแต่ตอน submit และแยกเส้นทางใช้งานของ `admin` (`/dashboard/*`) ออกจาก `employee` (`/employee/*`) พร้อม redirect ตาม role อัตโนมัติ |
 
 ## 2. Data Models (Simplified Data Structure)
 ### Drivers / Applications (คนขับ/ใบสมัคร)

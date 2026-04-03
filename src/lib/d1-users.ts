@@ -30,6 +30,10 @@ function toUser(row: any): User {
 export function isD1UsersEnabled() {
   // In production, always assume D1 is available (via binding)
   if (process.env.NODE_ENV === "production") return true;
+  if (process.env.USE_REMOTE_D1 === "true") return true;
+  if (process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_DATABASE_ID && process.env.CLOUDFLARE_D1_TOKEN) {
+    return true;
+  }
   return isD1Enabled();
 }
 

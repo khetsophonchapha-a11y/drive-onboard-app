@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, ReactNode } from "react";
+import React, { createContext, ReactNode, useCallback } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import type { User } from "@/lib/types";
 
@@ -24,9 +24,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn();
   };
 
-  const logout = () => {
-    signOut({ callbackUrl: "/login" });
-  };
+  const logout = useCallback(async () => {
+    await signOut({ redirect: false });
+    window.location.assign(`${window.location.origin}/login`);
+  }, []);
 
   const value = { user, login, logout, loading };
 

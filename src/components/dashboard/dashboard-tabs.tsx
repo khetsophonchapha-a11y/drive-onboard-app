@@ -25,6 +25,8 @@ export function DashboardTabs({
   userEmail,
   userRole,
 }: DashboardTabsProps) {
+  const isAdmin = userRole === "admin";
+
   return (
     <Tabs defaultValue="applications" className="space-y-6">
       <TabsList className="w-full justify-start overflow-x-auto">
@@ -44,10 +46,12 @@ export function DashboardTabs({
         <div className="space-y-4">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-              Daily Report Overview
+              {isAdmin ? "Daily Report Overview" : "Daily Report ของฉัน"}
             </h2>
             <p className="text-sm text-muted-foreground">
-              ตรวจสอบความคืบหน้าการแนบรูปประจำวันของพนักงานทั้งหมด
+              {isAdmin
+                ? "ตรวจสอบความคืบหน้าการแนบรูปประจำวันของพนักงานทั้งหมด"
+                : "ติดตามและอัปโหลดรายงานประจำวันของตนเอง"}
             </p>
           </div>
           <DailyReportTracker

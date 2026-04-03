@@ -6,6 +6,7 @@ import { revalidateTag } from 'next/cache';
 import { getDb } from '@/lib/db';
 import { applications } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { findApplicationByEmail, normalizeEmail } from '@/lib/applications';
 
 // We don't use the ManifestSchema directly because it has derived/read-only fields
 const SubmitBodySchema = z.object({
@@ -49,6 +50,17 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Submit API] Existing app check result: ${existingApp ? 'Found' : 'Not Found'}`);
+
+    const normalizedEmail = normalizeEmail(manifest.applicant.email);
+    const duplicateApplication = await findApplicationByEmail(normalizedEmail, { excludeAppId: appId });
+    if (duplicateApplication) {
+      return NextResponse.json(
+        {
+          error: `อีเมล ${normalizedEmail} ถูกใช้สมัครไปแล้วในใบสมัคร ${duplicateApplication.row.appId}`,
+        },
+        { status: 409 }
+      );
+    }
 
     if (existingApp && existingApp.appId) {
       // Update existing using Drizzle

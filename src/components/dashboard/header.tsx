@@ -16,18 +16,21 @@ export function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [open, setOpen] = React.useState(false);
+  const homeHref = user?.role === "employee" ? "/employee/daily-report" : "/dashboard";
 
   const navItems = React.useMemo(() => {
-    const base = [
-      { href: "/dashboard", label: "Dashboard" },
-      { href: "/dashboard/daily-report", label: "Daily Report" },
-    ];
-
     if (user?.role === "admin") {
-      base.push({ href: "/dashboard/users", label: "Users" });
+      return [
+        { href: "/dashboard", label: "Dashboard" },
+        { href: "/dashboard/daily-report", label: "Daily Report" },
+        { href: "/dashboard/users", label: "Users" },
+      ];
     }
 
-    return base;
+    return [
+      { href: "/employee/daily-report", label: "Daily Report" },
+      { href: "/employee", label: "ข้อมูลใบสมัคร" },
+    ];
   }, [user?.role]);
 
   return (
@@ -44,7 +47,7 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="left" className="w-[240px] sm:w-[300px]">
               <div className="flex flex-col gap-6 py-4">
-                <Link href="/dashboard" onClick={() => setOpen(false)}>
+                <Link href={homeHref} onClick={() => setOpen(false)}>
                   <Logo />
                 </Link>
                 <nav className="flex flex-col gap-2">
@@ -70,7 +73,9 @@ export function Header() {
         </div>
 
         <div className="hidden md:block">
-          <Logo />
+          <Link href={homeHref}>
+            <Logo />
+          </Link>
         </div>
 
         <nav className="hidden md:flex items-center gap-1">
