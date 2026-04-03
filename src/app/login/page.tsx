@@ -47,7 +47,12 @@ export default function LoginPage() {
     setIsPending(false);
 
     if (result?.error) {
-      form.setError("password", { type: "manual", message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
+      const errorMessage =
+        result.error === "ใบสมัครยังไม่ได้รับอนุมัติ"
+          ? "ใบสมัครยังไม่ได้รับอนุมัติ"
+          : "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
+
+      form.setError("password", { type: "manual", message: errorMessage });
       form.setError("email", { type: "manual", message: " " }); // Add a space to trigger error display without a message
     } else {
       router.push("/dashboard");

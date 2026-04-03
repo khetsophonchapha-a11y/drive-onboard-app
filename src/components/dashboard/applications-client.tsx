@@ -26,9 +26,7 @@ export function ApplicationsClient({ initialApplications, userRole, userEmail }:
     if (isAdmin) return initialApplications;
     // employee: แสดงเฉพาะของตัวเอง ถ้าหารายการไม่เจอ ให้ได้เป็น [] ไม่เห็นของคนอื่น
     return initialApplications.filter(
-      (app) =>
-        app.appId === userEmail ||
-        app.fullName.toLowerCase().includes((userEmail ?? "").split("@")[0]?.toLowerCase() || "")
+      (app) => app.email?.toLowerCase() === userEmail?.toLowerCase()
     );
   }, [initialApplications, isAdmin, userEmail]);
 
@@ -70,6 +68,7 @@ export function ApplicationsClient({ initialApplications, userRole, userEmail }:
       <ApplicationsTable 
           applications={filteredApplications} 
           isAdmin={isAdmin}
+          detailBasePath={isAdmin ? "/dashboard/applications" : "/employee/applications"}
           onDelete={handleDeleteApplication} 
       />
     </>

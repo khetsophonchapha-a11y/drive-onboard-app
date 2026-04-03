@@ -76,10 +76,20 @@ const statusText: Record<VerificationStatus, string> = {
 type ApplicationsTableProps = {
   applications: AppRow[];
   isAdmin?: boolean;
+  detailBasePath?: string;
+  showToolbar?: boolean;
+  showFooter?: boolean;
   onDelete: (applicationId: string) => void;
 };
 
-export function ApplicationsTable({ applications, onDelete, isAdmin }: ApplicationsTableProps) {
+export function ApplicationsTable({
+  applications,
+  onDelete,
+  isAdmin,
+  detailBasePath = "/dashboard/applications",
+  showToolbar = true,
+  showFooter = true,
+}: ApplicationsTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([{ "id": "createdAt", "desc": true }]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -166,7 +176,7 @@ export function ApplicationsTable({ applications, onDelete, isAdmin }: Applicati
         return (
           <div className="flex items-center justify-end gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href={`/dashboard/applications/${application.appId}`}>
+              <Link href={`${detailBasePath}/${application.appId}`}>
                 <Eye className="mr-1 h-4 w-4" /> ดูข้อมูล
               </Link>
             </Button>
@@ -279,73 +289,75 @@ export function ApplicationsTable({ applications, onDelete, isAdmin }: Applicati
 
   return (
     <div className="w-full">
-      <div className="flex flex-col md:flex-row items-start md:items-center py-4 gap-4">
-        <Input
-          placeholder="ค้นหาชื่อผู้สมัคร..."
-          value={(table.getColumn("fullName")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("fullName")?.setFilterValue(event.target.value)
-          }
-          className="w-full md:max-w-sm"
-        />
-        <div className="relative w-full md:w-auto">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                id="date"
-                variant={"outline"}
-                className={cn(
-                  "w-full md:w-[300px] justify-start text-left font-normal",
-                  !date && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date?.from ? (
-                  date.to ? (
-                    <>
-                      {format(date.from, "d MMM yyyy", { locale: th })} -{" "}
-                      {format(date.to, "d MMM yyyy", { locale: th })}
-                    </>
+      {showToolbar && (
+        <div className="flex flex-col md:flex-row items-start md:items-center py-4 gap-4">
+          <Input
+            placeholder="ค้นหาชื่อผู้สมัคร..."
+            value={(table.getColumn("fullName")?.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              table.getColumn("fullName")?.setFilterValue(event.target.value)
+            }
+            className="w-full md:max-w-sm"
+          />
+          <div className="relative w-full md:w-auto">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="date"
+                  variant={"outline"}
+                  className={cn(
+                    "w-full md:w-[300px] justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date?.from ? (
+                    date.to ? (
+                      <>
+                        {format(date.from, "d MMM yyyy", { locale: th })} -{" "}
+                        {format(date.to, "d MMM yyyy", { locale: th })}
+                      </>
+                    ) : (
+                      format(date.from, "d MMM yyyy", { locale: th })
+                    )
                   ) : (
-                    format(date.from, "d MMM yyyy", { locale: th })
-                  )
-                ) : (
-                  <span>เลือกช่วงวันที่</span>
-                )}
+                    <span>เลือกช่วงวันที่</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={date?.from}
+                  selected={date}
+                  onSelect={setDate}
+                  numberOfMonths={2}
+                  locale={th}
+                />
+              </PopoverContent>
+            </Popover>
+            {date && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => setDate(undefined)}
+              >
+                <X className="h-4 w-4" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={date?.from}
-                selected={date}
-                onSelect={setDate}
-                numberOfMonths={2}
-                locale={th}
-              />
-            </PopoverContent>
-          </Popover>
-          {date && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => setDate(undefined)}
-            >
-              <X className="h-4 w-4" />
+            )}
+          </div>
+          {isAdmin && (
+            <Button asChild className="w-full md:w-auto ml-auto">
+              <Link href="/apply">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                สร้างใบสมัครใหม่
+              </Link>
             </Button>
           )}
         </div>
-        {isAdmin && (
-          <Button asChild className="w-full md:w-auto ml-auto">
-            <Link href="/apply">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              สร้างใบสมัครใหม่
-            </Link>
-          </Button>
-        )}
-      </div>
+      )}
       <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
@@ -396,29 +408,31 @@ export function ApplicationsTable({ applications, onDelete, isAdmin }: Applicati
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          แสดง {table.getRowModel().rows.length} จาก {applications.length} รายการ
+      {showFooter && (
+        <div className="flex items-center justify-end space-x-2 py-4">
+          <div className="flex-1 text-sm text-muted-foreground">
+            แสดง {table.getRowModel().rows.length} จาก {applications.length} รายการ
+          </div>
+          <div className="space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              ก่อนหน้า
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              ถัดไป
+            </Button>
+          </div>
         </div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            ก่อนหน้า
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            ถัดไป
-          </Button>
-        </div>
-      </div>
+      )}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -120,9 +120,9 @@ export function UserForm({ user, onSubmit, isPending }: UserFormProps) {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>รหัสผ่านใหม่</FormLabel>
+              <FormLabel>รหัสผ่าน</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="ปล่อยว่างไว้เพื่อใช้รหัสผ่านเดิม" {...field} />
+                <Input type="text" placeholder="กรอกรหัสผ่านหากต้องการเปลี่ยนหรือรีเซ็ต" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

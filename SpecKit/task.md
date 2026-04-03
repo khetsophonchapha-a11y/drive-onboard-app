@@ -627,3 +627,62 @@
     *   [x] Add Mobile Phone, Home Phone, and Email fields to ApplicationForm.tsx
     *   [x] Deploy Fixes to Production
     *   [ ] Verify Fixes (User)
+
+*   [x] **[T-083] สร้างบัญชี Employee อัตโนมัติเมื่ออนุมัติใบสมัคร**
+    *   **Concept/Goal (แนวคิด)**: ลดงาน manual ของ Admin โดยให้ระบบสร้างบัญชีพนักงานอัตโนมัติทันทีเมื่ออนุมัติใบสมัคร และผูกสิทธิ์ login ตามสถานะใบสมัครจริง
+    *   **Principles (หลักการ)**: Data Consistency (ข้อมูลใบสมัครและสิทธิ์ใช้งานต้องตรงกัน), Idempotency (อนุมัติซ้ำต้องไม่สร้าง user ซ้ำ), Security Baseline (ผู้ที่ยังไม่ผ่านอนุมัติห้ามเข้าใช้งาน)
+    *   **อ้างอิง Feature**: [F-001], [F-002], [F-006], [F-017]
+    *   **ไฟล์ที่แก้ไข**:
+        *   `src/lib/types.ts`
+        *   `src/components/dashboard/application-form.tsx`
+        *   `src/app/actions.ts`
+        *   `src/auth.ts`
+    *   **Implementation Details (รายละเอียดการพัฒนา)**:
+        *   บังคับให้ `manifest.applicant.email` เป็นข้อมูลจำเป็นใน schema ใบสมัคร
+        *   เปลี่ยน UI label ในฟอร์มสมัครงานให้สื่อว่าอีเมลเป็น field บังคับ
+        *   ใน `updateApplicationStatus()` เมื่อเปลี่ยนเป็น `approved` ให้ดึง email และเลขบัตรจาก manifest แล้วสร้าง user role `employee` หากยังไม่มี
+        *   ใช้รหัสผ่านเริ่มต้นจากเลขท้าย 6 หลักของบัตรประชาชน และไม่สร้าง user ซ้ำหาก email มีอยู่แล้ว
+        *   ใน `authorize()` ของ NextAuth ให้ตรวจสถานะใบสมัครของ `employee` ก่อนอนุญาต login
+        *   ถ้าสถานะไม่ใช่ `approved` เช่น `pending`, `rejected`, `terminated` ให้ปฏิเสธ login พร้อมข้อความอธิบาย
+    *   **Confirmed Behavior (พฤติกรรมที่ต้องทดสอบ)**:
+        *   Admin อนุมัติใบสมัครแล้วมี user `employee` ถูกสร้างอัตโนมัติ
+        *   อนุมัติซ้ำหรืออนุมัติใหม่ภายหลังไม่สร้าง user ซ้ำ
+        *   `employee` login ได้เฉพาะตอนสถานะใบสมัครเป็น `approved`
+        *   หากเปลี่ยนสถานะเป็น `terminated` หรือ `pending` จะ login ไม่ได้ทันที
+    *   **Sub-tasks (งานย่อย)**:
+        *   [x] บังคับ email ใน ManifestSchema และปรับ label ในฟอร์ม
+        *   [x] เพิ่ม logic auto-create employee ใน server action เปลี่ยนสถานะ
+        *   [x] เพิ่ม approval gate ใน NextAuth authorize
+        *   [x] รัน TypeScript verification
+
+*   [x] **[T-084] กันใบสมัครซ้ำด้วย Email และแยก Route ตาม Role**
+    *   **Concept/Goal (แนวคิด)**: ป้องกันข้อมูลซ้ำในระบบตั้งแต่ขั้นตอน submit และแยกประสบการณ์ใช้งานของพนักงานออกจากแอดมินอย่างชัดเจน
+    *   **Principles (หลักการ)**: Data Integrity (email หนึ่งใบสมัครต่อหนึ่งบัญชี), Least Privilege (แต่ละ role เข้าถึงเฉพาะหน้าที่เกี่ยวข้อง), Predictable Routing (login แล้วถูกส่งไปเส้นทางที่ถูกต้องเสมอ)
+    *   **อ้างอิง Feature**: [F-001], [F-002], [F-017], [F-018]
+    *   **ไฟล์ที่แก้ไข**:
+        *   `src/lib/applications.ts`
+        *   `src/app/api/applications/submit/route.ts`
+        *   `src/app/api/applications/route.ts`
+        *   `src/middleware.ts`
+        *   `src/components/dashboard/header.tsx`
+        *   `src/components/dashboard/applications-client.tsx`
+        *   `src/components/dashboard/applications-table.tsx`
+        *   `src/components/dashboard/application-details.tsx`
+        *   `src/app/employee/*`
+    *   **Implementation Details (รายละเอียดการพัฒนา)**:
+        *   เพิ่ม helper กลางสำหรับค้นหาใบสมัครตาม email และดึงสถานะล่าสุด
+        *   ใน submit route ถ้าเจอ email ซ้ำกับใบสมัครอื่นให้ตอบกลับ `409`
+        *   เพิ่ม route `/employee`, `/employee/daily-report`, `/employee/applications/[id]`
+        *   ปรับ middleware ให้บังคับ redirect `/dashboard/*` สำหรับ admin และ `/employee/*` สำหรับ employee
+        *   ปรับ header และ table links ให้พาไปเส้นทางตาม role
+        *   จำกัดหน้า detail ของ employee เป็น read-only
+    *   **Confirmed Behavior (พฤติกรรมที่ต้องทดสอบ)**:
+        *   ผู้สมัครส่งใบสมัครด้วย email ซ้ำไม่ได้
+        *   Admin login แล้วเข้า `/dashboard`
+        *   Employee login แล้วเข้า `/employee`
+        *   Employee เปิดดูได้เฉพาะใบสมัครของตัวเอง และแก้ไข/อนุมัติข้อมูลไม่ได้
+    *   **Sub-tasks (งานย่อย)**:
+        *   [x] เพิ่ม duplicate email guard ใน submit route
+        *   [x] สร้าง employee portal และ detail route แบบ read-only
+        *   [x] แยก middleware redirect ตาม role
+        *   [x] รัน TypeScript verification

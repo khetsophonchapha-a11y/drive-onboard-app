@@ -6,6 +6,7 @@ import { revalidateTag } from 'next/cache';
 import { getDb } from '@/lib/db';
 import { applications } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { createUser, fetchUserByEmail } from '@/lib/d1-users';
 
 export async function getImageAsDataUri(url: string): Promise<string> {
     try {
@@ -35,6 +36,11 @@ export async function updateApplicationStatus(appId: string, status: Verificatio
         }
 
         const manifest: Manifest = JSON.parse(existingApp.rawData as string);
+        const applicantEmail = manifest.applicant.email.trim().toLowerCase();
+        const applicantNationalId = manifest.applicant.nationalId.trim();
+        const applicantName =
+            manifest.applicant.fullName?.trim() ||
+            `${manifest.applicant.firstName} ${manifest.applicant.lastName}`.trim();
 
         // Only update if the status is different
         const normalizedStatus = manifest.status ?? { completeness: "incomplete", verification: "pending" };
@@ -43,6 +49,32 @@ export async function updateApplicationStatus(appId: string, status: Verificatio
         manifest.status = normalizedStatus;
 
         if (manifest.status.verification !== status) {
+            if (status === 'approved') {
+                if (!applicantEmail) {
+                    return { success: false, error: 'ไม่พบอีเมลของผู้สมัครสำหรับสร้างบัญชีพนักงาน' };
+                }
+
+                if (!/^\d{13}$/.test(applicantNationalId)) {
+                    return { success: false, error: 'เลขบัตรประชาชนของผู้สมัครไม่ถูกต้อง ไม่สามารถสร้างรหัสผ่านเริ่มต้นได้' };
+                }
+
+                const existingUser = await fetchUserByEmail(applicantEmail);
+                if (!existingUser) {
+                    const initialPassword = applicantNationalId.slice(-6);
+                    const createdUser = await createUser({
+                        email: applicantEmail,
+                        name: applicantName || applicantEmail,
+                        role: 'employee',
+                        password: initialPassword,
+                        phone: manifest.applicant.mobilePhone || manifest.applicant.homePhone,
+                    });
+
+                    if (createdUser.error) {
+                        return { success: false, error: `สร้างบัญชีพนักงานไม่สำเร็จ: ${createdUser.error}` };
+                    }
+                }
+            }
+
             manifest.status.verification = status;
 
             // Update both JSON and Columns
@@ -67,4 +99,3 @@ export async function updateApplicationStatus(appId: string, status: Verificatio
         return { success: false, error: error.message || 'An unknown error occurred.' };
     }
 }
-

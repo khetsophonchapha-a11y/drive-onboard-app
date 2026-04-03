@@ -39,6 +39,7 @@ import { ManifestSchema } from "@/lib/types";
 import { carColors, getVehicleBrands, getVehicleModels, vehicleTypes } from "@/lib/vehicle-data";
 import { DateWheelPicker } from "@/components/ui/date-wheel-picker";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { provinceOptions, getDistrictOptions, getSubDistrictOptions, jobPositionOptions } from "@/lib/form-options";
 import { SignatureInput } from "@/components/ui/signature-input";
 import { LegalAgreement } from "@/components/dashboard/legal-agreement";
 
@@ -233,6 +234,14 @@ export function ApplicationForm() {
     });
 
     const watchIsPermanentAddressSame = form.watch('applicant.isPermanentAddressSame');
+    const watchCurrentAddress = form.watch('applicant.currentAddress');
+    const watchCurrentProvince = form.watch('applicant.currentAddress.province');
+    const watchCurrentDistrict = form.watch('applicant.currentAddress.district');
+    const watchPermanentProvince = form.watch('applicant.permanentAddress.province');
+    const watchPermanentDistrict = form.watch('applicant.permanentAddress.district');
+    const watchGuarantorProvince = form.watch('guarantor.address.province');
+    const watchGuarantorDistrict = form.watch('guarantor.address.district');
+    const watchRelation = form.watch('applicationDetails.emergencyContact.relation');
     const watchVehicleType = form.watch('vehicle.type');
     const watchVehicleBrand = form.watch('vehicle.brand');
     const watchVehicleColor = form.watch('vehicle.color');
@@ -300,7 +309,7 @@ export function ApplicationForm() {
     useEffect(() => {
         const dateOfBirth = watchDateOfBirth instanceof Date ? watchDateOfBirth : undefined;
         const computedAge = calculateAge(dateOfBirth);
-        form.setValue('applicant.age', computedAge, {
+        form.setValue('applicant.age', computedAge ?? 0, {
             shouldDirty: false,
             shouldValidate: false,
         });
@@ -565,7 +574,7 @@ export function ApplicationForm() {
             setSubmissionProgress(90);
 
             const applicantData: NonNullable<FormValues['applicant']> = { ...(values.applicant ?? {}) };
-            const guarantorData = values.guarantor ? { ...values.guarantor } : undefined;
+            const guarantorData = { ...values.guarantor };
             const applicationDetails = { ...values.applicationDetails };
             const birthDate = applicantData.dateOfBirth instanceof Date ? applicantData.dateOfBirth : undefined;
             const calculatedAge = calculateAge(birthDate);
@@ -575,8 +584,8 @@ export function ApplicationForm() {
             if (applicantData.isPermanentAddressSame && applicantData.currentAddress) {
                 applicantData.permanentAddress = { ...applicantData.currentAddress };
             }
-            if (guarantorData) {
-                guarantorData.address = guarantorData.address ? { ...guarantorData.address } : undefined;
+            if (guarantorData && guarantorData.address) {
+                guarantorData.address = { ...guarantorData.address };
             }
             if (applicationDetails.criminalRecord !== 'yes') {
                 applicationDetails.criminalRecordDetails = undefined;
@@ -658,12 +667,10 @@ export function ApplicationForm() {
                     fullName: `${applicantData.firstName ?? ''} ${applicantData.lastName ?? ''}`.trim(),
                 },
                 applicationDetails,
-                guarantor: guarantorData
-                    ? {
-                        ...guarantorData,
-                        fullName: `${guarantorData.firstName ?? ''} ${guarantorData.lastName ?? ''}`.trim() || undefined
-                    }
-                    : undefined,
+                guarantor: {
+                    ...guarantorData,
+                    fullName: `${guarantorData.firstName ?? ''} ${guarantorData.lastName ?? ''}`.trim() || undefined
+                },
                 vehicle: vehicleData,
                 docs,
                 status: {
@@ -969,7 +976,7 @@ export function ApplicationForm() {
                                     name="applicant.age"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>อายุ (ปี)</FormLabel>
+                                            <FormLabel>อายุ (ปี)<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <Input value={field.value?.toString() ?? ''} readOnly />
                                             </FormControl>
@@ -1026,7 +1033,7 @@ export function ApplicationForm() {
                                     name="applicant.race"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>เชื้อชาติ</FormLabel>
+                                            <FormLabel>เชื้อชาติ<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1044,7 +1051,7 @@ export function ApplicationForm() {
                                     name="applicant.nationality"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>สัญชาติ</FormLabel>
+                                            <FormLabel>สัญชาติ<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1062,7 +1069,7 @@ export function ApplicationForm() {
                                     name="applicant.religion"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>ศาสนา</FormLabel>
+                                            <FormLabel>ศาสนา<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1155,7 +1162,7 @@ export function ApplicationForm() {
                                     name="applicant.homePhone"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>เบอร์โทรศัพท์บ้าน</FormLabel>
+                                            <FormLabel>เบอร์โทรศัพท์บ้าน<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1174,7 +1181,7 @@ export function ApplicationForm() {
                                     name="applicant.email"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>อีเมล</FormLabel>
+                                            <FormLabel>อีเมล <span className="text-destructive">*</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1198,7 +1205,7 @@ export function ApplicationForm() {
                                     name="applicant.currentAddress.houseNo"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>บ้านเลขที่</FormLabel>
+                                            <FormLabel>บ้านเลขที่<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1215,7 +1222,7 @@ export function ApplicationForm() {
                                     name="applicant.currentAddress.moo"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>หมู่ที่</FormLabel>
+                                            <FormLabel>หมู่ที่<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1232,7 +1239,7 @@ export function ApplicationForm() {
                                     name="applicant.currentAddress.street"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>ถนน</FormLabel>
+                                            <FormLabel>ถนน<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1251,10 +1258,14 @@ export function ApplicationForm() {
                                         <FormItem>
                                             <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
-                                                <Input
-                                                    value={field.value ?? ''}
-                                                    placeholder="ex. จอมพล"
-                                                    onChange={(event) => field.onChange(event.target.value)}
+                                                <SearchableSelect
+                                                    ref={field.ref}
+                                                    options={getSubDistrictOptions(watchCurrentProvince, watchCurrentDistrict)}
+                                                    value={field.value ?? undefined}
+                                                    onChange={(val) => field.onChange(val)}
+                                                    placeholder={watchCurrentDistrict ? "เลือกตำบล/แขวง..." : "เลือกอำเภอ/เขตก่อน"}
+                                                    disabled={!watchCurrentDistrict}
+                                                    allowClear
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -1268,10 +1279,17 @@ export function ApplicationForm() {
                                         <FormItem>
                                             <FormLabel>อำเภอ/เขต<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
-                                                <Input
-                                                    value={field.value ?? ''}
-                                                    placeholder="ex. จตุจักร"
-                                                    onChange={(event) => field.onChange(event.target.value)}
+                                                <SearchableSelect
+                                                    ref={field.ref}
+                                                    options={getDistrictOptions(watchCurrentProvince)}
+                                                    value={field.value ?? undefined}
+                                                    onChange={(val) => {
+                                                        field.onChange(val);
+                                                        form.setValue('applicant.currentAddress.subDistrict', '');
+                                                    }}
+                                                    placeholder={watchCurrentProvince ? "เลือกอำเภอ/เขต..." : "เลือกจังหวัดก่อน"}
+                                                    disabled={!watchCurrentProvince}
+                                                    allowClear
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -1285,10 +1303,17 @@ export function ApplicationForm() {
                                         <FormItem>
                                             <FormLabel>จังหวัด<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
-                                                <Input
-                                                    value={field.value ?? ''}
-                                                    placeholder="ex. กรุงเทพมหานคร"
-                                                    onChange={(event) => field.onChange(event.target.value)}
+                                                <SearchableSelect
+                                                    ref={field.ref}
+                                                    options={provinceOptions}
+                                                    value={field.value ?? undefined}
+                                                    onChange={(val) => {
+                                                        field.onChange(val);
+                                                        form.setValue('applicant.currentAddress.district', '');
+                                                        form.setValue('applicant.currentAddress.subDistrict', '');
+                                                    }}
+                                                    placeholder="เลือกจังหวัด..."
+                                                    allowClear
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -1336,7 +1361,7 @@ export function ApplicationForm() {
                                         name="applicant.permanentAddress.houseNo"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>บ้านเลขที่</FormLabel>
+                                                <FormLabel>บ้านเลขที่<span className="text-destructive ml-1">*</span></FormLabel>
                                                 <FormControl>
                                                     <Input
                                                         value={field.value ?? ''}
@@ -1353,7 +1378,7 @@ export function ApplicationForm() {
                                         name="applicant.permanentAddress.moo"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>หมู่ที่</FormLabel>
+                                                <FormLabel>หมู่ที่<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel>
                                                 <FormControl>
                                                     <Input
                                                         value={field.value ?? ''}
@@ -1370,7 +1395,7 @@ export function ApplicationForm() {
                                         name="applicant.permanentAddress.street"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>ถนน</FormLabel>
+                                                <FormLabel>ถนน<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel>
                                                 <FormControl>
                                                     <Input
                                                         value={field.value ?? ''}
@@ -1389,10 +1414,14 @@ export function ApplicationForm() {
                                             <FormItem>
                                                 <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">*</span></FormLabel>
                                                 <FormControl>
-                                                    <Input
-                                                        value={field.value ?? ''}
-                                                        placeholder="ex. จอมพล"
-                                                        onChange={(event) => field.onChange(event.target.value)}
+                                                    <SearchableSelect
+                                                        ref={field.ref}
+                                                        options={getSubDistrictOptions(watchPermanentProvince, watchPermanentDistrict)}
+                                                        value={field.value ?? undefined}
+                                                        onChange={(val) => field.onChange(val)}
+                                                        placeholder={watchPermanentDistrict ? "เลือกตำบล/แขวง..." : "เลือกอำเภอ/เขตก่อน"}
+                                                        disabled={!watchPermanentDistrict}
+                                                        allowClear
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
@@ -1406,10 +1435,17 @@ export function ApplicationForm() {
                                             <FormItem>
                                                 <FormLabel>อำเภอ/เขต<span className="text-destructive ml-1">*</span></FormLabel>
                                                 <FormControl>
-                                                    <Input
-                                                        value={field.value ?? ''}
-                                                        placeholder="ex. จตุจักร"
-                                                        onChange={(event) => field.onChange(event.target.value)}
+                                                    <SearchableSelect
+                                                        ref={field.ref}
+                                                        options={getDistrictOptions(watchPermanentProvince)}
+                                                        value={field.value ?? undefined}
+                                                        onChange={(val) => {
+                                                            field.onChange(val);
+                                                            form.setValue('applicant.permanentAddress.subDistrict', '');
+                                                        }}
+                                                        placeholder={watchPermanentProvince ? "เลือกอำเภอ/เขต..." : "เลือกจังหวัดก่อน"}
+                                                        disabled={!watchPermanentProvince}
+                                                        allowClear
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
@@ -1423,10 +1459,17 @@ export function ApplicationForm() {
                                             <FormItem>
                                                 <FormLabel>จังหวัด<span className="text-destructive ml-1">*</span></FormLabel>
                                                 <FormControl>
-                                                    <Input
-                                                        value={field.value ?? ''}
-                                                        placeholder="ex. กรุงเทพมหานคร"
-                                                        onChange={(event) => field.onChange(event.target.value)}
+                                                    <SearchableSelect
+                                                        ref={field.ref}
+                                                        options={provinceOptions}
+                                                        value={field.value ?? undefined}
+                                                        onChange={(val) => {
+                                                            field.onChange(val);
+                                                            form.setValue('applicant.permanentAddress.district', '');
+                                                            form.setValue('applicant.permanentAddress.subDistrict', '');
+                                                        }}
+                                                        placeholder="เลือกจังหวัด..."
+                                                        allowClear
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
@@ -1521,12 +1564,15 @@ export function ApplicationForm() {
                                 name="applicationDetails.position"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>ตำแหน่งที่ต้องการสมัคร</FormLabel>
+                                        <FormLabel>ตำแหน่งที่ต้องการสมัคร<span className="text-destructive ml-1">*</span></FormLabel>
                                         <FormControl>
-                                            <Input
-                                                value={field.value ?? ''}
-                                                maxLength={80}
-                                                onChange={(event) => field.onChange(event.target.value)}
+                                            <SearchableSelect
+                                                ref={field.ref}
+                                                options={jobPositionOptions}
+                                                value={field.value ?? undefined}
+                                                onChange={field.onChange}
+                                                placeholder="เลือกตำแหน่ง..."
+                                                allowClear
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -1608,7 +1654,7 @@ export function ApplicationForm() {
                                     name="applicationDetails.emergencyContact.firstName"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>ชื่อ</FormLabel>
+                                            <FormLabel>ชื่อ<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1625,7 +1671,7 @@ export function ApplicationForm() {
                                     name="applicationDetails.emergencyContact.lastName"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>นามสกุล</FormLabel>
+                                            <FormLabel>นามสกุล<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1642,24 +1688,55 @@ export function ApplicationForm() {
                                     name="applicationDetails.emergencyContact.relation"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>ความเกี่ยวข้อง</FormLabel>
+                                            <FormLabel>ความเกี่ยวข้อง<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
-                                                <Input
-                                                    value={field.value ?? ''}
-                                                    maxLength={40}
-                                                    onChange={(event) => field.onChange(event.target.value)}
+                                                <SearchableSelect
+                                                    ref={field.ref}
+                                                    options={[
+                                                        { value: 'พ่อ', label: 'พ่อ' },
+                                                        { value: 'แม่', label: 'แม่' },
+                                                        { value: 'พี่', label: 'พี่' },
+                                                        { value: 'น้อง', label: 'น้อง' },
+                                                        { value: 'สามี', label: 'สามี' },
+                                                        { value: 'ภรรยา', label: 'ภรรยา' },
+                                                        { value: 'อื่นๆ', label: 'อื่นๆ' }
+                                                    ]}
+                                                    value={field.value ?? undefined}
+                                                    onChange={field.onChange}
+                                                    placeholder="เลือกความสัมพันธ์..."
+                                                    allowClear
                                                 />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
+                                {watchRelation === 'อื่นๆ' && (
+                                    <FormField
+                                        control={form.control}
+                                        name="applicationDetails.emergencyContact.relationOther"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>โปรดระบุ<span className="text-destructive ml-1">*</span></FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        {...field}
+                                                        value={field.value ?? ''}
+                                                        maxLength={40}
+                                                        placeholder="ex. ลุง, เพื่อน"
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
                                 <FormField
                                     control={form.control}
                                     name="applicationDetails.emergencyContact.occupation"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>อาชีพ</FormLabel>
+                                            <FormLabel>อาชีพ<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1676,7 +1753,7 @@ export function ApplicationForm() {
                                     name="applicationDetails.emergencyContact.mobilePhone"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>มือถือ</FormLabel>
+                                            <FormLabel>มือถือ<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <Input
                                                     value={field.value ?? ''}
@@ -1895,30 +1972,45 @@ export function ApplicationForm() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน (ถ้ามี)</CardTitle>
+                        <CardTitle className="font-headline">ข้อมูลผู้ค้ำประกัน</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <FormField control={form.control} name="guarantor.firstName" render={({ field }) => (
-                                <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. สมหญิง" /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>ชื่อจริง (ผู้ค้ำ)<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. สมหญิง" /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name="guarantor.lastName" render={({ field }) => (
-                                <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. ใจดี" /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>นามสกุล (ผู้ค้ำ)<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. ใจดี" /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name="guarantor.nationalId" render={({ field }) => (
-                                <FormItem><FormLabel>เลขที่บัตรประจำตัวประชาชน (ผู้ค้ำ)</FormLabel><FormControl><Input {...field} value={field.value ?? ''} maxLength={13} placeholder="ex. 1234567890123" onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>เลขที่บัตรประจำตัวประชาชน (ผู้ค้ำ)<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} maxLength={13} placeholder="ex. 1234567890123" onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="guarantor.age" render={({ field }) => (
+                                <FormItem><FormLabel>อายุ (ปี)<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} type="number" onChange={(e) => field.onChange(Number(e.target.value) || undefined)} placeholder="ex. 35" /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="guarantor.race" render={({ field }) => (
+                                <FormItem><FormLabel>เชื้อชาติ<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. ไทย" /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="guarantor.nationality" render={({ field }) => (
+                                <FormItem><FormLabel>สัญชาติ<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. ไทย" /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="guarantor.phone" render={({ field }) => (
+                                <FormItem><FormLabel>เบอร์โทรศัพท์มือถือ (ผู้ค้ำ)<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} maxLength={10} placeholder="ex. 0812345678" onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 10))} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="guarantor.occupation" render={({ field }) => (
+                                <FormItem><FormLabel>อาชีพ (ผู้ค้ำ)<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. พนักงานบริษัท" /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                         <div className="space-y-4 pt-4">
                             <h4 className="text-sm font-semibold">ที่อยู่ผู้ค้ำประกัน</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="guarantor.address.houseNo" render={({ field }) => (<FormItem><FormLabel>บ้านเลขที่</FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. 123/45" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.moo" render={({ field }) => (<FormItem><FormLabel>หมู่ที่</FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. 1" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.street" render={({ field }) => (<FormItem><FormLabel>ถนน</FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. วิภาวดีรังสิต" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.subDistrict" render={({ field }) => (<FormItem><FormLabel>ตำบล/แขวง</FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. จอมพล" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.district" render={({ field }) => (<FormItem><FormLabel>อำเภอ/เขต</FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. จตุจักร" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.province" render={({ field }) => (<FormItem><FormLabel>จังหวัด</FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. กรุงเทพมหานคร" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.postalCode" render={({ field }) => (<FormItem><FormLabel>รหัสไปรษณีย์</FormLabel><FormControl><Input {...field} value={field.value ?? ''} maxLength={5} placeholder="ex. 10900" /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="guarantor.address.houseNo" render={({ field }) => (<FormItem><FormLabel>บ้านเลขที่<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. 123/45" /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="guarantor.address.moo" render={({ field }) => (<FormItem><FormLabel>หมู่ที่<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. 1" /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="guarantor.address.street" render={({ field }) => (<FormItem><FormLabel>ถนน<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. วิภาวดีรังสิต" /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="guarantor.address.subDistrict" render={({ field }) => (<FormItem><FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">*</span></FormLabel><FormControl><SearchableSelect ref={field.ref} options={getSubDistrictOptions(watchGuarantorProvince, watchGuarantorDistrict)} value={field.value ?? undefined} onChange={(val) => field.onChange(val)} disabled={!watchGuarantorDistrict} allowClear placeholder={watchGuarantorDistrict ? "เลือกตำบล/แขวง..." : "เลือกอำเภอ/เขตก่อน"} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="guarantor.address.district" render={({ field }) => (<FormItem><FormLabel>อำเภอ/เขต<span className="text-destructive ml-1">*</span></FormLabel><FormControl><SearchableSelect ref={field.ref} options={getDistrictOptions(watchGuarantorProvince)} value={field.value ?? undefined} onChange={(val) => { field.onChange(val); form.setValue('guarantor.address.subDistrict', ''); }} disabled={!watchGuarantorProvince} allowClear placeholder={watchGuarantorProvince ? "เลือกอำเภอ/เขต..." : "เลือกจังหวัดก่อน"} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="guarantor.address.province" render={({ field }) => (<FormItem><FormLabel>จังหวัด<span className="text-destructive ml-1">*</span></FormLabel><FormControl><SearchableSelect ref={field.ref} options={provinceOptions} value={field.value ?? undefined} onChange={(val) => { field.onChange(val); form.setValue('guarantor.address.district', ''); form.setValue('guarantor.address.subDistrict', ''); }} allowClear placeholder="เลือกจังหวัด..." /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="guarantor.address.postalCode" render={({ field }) => (<FormItem><FormLabel>รหัสไปรษณีย์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} maxLength={5} placeholder="ex. 10900" /></FormControl><FormMessage /></FormItem>)} />
                             </div>
                         </div>
 
@@ -1931,7 +2023,7 @@ export function ApplicationForm() {
                                 footer="ข้าพเจ้าผู้ค้ำประกันได้อ่านและเข้าใจข้อความในสัญญาค้ำประกันฉบับนี้โดยตลอดแล้วเห็นว่าถูกต้อง จึงได้ลงลายมือชื่อไว้กับบริษัทและพยานไว้เป็นสำคัญ"
                                 className="mb-6"
                             />
-                            <h4 className="text-sm font-semibold">ลายมือชื่อผู้ค้ำประกัน</h4>
+                            <h4 className="text-sm font-semibold">ลายมือชื่อผู้ค้ำประกัน<span className="text-destructive ml-1">*</span></h4>
                             <FormField
                                 control={form.control}
                                 name="guarantorSignature"
@@ -2092,4 +2184,3 @@ export function ApplicationForm() {
         </Form >
     );
 }
-

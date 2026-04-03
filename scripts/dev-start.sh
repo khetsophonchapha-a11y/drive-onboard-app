@@ -2,6 +2,7 @@
 
 # Define ports to clean
 PORTS=(9002 8787)
+NEXT_CACHE_DIR=".next"
 
 echo "🧹 Cleaning up ports: ${PORTS[*]}..."
 for PORT in "${PORTS[@]}"; do
@@ -12,6 +13,11 @@ for PORT in "${PORTS[@]}"; do
     kill -9 $PID 2>/dev/null
   fi
 done
+
+if [ -d "$NEXT_CACHE_DIR" ]; then
+  echo "🗑️ Clearing stale Next.js cache in $NEXT_CACHE_DIR..."
+  rm -rf "$NEXT_CACHE_DIR"
+fi
 
 echo "🚀 Starting Services..."
 
@@ -32,15 +38,15 @@ fi
 
 echo "Services started with PIDs: Next.js=$NEXT_PID, Worker=$WORKER_PID"
 
-echo "⏳ Waiting for Next.js on localhost:9002..."
-# Wait up to 30 seconds
-TIMEOUT=30
+echo "⏳ Waiting for Next.js to serve HTTP on localhost:9002..."
+# Wait up to 60 seconds
+TIMEOUT=60
 COUNTER=0
-while ! nc -z localhost 9002; do   
+until curl -sf "http://localhost:9002/" > /dev/null; do
   sleep 1
   COUNTER=$((COUNTER+1))
   if [ $COUNTER -ge $TIMEOUT ]; then
-    echo "❌ Timeout waiting for Next.js to start."
+    echo "❌ Timeout waiting for Next.js HTTP server to become ready."
     kill $NEXT_PID $WORKER_PID 2>/dev/null
     exit 1
   fi

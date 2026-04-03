@@ -20,6 +20,8 @@
 | **[F-014]** | Mobile Responsiveness (รองรับมือถือ) | [T-069], [T-070] | `components/dashboard/*`, `applications-table.tsx` | Done (เสร็จแล้ว) <br> *Fix: Menu, Tables, Overflow* |
 | **[F-015]** | Image Optimization (จัดการรูปภาพ) | [T-071], [T-072], [T-073], [T-074] | `workers/image-processor.ts`, `api/daily-reports/*` | Done (เสร็จแล้ว) <br> *Key: WebP/JPG Auto, Folders, Cleanup* |
 | **[F-016]** | Apply Page Safety (ป้องกันข้อมูลหาย) | [T-075] | `components/dashboard/application-form.tsx` | Done (เสร็จแล้ว) |
+| **[F-017]** | Employee Auto Provisioning (สร้างบัญชีพนักงานอัตโนมัติ) | [T-083] | `src/lib/types.ts`, `src/components/dashboard/application-form.tsx`, `src/app/actions.ts`, `src/auth.ts` | Done (เสร็จแล้ว) <br> *Create employee on approve, block login unless status is approved* |
+| **[F-018]** | Access Segregation & Duplicate Email Guard (แยกสิทธิ์และกัน email ซ้ำ) | [T-084] | `src/lib/applications.ts`, `src/app/api/applications/submit/route.ts`, `src/middleware.ts`, `src/app/employee/*` | Done (เสร็จแล้ว) <br> *Reject duplicate submit by email, split employee portal from admin portal* |
 
 ## Data/Variable Traceability (โครงข่ายตัวแปรและแหล่งข้อมูล)
 ตารางนี้ใช้ Map ระหว่าง Entity <-> ตัวแปรใน Code เพื่อให้ง่ายต่อการ Debug และพัฒนาต่อ
@@ -28,6 +30,8 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Application** | `AppRow` | `applications`, `filteredApplications` | `dashboard/applications-client.tsx`, `lib/types.ts` | ใช้ `D1` เป็นหลัก |
 | **User** | `User` | `user` | `hooks/use-auth.ts`, `src/auth.ts` | Role-based (admin/user) |
+| **Employee Approval Gate** | `VerificationStatus` | `manifest.status.verification`, `verificationStatus` | `src/app/actions.ts`, `src/auth.ts`, `src/db/schema.ts` | `employee` login ได้เฉพาะ `approved` |
+| **Application Email Index** | `Manifest.applicant.email` | `normalizedEmail`, `duplicateApplication` | `src/lib/applications.ts`, `src/app/api/applications/submit/route.ts` | ใช้กันใบสมัครซ้ำและผูกใบสมัครกับพนักงาน |
 | **DailyReport** | `DailyReportResponse` | `report`, `reportCache` | `daily-report/daily-report-view.tsx`, `lib/daily-report.ts` | มี LRU Cache |
 | **DailyReportSlot** | `DailyReportResponseSlot` | `slots` | `daily-report/daily-report-view.tsx` | ใช้ `id` เป็น Key |
 | **DailyReportSummary** | `DailyReportSummaryRow` | `rows`, `filteredRows` | `dashboard/daily-report-tracker.tsx`, `lib/daily-report.ts` | หน้า Overview |
@@ -52,4 +56,3 @@
 | **[C-REP-001]** | DailyReportView | `src/components/daily-report/daily-report-view.tsx` | Edit Popup & Page | [F-010], [F-008] |
 | **[C-REP-002]** | DailyReportSlotCard | `src/components/daily-report/daily-report-slot-card.tsx` | Single Time Slot | [F-010] |
 | **[C-DASH-012]** | LegalAgreement | `src/components/dashboard/legal-agreement.tsx` | Terms & Conditions | [F-002] |
-

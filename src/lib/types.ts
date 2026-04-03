@@ -18,6 +18,7 @@ export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'terminat
 export type AppRow = {
   appId: string;
   fullName: string;
+  email?: string;
   phone?: string;
   createdAt: string; // ISO
   status: VerificationStatus;
@@ -44,6 +45,7 @@ const AddressSchema = z.object({
 });
 
 const RequiredAddressSchema = AddressSchema.extend({
+  houseNo: z.string({ required_error: 'กรอกบ้านเลขที่' }).trim().min(1, 'กรอกบ้านเลขที่'),
   subDistrict: z.string({ required_error: 'กรอกตำบล/แขวง' }).trim().min(1, 'กรอกตำบล/แขวง'),
   district: z.string({ required_error: 'กรอกอำเภอ/เขต' }).trim().min(1, 'กรอกอำเภอ/เขต'),
   province: z.string({ required_error: 'กรอกจังหวัด' }).trim().min(1, 'กรอกจังหวัด'),
@@ -141,10 +143,10 @@ export const ManifestSchema = z.object({
           required_error: 'กรุณาเลือกวันที่บัตรหมดอายุ',
         }),
       dateOfBirth: coerceRequiredPastDate('วันเดือนปีเกิด'),
-      age: z.number().int().min(0).max(130).optional(),
-      race: optionalTrimmedString(40),
-      nationality: optionalTrimmedString(40),
-      religion: optionalTrimmedString(40),
+      age: z.number({ required_error: 'กรุณาระบุอายุ' }).int().min(0).max(130),
+      race: requiredTrimmedString('เชื้อชาติ', 40),
+      nationality: requiredTrimmedString('สัญชาติ', 40),
+      religion: requiredTrimmedString('ศาสนา', 40),
       height: numericStringToNumber('ส่วนสูง (ซม.)'),
       weight: numericStringToNumber('น้ำหนัก (กก.)'),
       gender: genderEnum,
@@ -154,7 +156,11 @@ export const ManifestSchema = z.object({
       isPermanentAddressSame: z.boolean().default(false),
       homePhone: optionalTrimmedString(15),
       mobilePhone: phoneNumberSchema,
-      email: z.string().email('อีเมลไม่ถูกต้อง').optional().or(z.literal('')),
+      email: z
+        .string({ required_error: 'กรุณากรอกอีเมล' })
+        .trim()
+        .min(1, 'กรุณากรอกอีเมล')
+        .email('อีเมลไม่ถูกต้อง'),
       residenceType: residenceTypeEnum,
       militaryStatus: militaryStatusEnum,
     })
@@ -174,14 +180,22 @@ export const ManifestSchema = z.object({
       criminalRecordDetails: optionalTrimmedString(500),
       emergencyContact: z
         .object({
-          firstName: optionalTrimmedString(40),
-          lastName: optionalTrimmedString(40),
-          occupation: optionalTrimmedString(80),
-          relation: optionalTrimmedString(40),
+          firstName: requiredTrimmedString('ชื่อผู้ติดต่อ', 40),
+          lastName: requiredTrimmedString('นามสกุลผู้ติดต่อ', 40),
+          occupation: requiredTrimmedString('อาชีพ', 80),
+          relation: requiredTrimmedString('ความเกี่ยวข้อง', 40),
+          relationOther: optionalTrimmedString(40),
           phone: optionalTrimmedString(15),
-          mobilePhone: optionalTrimmedString(10),
-        })
-        .optional(),
+          mobilePhone: phoneNumberSchema,
+        }).superRefine((data, ctx) => {
+          if (data.relation === 'อื่นๆ' && (!data.relationOther || data.relationOther.trim() === '')) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['relationOther'],
+              message: 'กรุณาระบุความเกี่ยวข้อง',
+            });
+          }
+        }),
       applicationDate: z
         .coerce
         .date({
@@ -208,17 +222,17 @@ export const ManifestSchema = z.object({
   }).optional(),
   guarantor: z.object({
     contractDate: z.coerce.date().optional(),
-    firstName: optionalTrimmedString(40),
-    lastName: optionalTrimmedString(40),
-    age: z.number().int().min(0).max(130).optional(),
-    race: optionalTrimmedString(40),
-    nationality: optionalTrimmedString(40),
-    address: RequiredAddressSchema.optional(),
-    nationalId: optionalTrimmedString(13),
-    phone: optionalTrimmedString(15),
-    occupation: optionalTrimmedString(80),
+    firstName: requiredTrimmedString('ชื่อผู้ค้ำประกัน', 40),
+    lastName: requiredTrimmedString('นามสกุลผู้ค้ำประกัน', 40),
+    age: z.number({ required_error: 'กรุณาระบุอายุ' }).int().min(0).max(130),
+    race: requiredTrimmedString('เชื้อชาติ', 40),
+    nationality: requiredTrimmedString('สัญชาติ', 40),
+    address: RequiredAddressSchema,
+    nationalId: thaiNationalIdSchema,
+    phone: phoneNumberSchema,
+    occupation: requiredTrimmedString('อาชีพผู้ค้ำประกัน', 80),
     applicantStartDate: z.coerce.date().optional(),
-  }).optional(),
+  }),
   vehicle: z
     .object({
       type: vehicleTypeEnum.optional(),
@@ -407,6 +421,7 @@ export const EditManifestSchema = z.object({
       lastName: optionalTrimmedString(40),
       occupation: optionalTrimmedString(80),
       relation: optionalTrimmedString(40),
+      relationOther: optionalTrimmedString(40),
       phone: optionalTrimmedString(15),
       mobilePhone: optionalTrimmedString(10),
     }).optional(),

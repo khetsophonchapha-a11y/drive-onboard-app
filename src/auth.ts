@@ -6,6 +6,7 @@ import { sampleAccounts } from "@/data/sample-data";
 import { getUserByEmail } from "@/data/users";
 import type { User } from "@/lib/types";
 import { ensureAdminSeed, fetchUserByEmail, isD1UsersEnabled, verifyPassword } from "@/lib/d1-users";
+import { getApplicationStatusByEmail, normalizeEmail } from "@/lib/applications";
 
 export const authOptions: NextAuthOptions = {
   // Use a stable secret to avoid "decryption operation failed" JWT errors.
@@ -31,7 +32,8 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          const email = credentials.email.toLowerCase();
+          const email = normalizeEmail(credentials.email);
+          const password = credentials.password;
 
           // Try D1 first
           if (isD1UsersEnabled()) {
@@ -40,9 +42,18 @@ export const authOptions: NextAuthOptions = {
               const d1User = await fetchUserByEmail(email);
               console.log("[Auth] User found:", d1User ? "YES" : "NO");
               if (d1User) {
-                const isValid = await verifyPassword(credentials.password, d1User.password_hash);
+                const isValid = await verifyPassword(password, d1User.password_hash);
                 console.log("[Auth] Password valid:", isValid);
                 if (isValid) {
+                  if (d1User.role === "employee") {
+                    const applicationStatus = await getApplicationStatusByEmail(email);
+                    console.log("[Auth] Employee application status:", applicationStatus ?? "NOT_FOUND");
+
+                    if (applicationStatus !== "approved") {
+                      throw new Error("ใบสมัครยังไม่ได้รับอนุมัติ");
+                    }
+                  }
+
                   return {
                     id: d1User.id,
                     name: d1User.name,
@@ -53,6 +64,9 @@ export const authOptions: NextAuthOptions = {
                 }
               }
             } catch (err: any) {
+              if (err?.message === "ใบสมัครยังไม่ได้รับอนุมัติ") {
+                throw err;
+              }
               console.error("[Auth] D1 Lookup Error:", err.message, err.stack);
               // Fallthrough to legacy
             }
@@ -70,7 +84,14 @@ export const authOptions: NextAuthOptions = {
           const legacyUser = getUserByEmail(email);
           const user = sampleUser ?? legacyUser;
 
-          if (user && user.password === credentials.password) {
+          if (user && user.password === password) {
+            if (user.role === "employee") {
+              const applicationStatus = await getApplicationStatusByEmail(email);
+              if (applicationStatus !== "approved") {
+                throw new Error("ใบสมัครยังไม่ได้รับอนุมัติ");
+              }
+            }
+
             return {
               id: user.email,
               name: user.name,
@@ -83,7 +104,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         } catch (error: any) {
           console.error("[Auth] CRITICAL ERROR in authorize:", error);
-          return null;
+          throw error;
         }
       },
     }),

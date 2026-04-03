@@ -101,6 +101,7 @@ export const sampleApplications: AppRow[] = sampleEmployeeAccounts.map(
   (employee, index) => ({
     appId: employee.appId ?? `sample-app-${index + 1}`,
     fullName: employee.name,
+    email: employee.email,
     phone: employee.phone,
     createdAt: new Date(2025, 1, 1 + index).toISOString(),
     status: "approved",
