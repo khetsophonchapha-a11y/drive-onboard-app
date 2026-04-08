@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, CheckCircle2, CircleAlert, Loader2, PhoneCall, Mail, Download, RefreshCcw, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-import { DailyReportSummaryRow } from "@/lib/daily-report";
+import { DailyReportSummaryRow, TOTAL_DAILY_REPORT_SLOTS } from "@/lib/daily-report";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,25 @@ interface DailyReportTrackerProps {
 }
 
 const normalizeRows = (value: unknown): DailyReportSummaryRow[] =>
-  Array.isArray(value) ? value as DailyReportSummaryRow[] : [];
+  Array.isArray(value)
+    ? value.map((row) => {
+      const summaryRow = row as Partial<DailyReportSummaryRow>;
+      const uploadedCount =
+        typeof summaryRow.uploadedCount === "number" && Number.isFinite(summaryRow.uploadedCount)
+          ? summaryRow.uploadedCount
+          : 0;
+      const totalSlots =
+        typeof summaryRow.totalSlots === "number" && Number.isFinite(summaryRow.totalSlots) && summaryRow.totalSlots > 0
+          ? summaryRow.totalSlots
+          : TOTAL_DAILY_REPORT_SLOTS;
+
+      return {
+        ...summaryRow,
+        uploadedCount,
+        totalSlots,
+      } as DailyReportSummaryRow;
+    })
+    : [];
 
 import { DailyReportView } from "@/components/daily-report/daily-report-view";
 
@@ -466,7 +484,9 @@ export function DailyReportTracker({
                       </div>
                     </TableCell>
                     <TableCell className="text-center font-medium text-foreground">
-                      {row.uploadedCount}/{row.totalSlots}
+                      {row.uploadedCount >= row.totalSlots 
+                        ? `${row.totalSlots}/${row.totalSlots}` 
+                        : `${row.uploadedCount}/${row.totalSlots}`}
                     </TableCell>
                     <TableCell className="text-center">
                       {statusBadge(row)}
