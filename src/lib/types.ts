@@ -22,6 +22,7 @@ export type AppRow = {
   phone?: string;
   createdAt: string; // ISO
   status: VerificationStatus;
+  currentAddress?: string;
 };
 
 

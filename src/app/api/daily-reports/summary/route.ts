@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { getR2Binding } from "@/lib/r2/binding";
 import {
   DailyReportDateSchema,
@@ -29,8 +30,21 @@ async function getJson(bucket: any, key: string): Promise<any | null> {
 }
 
 export async function GET(req: NextRequest) {
+  const session = await auth();
+  const user = session?.user;
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const role = (user as { role?: string }).role;
+  if (role !== "admin" && role !== "employee") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { searchParams } = new URL(req.url);
-  const email = searchParams.get("email") || undefined;
+  const requestedEmail = searchParams.get("email") || undefined;
+  const email = role === "employee" ? user.email || undefined : requestedEmail;
   const month = searchParams.get("month") || undefined;
   const date = searchParams.get("date") || undefined;
   const startParam = searchParams.get("startDate") || undefined;
@@ -95,25 +109,46 @@ export async function GET(req: NextRequest) {
       }
 
       let employees: string[] = [];
+      let addressMap = new Map<string, string>();
+      let phoneMap = new Map<string, string | undefined | null>();
       if (isD1UsersEnabled()) {
         const users = await fetchAllUsers();
         employees = users.filter((u) => u.role === "employee").map((u) => u.email);
-        const phoneMap = new Map(users.map((u) => [u.email.toLowerCase(), u.phone]));
+        phoneMap = new Map(users.map((u) => [u.email.toLowerCase(), u.phone]));
+        
+        try {
+          const { listApplicationSummaries } = await import("@/lib/applications");
+          const apps = await listApplicationSummaries();
+          for (const app of apps) {
+            if (app.email && app.currentAddress) {
+              addressMap.set(app.email.toLowerCase(), app.currentAddress);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load addresses", e);
+        }
+
         for (const row of d1Rows) {
-          const phone = phoneMap.get((row.email || "").toLowerCase());
+          const lowerEmail = (row.email || "").toLowerCase();
+          const phone = phoneMap.get(lowerEmail);
           if (phone) (row as any).phone = phone;
+
+          const addr = addressMap.get(lowerEmail);
+          if (addr) (row as any).currentAddress = addr;
         }
       }
       if (employees.length === 0) {
-        employees = Array.from(new Set(d1Rows.map((r) => r.email).filter(Boolean)));
+        employees = Array.from(new Set(d1Rows.map((r: any) => r.email).filter(Boolean)));
       }
 
       const filledAll: any[] = [];
       for (const emp of employees) {
-        const rowsForEmp = d1Rows.filter((r) => r.email === emp);
-        const filled = fillMissingForEmail(emp, rowsForEmp).map((r) => {
-          const phone = rowsForEmp.find((rr) => rr.phone)?.phone;
-          return { ...r, phone };
+        const rowsForEmp = d1Rows.filter((r: any) => r.email === emp);
+        const lowerEmp = emp.toLowerCase();
+        const phone = phoneMap.get(lowerEmp);
+        const currentAddress = addressMap.get(lowerEmp);
+        const filled = fillMissingForEmail(emp, rowsForEmp).map((r: any) => {
+          return { ...r, phone, currentAddress };
         });
         filledAll.push(...filled);
       }
@@ -141,7 +176,7 @@ export async function GET(req: NextRequest) {
       });
 
       const emailSegments =
-        listResponse.delimitedPrefixes?.map((p) => p.split("/")[1]).filter(Boolean) ?? [];
+        listResponse.delimitedPrefixes?.map((p: any) => p.split("/")[1]).filter(Boolean) ?? [];
 
       const rows: any[] = [];
       for (const segment of emailSegments) {

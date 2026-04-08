@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CheckCircle2, CircleAlert, Loader2, PhoneCall, Mail, Download, RefreshCcw, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { CalendarIcon, CheckCircle2, CircleAlert, Loader2, PhoneCall, Mail, Download, RefreshCcw, ArrowUpDown, ArrowUp, ArrowDown, MapPin } from "lucide-react";
 import { DailyReportSummaryRow, TOTAL_DAILY_REPORT_SLOTS } from "@/lib/daily-report";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
@@ -534,6 +534,15 @@ export function DailyReportTracker({
                                 <p className="text-sm font-medium text-foreground">อีเมล</p>
                                 <p className="text-sm text-muted-foreground">
                                   {row.email ?? "ไม่มีข้อมูล"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
+                              <div>
+                                <p className="text-sm font-medium text-foreground">ที่อยู่ปัจจุบัน</p>
+                                <p className="text-sm text-muted-foreground truncate max-w-[280px]" title={row.currentAddress ?? "ไม่มีข้อมูล"}>
+                                  {row.currentAddress ?? "ไม่มีข้อมูล"}
                                 </p>
                               </div>
                             </div>

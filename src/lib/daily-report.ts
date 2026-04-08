@@ -149,6 +149,7 @@ export interface DailyReportSummaryRow {
   fullName: string;
   email: string | null;
   phone?: string | null;
+  currentAddress?: string | null;
   date: string;
   uploadedCount: number;
   totalSlots: number;
