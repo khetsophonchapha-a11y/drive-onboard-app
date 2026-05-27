@@ -478,7 +478,7 @@ export const ApplicationFormTemplate = ({ data }: { data: ManifestWithSignatures
                 <div style={{ width: '250px', textAlign: 'center' }}>
                     <div style={{ ...fieldStyle, position: 'relative', marginBottom: '2px', justifyContent: 'center', alignItems: 'flex-end' }}>
                         <span style={{ ...labelStyle, position: 'absolute', left: 0, bottom: 0 }}>ลงชื่อ</span>
-                        <div style={{ borderBottom: '1px dotted #555', width: '100%', height: '40px', position: 'relative' }}>
+                        <div style={{ borderBottom: '1px dotted #555', width: '100%', height: '50px', position: 'relative' }}>
                             {/* Signature Image Injection - Centered */}
                             {data.signatures?.applicant && (
                                 <img
@@ -488,7 +488,9 @@ export const ApplicationFormTemplate = ({ data }: { data: ManifestWithSignatures
                                         bottom: '0px',
                                         left: '50%',
                                         transform: 'translateX(-50%)',
-                                        height: '40px',
+                                        height: '70px',
+                                        maxWidth: '200px',
+                                        objectFit: 'contain',
                                         zIndex: 10
                                     }}
                                     alt="Applicant Signature"
@@ -667,7 +669,7 @@ export const TransportContractTemplate = ({ data }: { data: ManifestWithSignatur
                     <span>( บริษัท เบิกฟ้ากรุ๊ป จำกัด )</span>
                 </div>
                 <div style={{ width: '250px', textAlign: 'center' }}>
-                    <div style={{ position: 'relative', height: '40px', borderBottom: '1px dotted #555', marginBottom: '5px' }}>
+                    <div style={{ position: 'relative', height: '50px', borderBottom: '1px dotted #555', marginBottom: '5px' }}>
                         {data.signatures?.applicant && (
                             <img
                                 src={data.signatures.applicant}
@@ -676,7 +678,9 @@ export const TransportContractTemplate = ({ data }: { data: ManifestWithSignatur
                                     bottom: '0px',
                                     left: '50%',
                                     transform: 'translateX(-50%)',
-                                    height: '40px',
+                                    height: '70px',
+                                    maxWidth: '200px',
+                                    objectFit: 'contain',
                                     zIndex: 10
                                 }}
                                 alt="Signature"
@@ -811,7 +815,7 @@ export const GuaranteeContractTemplate = ({ data }: { data: ManifestWithSignatur
             {/* Guarantor Signature Section - CENTERED */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px', paddingRight: '20px' }}>
                 <div style={{ width: '280px', textAlign: 'center' }}>
-                    <div style={{ position: 'relative', height: '40px', borderBottom: '1px dotted #555', marginBottom: '5px' }}>
+                    <div style={{ position: 'relative', height: '50px', borderBottom: '1px dotted #555', marginBottom: '5px' }}>
                         {data.signatures?.guarantor && (
                             <img
                                 src={data.signatures.guarantor}
@@ -820,7 +824,9 @@ export const GuaranteeContractTemplate = ({ data }: { data: ManifestWithSignatur
                                     bottom: '0px',
                                     left: '50%',
                                     transform: 'translateX(-50%)',
-                                    height: '40px',
+                                    height: '70px',
+                                    maxWidth: '200px',
+                                    objectFit: 'contain',
                                     zIndex: 10
                                 }}
                                 alt="Guarantor Signature"

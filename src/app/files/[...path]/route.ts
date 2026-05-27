@@ -64,12 +64,49 @@ export async function GET(
 
         // 3. Fetch from R2
         // Use 'any' to avoid missing R2Bucket type definition if @cloudflare/workers-types isn't global
-        const { env } = await getCloudflareContext();
-        const bucket = (env as { R2?: unknown }).R2 as any;
+        let bucket: any;
+        try {
+            const { env } = await getCloudflareContext();
+            bucket = (env as { R2?: unknown }).R2 as any;
+        } catch (err) {
+            console.warn("Could not get Cloudflare context (likely local dev)");
+        }
 
         if (!bucket) {
-            console.error("R2 binding not found");
-            return new NextResponse("R2 binding missing", { status: 500 });
+            // Local Development Fallback using AWS SDK
+            console.warn("R2 binding not found, falling back to AWS SDK (Local Dev)");
+            const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+            const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+            const endpoint = process.env.R2_ENDPOINT;
+            const bucketName = process.env.R2_BUCKET_NAME || process.env.R2_BUCKET;
+
+            if (!accessKeyId || !secretAccessKey || !endpoint || !bucketName) {
+                return new NextResponse("R2 binding missing and local fallback config incomplete", { status: 500 });
+            }
+
+            const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+            const s3 = new S3Client({
+                region: "auto",
+                endpoint: endpoint,
+                credentials: { accessKeyId, secretAccessKey },
+            });
+
+            try {
+                const response = await s3.send(new GetObjectCommand({
+                    Bucket: bucketName,
+                    Key: r2Key,
+                }));
+                
+                const headers = new Headers();
+                headers.set("Content-Type", response.ContentType || "application/octet-stream");
+                if (response.ETag) headers.set("etag", response.ETag);
+                headers.set("Cache-Control", "public, max-age=2592000, immutable");
+
+                return new NextResponse(response.Body as any, { headers });
+            } catch (error: any) {
+                console.error("Local R2 fallback error:", error);
+                return new NextResponse("File not found", { status: 404 });
+            }
         }
 
         const object = await bucket.get(r2Key);

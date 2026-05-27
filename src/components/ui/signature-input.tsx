@@ -25,6 +25,48 @@ export const SignatureInput = forwardRef<HTMLDivElement, SignatureInputProps>(
 
         useImperativeHandle(ref, () => containerRef.current as HTMLDivElement);
 
+        const loadBase64ToCanvas = (base64OrUrl: string) => {
+            const img = new window.Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                const pad = sigPadRef.current?.getSignaturePad();
+                const canvas = sigPadRef.current?.getCanvas();
+                if (!canvas || !pad) return;
+                
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const imgRatio = img.width / img.height;
+                
+                // Scale to fit within 90% of the canvas to give it a nice margin
+                const maxWidth = canvasWidth * 0.9;
+                const maxHeight = canvasHeight * 0.9;
+                
+                let drawWidth = maxWidth;
+                let drawHeight = maxWidth / imgRatio;
+                
+                if (drawHeight > maxHeight) {
+                    drawHeight = maxHeight;
+                    drawWidth = maxHeight * imgRatio;
+                }
+                
+                const xOffset = Math.max(0, (canvasWidth - drawWidth) / 2);
+                const yOffset = Math.max(0, (canvasHeight - drawHeight) / 2);
+                
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                // Draw centered with margin
+                ctx.drawImage(img, xOffset, yOffset, drawWidth, drawHeight);
+                
+                // Update internal state so isEmpty() works correctly
+                if ((pad as any)._isEmpty !== undefined) {
+                    (pad as any)._isEmpty = false;
+                }
+            };
+            img.src = base64OrUrl;
+        };
+
         useEffect(() => {
             const resizeCanvas = () => {
                 if (containerRef.current && sigPadRef.current) {
@@ -48,7 +90,7 @@ export const SignatureInput = forwardRef<HTMLDivElement, SignatureInputProps>(
                             // If no strokes (e.g. loaded from image), try to restore from value (DataURL)
                             // This might be redundant with the other useEffect but ensures it persists on resize
                             // Note: fromDataURL is async-ish in nature if loading from URL, but here value is usually dataURL
-                            sigPadRef.current.fromDataURL(value);
+                            loadBase64ToCanvas(value);
                         }
                     }
                 }
@@ -67,8 +109,9 @@ export const SignatureInput = forwardRef<HTMLDivElement, SignatureInputProps>(
                 if (sigPadRef.current.isEmpty()) {
                     onChange(undefined);
                 } else {
-                    // Returns data:image/png;base64,...
-                    const dataURL = sigPadRef.current.toDataURL("image/png");
+                    // Export the trimmed canvas to remove excess transparent/white space
+                    const trimmedCanvas = sigPadRef.current.getTrimmedCanvas();
+                    const dataURL = trimmedCanvas.toDataURL("image/png");
                     onChange(dataURL);
                 }
             }
@@ -95,16 +138,16 @@ export const SignatureInput = forwardRef<HTMLDivElement, SignatureInputProps>(
                         const reader = new FileReader();
                         reader.onloadend = () => {
                             const base64 = reader.result as string;
-                            sigPadRef.current?.fromDataURL(base64);
+                            loadBase64ToCanvas(base64);
                         };
                         reader.readAsDataURL(blob);
                     } catch (e) {
                         console.error("Failed to load signature image (likely CORS):", e);
                         // Fallback: Try loading directly, though this might cause tainted canvas issues if edited/saved again
-                        sigPadRef.current?.fromDataURL(value);
+                        loadBase64ToCanvas(value);
                     }
                 } else {
-                    sigPadRef.current.fromDataURL(value);
+                    loadBase64ToCanvas(value);
                 }
             };
 

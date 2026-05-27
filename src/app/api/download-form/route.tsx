@@ -58,9 +58,48 @@ async function fetchPublicAssetAsDataUrl(req: NextRequest, assetPath: string): P
 // Helper: Fetch image from R2 and convert to Base64
 async function fetchImageBase64(r2Key: string): Promise<string | null> {
   try {
-    const bucket = await getR2Binding();
-    const object = await bucket.get(r2Key);
+    // 1. Local Fallback using AWS SDK
+    if (process.env.NODE_ENV === 'development' || !process.env.NEXT_PUBLIC_APP_URL) {
+      const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+      const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+      const endpoint = process.env.R2_ENDPOINT;
+      const bucketName = process.env.R2_BUCKET_NAME || process.env.R2_BUCKET;
 
+      if (accessKeyId && secretAccessKey && endpoint && bucketName) {
+        const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+        const s3 = new S3Client({
+            region: "auto",
+            endpoint: endpoint,
+            credentials: { accessKeyId, secretAccessKey },
+        });
+
+        try {
+            const response = await s3.send(new GetObjectCommand({
+                Bucket: bucketName,
+                Key: r2Key,
+            }));
+            
+            if (response.Body) {
+                const chunks = [];
+                for await (const chunk of response.Body as any) {
+                    chunks.push(chunk);
+                }
+                const buffer = Buffer.concat(chunks);
+                const base64 = buffer.toString('base64');
+                const mimeType = response.ContentType || 'image/png';
+                return `data:${mimeType};base64,${base64}`;
+            }
+        } catch (e: any) {
+            console.warn(`S3 fallback failed to get key ${r2Key}:`, e.message);
+        }
+      }
+    }
+
+    // 2. Production / Remote using R2 Binding
+    const bucket = await getR2Binding();
+    if (!bucket) return null;
+    
+    const object = await bucket.get(r2Key);
     if (!object) return null;
 
     const arrayBuffer = await object.arrayBuffer();
