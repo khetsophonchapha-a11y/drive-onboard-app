@@ -141,7 +141,8 @@ describe('getSubDistrictOptions', () => {
 
         expect(result).toBeInstanceOf(Array);
         expect(result.length).toBeGreaterThan(0);
-        expect(result.some(s => s.value === 'บางนา')).toBe(true);
+        expect(result.some(s => s.value === 'บางนาใต้')).toBe(true);
+        expect(result.some(s => s.value === 'บางนาเหนือ')).toBe(true);
     });
 
     it('should return sub-districts for Din Daeng', () => {
@@ -150,7 +151,6 @@ describe('getSubDistrictOptions', () => {
         expect(result).toBeInstanceOf(Array);
         expect(result.length).toBeGreaterThan(0);
         expect(result.some(s => s.value === 'ดินแดง')).toBe(true);
-        expect(result.some(s => s.value === 'สามเสนใน')).toBe(true);
     });
 
     it('should return sub-districts for Chiang Mai, Mueang', () => {

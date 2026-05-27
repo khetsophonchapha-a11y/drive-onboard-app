@@ -7,10 +7,10 @@ const WORKER_SECRET = process.env.WORKER_SECRET || "dev-secret-token";
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { path: string[] } }
+    { params }: { params: Promise<{ path: string[] }> }
 ) {
     try {
-        const { path } = params;
+        const { path } = await params;
         // Reconstruct the R2 key from the path segments.
         // The path comes in as an array, e.g. ['applications', 'app-123', 'doc.jpg']
         // We need to join them with '/' to get the key.
@@ -64,8 +64,8 @@ export async function GET(
 
         // 3. Fetch from R2
         // Use 'any' to avoid missing R2Bucket type definition if @cloudflare/workers-types isn't global
-        const env = await getCloudflareContext().env;
-        const bucket = env.R2 as any;
+        const { env } = await getCloudflareContext();
+        const bucket = (env as { R2?: unknown }).R2 as any;
 
         if (!bucket) {
             console.error("R2 binding not found");

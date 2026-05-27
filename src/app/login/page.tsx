@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Logo } from "@/components/logo";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
@@ -27,6 +27,16 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      return;
+    }
+
+    const role = (session?.user as { role?: string } | undefined)?.role;
+    router.replace(role === "employee" ? "/employee/daily-report" : "/dashboard");
+  }, [router, session, status]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -57,6 +67,10 @@ export default function LoginPage() {
     } else {
       router.push("/dashboard");
     }
+  }
+
+  if (status === "authenticated") {
+    return null;
   }
 
   return (

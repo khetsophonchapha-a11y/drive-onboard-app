@@ -5,10 +5,12 @@ export const UserSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().email(),
-  role: z.enum(['admin', 'employee']),
+  role: z.enum(['admin', 'employee', 'god']),
   phone: z.string().optional(),
   avatarUrl: z.string().optional(),
   password: z.string().optional(),
+  status: z.enum(['active', 'archived']).default('active'),
+  hubId: z.string().nullable().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -22,7 +24,9 @@ export type AppRow = {
   phone?: string;
   createdAt: string; // ISO
   status: VerificationStatus;
-  currentAddress?: string;
+  hubId?: string | null;
+  hubName?: string | null;
+  terminatedAt?: string | null;
 };
 
 
@@ -45,7 +49,7 @@ const AddressSchema = z.object({
   postalCode: z.string().optional(),
 });
 
-const RequiredAddressSchema = AddressSchema.extend({
+export const RequiredAddressSchema = AddressSchema.extend({
   houseNo: z.string({ required_error: 'กรอกบ้านเลขที่' }).trim().min(1, 'กรอกบ้านเลขที่'),
   subDistrict: z.string({ required_error: 'กรอกตำบล/แขวง' }).trim().min(1, 'กรอกตำบล/แขวง'),
   district: z.string({ required_error: 'กรอกอำเภอ/เขต' }).trim().min(1, 'กรอกอำเภอ/เขต'),
@@ -229,6 +233,7 @@ export const ManifestSchema = z.object({
     race: requiredTrimmedString('เชื้อชาติ', 40),
     nationality: requiredTrimmedString('สัญชาติ', 40),
     address: RequiredAddressSchema,
+    isAddressSameAsApplicantCurrent: z.boolean().default(false),
     nationalId: thaiNationalIdSchema,
     phone: phoneNumberSchema,
     occupation: requiredTrimmedString('อาชีพผู้ค้ำประกัน', 80),
@@ -320,6 +325,7 @@ export const ManifestSchema = z.object({
     completeness: z.enum(['incomplete', 'complete']),
     verification: z.enum(['pending', 'approved', 'rejected', 'terminated']),
     notes: z.string().optional(),
+    terminatedAt: z.string().optional(),
   }).optional(),
 });
 
@@ -444,6 +450,7 @@ export const EditManifestSchema = z.object({
     race: optionalTrimmedString(40),
     nationality: optionalTrimmedString(40),
     address: OptionalAddressSchema.optional(),
+    isAddressSameAsApplicantCurrent: z.boolean().optional(),
     nationalId: optionalTrimmedString(13),
     phone: optionalTrimmedString(15),
     occupation: optionalTrimmedString(80),
@@ -487,6 +494,7 @@ export const EditManifestSchema = z.object({
     completeness: z.enum(['incomplete', 'complete']).optional(),
     verification: z.enum(['pending', 'approved', 'rejected', 'terminated']).optional(),
     notes: z.string().optional(),
+    terminatedAt: z.string().optional(),
   }).optional(),
 });
 

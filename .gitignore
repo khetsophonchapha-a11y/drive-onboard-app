@@ -39,6 +39,7 @@ next-env.d.ts
 
 .genkit/*
 .env*
+!.env.testsprite.example
 src/env
 
 # firebase
@@ -52,3 +53,14 @@ scripts/restore_secrets.sh
 .open-next
 .wrangler
 backup_hidden
+
+# Local and test files
+.cursor/
+.vscode/
+tmp/
+.tmp-pages/
+setup_local_db.sql
+.next-server.log
+.env.testsprite.example
+scripts/testsprite-mcp.mjs
+docs/testsprite.md

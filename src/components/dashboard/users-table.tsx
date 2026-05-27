@@ -29,11 +29,12 @@ import { getColumns } from "./users-columns";
 
 interface UsersTableProps {
   data: User[];
-  onEdit: (user: User) => void;
   onDelete: (user: User) => void;
+  onEditHub: (user: User) => void;
+  getHubName: (hubId?: string | null) => string;
 }
 
-export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
+export function UsersTable({ data, onDelete, onEditHub, getHubName }: UsersTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -42,7 +43,7 @@ export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
-  const columns = React.useMemo(() => getColumns({ onEdit, onDelete }), [onEdit, onDelete]);
+  const columns = React.useMemo(() => getColumns({ onDelete, onEditHub, getHubName }), [onDelete, onEditHub, getHubName]);
 
   const table = useReactTable({
     data,

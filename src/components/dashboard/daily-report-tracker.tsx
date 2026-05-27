@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CheckCircle2, CircleAlert, Loader2, PhoneCall, Mail, Download, RefreshCcw, ArrowUpDown, ArrowUp, ArrowDown, MapPin } from "lucide-react";
-import { DailyReportSummaryRow, TOTAL_DAILY_REPORT_SLOTS } from "@/lib/daily-report";
+import { CalendarIcon, CheckCircle2, CircleAlert, Loader2, PhoneCall, Mail, MapPin, Download, RefreshCcw, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { DailyReportSummaryRow, formatDailyReportUploadCount, TOTAL_DAILY_REPORT_SLOTS } from "@/lib/daily-report";
+import { DailyReportView } from "@/components/daily-report/daily-report-view";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+import type { Hub } from "@/lib/d1-hubs";
+
 type StatusFilter = "all" | "uploaded" | "partial" | "missing" | "complete";
 
 interface DailyReportTrackerProps {
@@ -34,6 +37,39 @@ interface DailyReportTrackerProps {
   userRole?: string;
 }
 
+const normalizeStatus = (status: unknown): DailyReportSummaryRow["status"] => {
+  if (status === "complete" || status === "partial" || status === "missing") {
+    return status;
+  }
+  return "missing";
+};
+
+const toSafeDateString = (value: unknown) => {
+  if (typeof value !== "string") {
+    return format(new Date(0), "yyyy-MM-dd");
+  }
+
+  const parsed = parseISO(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return format(new Date(0), "yyyy-MM-dd");
+  }
+
+  return value;
+};
+
+const formatIsoLabel = (value: unknown, dateFormat: string) => {
+  if (typeof value !== "string") {
+    return "—";
+  }
+
+  const parsed = parseISO(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return "—";
+  }
+
+  return format(parsed, dateFormat);
+};
+
 const normalizeRows = (value: unknown): DailyReportSummaryRow[] =>
   Array.isArray(value)
     ? value.map((row) => {
@@ -42,22 +78,33 @@ const normalizeRows = (value: unknown): DailyReportSummaryRow[] =>
         typeof summaryRow.uploadedCount === "number" && Number.isFinite(summaryRow.uploadedCount)
           ? summaryRow.uploadedCount
           : 0;
-      const totalSlots =
-        typeof summaryRow.totalSlots === "number" && Number.isFinite(summaryRow.totalSlots) && summaryRow.totalSlots > 0
-          ? summaryRow.totalSlots
-          : TOTAL_DAILY_REPORT_SLOTS;
 
       return {
         ...summaryRow,
+        appId: typeof summaryRow.appId === "string" && summaryRow.appId.trim().length > 0 ? summaryRow.appId : "unknown-app",
+        fullName:
+          typeof summaryRow.fullName === "string" && summaryRow.fullName.trim().length > 0
+            ? summaryRow.fullName
+            : "ไม่ระบุชื่อ",
+        email: typeof summaryRow.email === "string" ? summaryRow.email : undefined,
+        date: toSafeDateString(summaryRow.date),
         uploadedCount,
-        totalSlots,
+        totalSlots: TOTAL_DAILY_REPORT_SLOTS,
+        status: normalizeStatus(summaryRow.status),
+        notes: typeof summaryRow.notes === "string" ? summaryRow.notes : undefined,
+        lastUpdated:
+          typeof summaryRow.lastUpdated === "string" && Number.isFinite(parseISO(summaryRow.lastUpdated).getTime())
+            ? summaryRow.lastUpdated
+            : undefined,
+        phone: typeof summaryRow.phone === "string" ? summaryRow.phone : null,
+        extraUploadedCount:
+          typeof summaryRow.extraUploadedCount === "number" && Number.isFinite(summaryRow.extraUploadedCount)
+            ? summaryRow.extraUploadedCount
+            : 0,
+        currentAddressText: typeof summaryRow.currentAddressText === "string" ? summaryRow.currentAddressText : null,
       } as DailyReportSummaryRow;
     })
     : [];
-
-import { DailyReportView } from "@/components/daily-report/daily-report-view";
-
-// ... existing imports
 
 export function DailyReportTracker({
   initialDate,
@@ -68,7 +115,7 @@ export function DailyReportTracker({
   userRole,
 }: DailyReportTrackerProps) {
   const todayStr = format(new Date(), "yyyy-MM-dd");
-  const isAdmin = userRole === "admin";
+  const isAdmin = userRole === "admin" || userRole === "god";
   const [rows, setRows] = useState<DailyReportSummaryRow[]>(normalizeRows(initialRows));
   const [startDate, setStartDate] = useState(
     (initialStartDate ?? initialDate) > todayStr ? todayStr : initialStartDate ?? initialDate
@@ -86,6 +133,9 @@ export function DailyReportTracker({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
   const observerTarget = useRef<HTMLDivElement>(null);
 
+  const [hubs, setHubs] = useState<Hub[]>([]);
+  const [hubFilter, setHubFilter] = useState<string>("all");
+
   const [selectedReport, setSelectedReport] = useState<DailyReportSummaryRow | null>(null);
   const { toast } = useToast();
 
@@ -102,7 +152,7 @@ export function DailyReportTracker({
   // Reset visible count on other filter changes
   useEffect(() => {
     setVisibleCount(50);
-  }, [statusFilter, startDate, endDate, sortConfig]);
+  }, [statusFilter, startDate, endDate, sortConfig, hubFilter]);
 
   useEffect(() => {
     setRows(normalizeRows(initialRows));
@@ -114,6 +164,17 @@ export function DailyReportTracker({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, userEmail, userRole]);
+
+  useEffect(() => {
+    if (isAdmin && hubs.length === 0) {
+      fetch("/api/hubs")
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setHubs(data);
+        })
+        .catch((err) => console.error("Failed to fetch hubs:", err));
+    }
+  }, [isAdmin, hubs.length]);
 
   const fetchSummary = async ({ start, end }: { start: string; end: string }) => {
     try {
@@ -144,23 +205,13 @@ export function DailyReportTracker({
     }
   };
 
-  const handleDateChange = async (value: string, field: "start" | "end") => {
+  const handleDateChange = (value: string, field: "start" | "end") => {
     const clamped = value > todayStr ? todayStr : value;
-    const nextStart = field === "start" ? clamped : startDate;
-    const nextEnd = field === "end" ? clamped : endDate;
-
     if (field === "start") {
-      setStartDate(nextStart);
+      setStartDate(clamped);
     } else {
-      setEndDate(nextEnd);
+      setEndDate(clamped);
     }
-
-    if (!nextStart || !nextEnd) {
-      setRows([]);
-      return;
-    }
-
-    await fetchSummary({ start: nextStart, end: nextEnd });
   };
 
   const handleSort = (key: string) => {
@@ -186,6 +237,12 @@ export function DailyReportTracker({
           return true;
       }
     }).filter((row) => {
+      if (hubFilter !== "all") {
+        if (hubFilter === "none") return !row.hubId;
+        return row.hubId === hubFilter;
+      }
+      return true;
+    }).filter((row) => {
       if (!term) return true;
       return (
         row.fullName.toLowerCase().includes(term) ||
@@ -205,7 +262,9 @@ export function DailyReportTracker({
           comparison = a.fullName.localeCompare(b.fullName);
           break;
         case 'uploaded':
-          comparison = a.uploadedCount - b.uploadedCount;
+          comparison =
+            (a.uploadedCount + (a.extraUploadedCount ?? 0)) -
+            (b.uploadedCount + (b.extraUploadedCount ?? 0));
           break;
         case 'status':
           comparison = a.status.localeCompare(b.status);
@@ -227,6 +286,29 @@ export function DailyReportTracker({
   const visibleRows = useMemo(() => {
     return filteredRows.slice(0, visibleCount);
   }, [filteredRows, visibleCount]);
+
+  const groupedRows = useMemo(() => {
+    const groups = new Map<string | null, DailyReportSummaryRow[]>();
+    for (const row of visibleRows) {
+      const hubId = row.hubId || null;
+      if (!groups.has(hubId)) groups.set(hubId, []);
+      groups.get(hubId)!.push(row);
+    }
+    // Sort groups: null (ไม่มี Hub) first, then alphabetical by hubName
+    const sortedGroupKeys = Array.from(groups.keys()).sort((a, b) => {
+      if (a === null) return -1;
+      if (b === null) return 1;
+      const nameA = groups.get(a)![0].hubName || "";
+      const nameB = groups.get(b)![0].hubName || "";
+      return nameA.localeCompare(nameB);
+    });
+
+    return sortedGroupKeys.map(key => ({
+      hubId: key,
+      hubName: key === null ? "ไม่มี Hub" : (groups.get(key)![0].hubName || "ไม่ทราบ Hub"),
+      rows: groups.get(key)!
+    }));
+  }, [visibleRows]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -316,6 +398,25 @@ export function DailyReportTracker({
             </SelectContent>
           </Select>
         </div>
+        {isAdmin && (
+          <div className="flex flex-1 flex-col gap-2">
+            <Label>กรอง Hub</Label>
+            <Select value={hubFilter} onValueChange={setHubFilter}>
+              <SelectTrigger className="max-w-xs">
+                <SelectValue placeholder="เลือก Hub" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ทั้งหมด</SelectItem>
+                <SelectItem value="none">ไม่มี Hub</SelectItem>
+                {hubs.map((hub) => (
+                  <SelectItem key={hub.id} value={hub.id}>
+                    {hub.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <Button
             type="button"
@@ -457,107 +558,124 @@ export function DailyReportTracker({
                   </TableCell>
                 </TableRow>
               ))
-              : visibleRows.length > 0
-                ? visibleRows.map((row, idx) => (
-                  <TableRow
-                    key={`${row.appId}-${row.date}-${idx}`}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={(e) => {
-                      // Prevent opening if clicking on action buttons
-                      if ((e.target as HTMLElement).closest("button")) return;
-                      setSelectedReport(row);
-                    }}
-                  >
-                    <TableCell>
-                      {format(parseISO(row.date), "dd MMM yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">
-                          {row.fullName}
-                        </span>
-                        {row.email && (
-                          <span className="text-xs text-muted-foreground">
-                            {row.email}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center font-medium text-foreground">
-                      {row.uploadedCount >= row.totalSlots 
-                        ? `${row.totalSlots}/${row.totalSlots}` 
-                        : `${row.uploadedCount}/${row.totalSlots}`}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {statusBadge(row)}
-                    </TableCell>
-                    <TableCell>
-                      {row.lastUpdated
-                        ? format(parseISO(row.lastUpdated), "dd MMM yyyy HH:mm")
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {row.notes ??
-                        (row.uploadedCount === row.totalSlots
-                          ? "ครบถ้วน"
-                          : row.uploadedCount === 0
-                            ? "ยังไม่มีการอัปโหลด"
-                            : "ยังอัปโหลดไม่ครบ")}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            ข้อมูลติดต่อ
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>ข้อมูลติดต่อ</DialogTitle>
-                            <DialogDescription>
-                              รายละเอียดการติดต่อของ {row.fullName}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-3 py-2">
-                            <div className="flex items-start gap-3">
-                              <PhoneCall className="h-4 w-4 text-muted-foreground mt-1" />
-                              <div>
-                                <p className="text-sm font-medium text-foreground">เบอร์โทร</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {row.phone && row.phone.trim().length > 0 ? row.phone : "ไม่มีข้อมูล"}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                              <Mail className="h-4 w-4 text-muted-foreground mt-1" />
-                              <div>
-                                <p className="text-sm font-medium text-foreground">อีเมล</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {row.email ?? "ไม่มีข้อมูล"}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                              <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
-                              <div>
-                                <p className="text-sm font-medium text-foreground">ที่อยู่ปัจจุบัน</p>
-                                <p className="text-sm text-muted-foreground truncate max-w-[280px]" title={row.currentAddress ?? "ไม่มีข้อมูล"}>
-                                  {row.currentAddress ?? "ไม่มีข้อมูล"}
-                                </p>
-                              </div>
-                            </div>
+              : groupedRows.length > 0
+                ? groupedRows.map((group) => (
+                  <React.Fragment key={group.hubId || "no-hub"}>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30 border-t-2 border-t-border">
+                      <TableCell colSpan={7} className="font-semibold text-foreground py-3">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          {group.hubName} ({group.rows.length} คน)
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {group.rows.map((row, idx) => (
+                      <TableRow
+                        key={`${row.appId}-${row.date}-${idx}`}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest("button")) return;
+                          setSelectedReport(row);
+                        }}
+                      >
+                        <TableCell>
+                          {formatIsoLabel(row.date, "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">
+                              {row.fullName}
+                            </span>
+                            {row.email && (
+                              <span className="text-xs text-muted-foreground">
+                                {row.email}
+                              </span>
+                            )}
                           </div>
-                          <DialogFooter>
-                            <DialogClose asChild>
-                              <Button type="button" variant="secondary">
-                                ปิดหน้าต่าง
+                        </TableCell>
+                        <TableCell className="text-center font-medium text-foreground">
+                          {formatDailyReportUploadCount(
+                            Math.min(row.uploadedCount, TOTAL_DAILY_REPORT_SLOTS),
+                            TOTAL_DAILY_REPORT_SLOTS,
+                            row.extraUploadedCount ?? 0
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {statusBadge(row)}
+                        </TableCell>
+                        <TableCell>
+                          {row.lastUpdated
+                            ? formatIsoLabel(row.lastUpdated, "dd MMM yyyy HH:mm")
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {row.notes ??
+                            (row.uploadedCount === row.totalSlots
+                              ? "ครบถ้วน"
+                              : row.uploadedCount === 0 && (row.extraUploadedCount ?? 0) > 0
+                                ? `มีรูปอื่นๆ ${(row.extraUploadedCount ?? 0)} รูป`
+                              : row.uploadedCount === 0
+                                ? "ยังไม่มีการอัปโหลด"
+                                : "ยังอัปโหลดไม่ครบ")}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                ข้อมูลติดต่อ
                               </Button>
-                            </DialogClose>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </TableCell>
-                  </TableRow>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>ข้อมูลติดต่อ</DialogTitle>
+                                <DialogDescription>
+                                  รายละเอียดการติดต่อของ {row.fullName}
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-3 py-2">
+                                <div className="flex items-start gap-3">
+                                  <PhoneCall className="h-4 w-4 text-muted-foreground mt-1" />
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">เบอร์โทร</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {row.phone && row.phone.trim().length > 0 ? row.phone : "ไม่มีข้อมูล"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                  <Mail className="h-4 w-4 text-muted-foreground mt-1" />
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">อีเมล</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {row.email ?? "ไม่มีข้อมูล"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                  <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">ที่อยู่ปัจจุบัน</p>
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                                      {row.currentAddressText && row.currentAddressText.trim().length > 0
+                                        ? row.currentAddressText
+                                        : "ไม่มีข้อมูล"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <DialogClose asChild>
+                                  <Button type="button" variant="secondary">
+                                    ปิดหน้าต่าง
+                                  </Button>
+                                </DialogClose>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </React.Fragment>
                 ))
                 : (
                   <TableRow>
@@ -575,7 +693,7 @@ export function DailyReportTracker({
         <DialogContent className="max-w-4xl h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              รายงานประจำวัน: {selectedReport ? format(parseISO(selectedReport.date), "dd MMM yyyy") : ""}
+              รายงานประจำวัน: {selectedReport ? formatIsoLabel(selectedReport.date, "dd MMM yyyy") : ""}
             </DialogTitle>
             <DialogDescription>
               ของ {selectedReport?.fullName} ({selectedReport?.email})
@@ -584,7 +702,7 @@ export function DailyReportTracker({
           {selectedReport && (
             <div className="mt-4">
               <DailyReportView
-                overrideDate={parseISO(selectedReport.date)}
+                overrideDate={parseISO(toSafeDateString(selectedReport.date))}
                 overrideEmail={selectedReport.email ?? undefined}
                 className="w-full"
                 onUpdate={() => {

@@ -45,6 +45,10 @@ export const authOptions: NextAuthOptions = {
                 const isValid = await verifyPassword(password, d1User.password_hash);
                 console.log("[Auth] Password valid:", isValid);
                 if (isValid) {
+                  if (d1User.status === 'archived') {
+                    throw new Error("บัญชีของคุณถูกระงับการใช้งาน");
+                  }
+
                   if (d1User.role === "employee") {
                     const applicationStatus = await getApplicationStatusByEmail(email);
                     console.log("[Auth] Employee application status:", applicationStatus ?? "NOT_FOUND");
@@ -96,7 +100,7 @@ export const authOptions: NextAuthOptions = {
               id: user.email,
               name: user.name,
               email: user.email,
-              role: user.role === "admin" ? "admin" : "employee",
+              role: user.role as User["role"],
               avatarUrl: (user as any).avatarUrl,
             } as User;
           }

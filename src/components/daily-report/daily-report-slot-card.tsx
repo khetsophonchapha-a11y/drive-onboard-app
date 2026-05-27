@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, UploadCloud, MoreHorizontal, Eye, Download } from "lucide-react";
+import { Loader2, Trash2, UploadCloud, MoreHorizontal, Eye, Download, Camera } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,27 +14,40 @@ import {
 import type { DailyReportResponseSlot } from "@/lib/daily-report";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 
 interface DailyReportSlotCardProps {
   slot: DailyReportResponseSlot;
   uploading: boolean;
   deleting: boolean;
+  descriptionSaving?: boolean;
   onUpload: (file: File) => void;
   onDelete: () => void;
+  onDescriptionSave?: (description: string) => void;
   disabled?: boolean;
   disabledReason?: string;
+  showDescriptionField?: boolean;
 }
 
 export function DailyReportSlotCard({
   slot,
   uploading,
   deleting,
+  descriptionSaving = false,
   onUpload,
   onDelete,
+  onDescriptionSave,
   disabled,
   disabledReason,
+  showDescriptionField = false,
 }: DailyReportSlotCardProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [description, setDescription] = useState(slot.description ?? "");
+
+  useEffect(() => {
+    setDescription(slot.description ?? "");
+  }, [slot.description, slot.id]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -43,11 +56,16 @@ export function DailyReportSlotCard({
     }
   };
 
-  const handleUploadClick = () => {
-    inputRef.current?.click();
+  const handleFilePickerClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const isBusy = uploading || deleting;
+  const handleCameraClick = () => {
+    cameraInputRef.current?.click();
+  };
+
+  const isBusy = uploading || deleting || descriptionSaving;
+  const descriptionDirty = description.trim() !== (slot.description ?? "").trim();
 
   return (
     <Card>
@@ -114,7 +132,15 @@ export function DailyReportSlotCard({
           <span>{slot.uploadedAt ? format(new Date(slot.uploadedAt), "PPp") : "-"}</span>
         </div>
         <input
-          ref={inputRef}
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+          disabled={isBusy || disabled}
+        />
+        <input
+          ref={cameraInputRef}
           type="file"
           accept="image/*"
           capture="environment"
@@ -123,18 +149,60 @@ export function DailyReportSlotCard({
           disabled={isBusy || disabled}
         />
         {!disabled && (
-          <Button
-            className="w-full"
-            onClick={handleUploadClick}
-            disabled={isBusy}
-          >
-            {uploading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <UploadCloud className="mr-2 h-4 w-4" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleFilePickerClick}
+              disabled={isBusy}
+            >
+              {uploading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <UploadCloud className="mr-2 h-4 w-4" />
+              )}
+              {slot.url ? "เปลี่ยนจากไฟล์" : "อัปโหลดจากไฟล์"}
+            </Button>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleCameraClick}
+              disabled={isBusy}
+            >
+              {uploading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="mr-2 h-4 w-4" />
+              )}
+              {slot.url ? "ถ่ายรูปใหม่" : "ถ่ายรูป"}
+            </Button>
+          </div>
+        )}
+        {showDescriptionField && (
+          <div className="space-y-2">
+            <Textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              disabled={disabled || !slot.url || isBusy}
+              placeholder={slot.url ? "รายละเอียดเพิ่มเติม (ไม่บังคับ)" : "อัปโหลดรูปก่อนแล้วจึงเพิ่มรายละเอียด"}
+              rows={3}
+            />
+            {!disabled && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => onDescriptionSave?.(description.trim())}
+                disabled={!slot.url || isBusy || !descriptionDirty}
+              >
+                {descriptionSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                บันทึกคำอธิบาย
+              </Button>
             )}
-            {slot.url ? "Replace Image" : "Upload Image"}
-          </Button>
+          </div>
         )}
         {disabled && disabledReason && !slot.url && (
           <p className="text-xs text-center text-destructive">{disabledReason}</p>

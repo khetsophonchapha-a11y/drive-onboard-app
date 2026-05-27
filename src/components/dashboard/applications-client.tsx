@@ -5,8 +5,9 @@ import { useState, useMemo } from "react";
 import { OverviewCards } from "@/components/dashboard/overview-cards";
 import { ApplicationsTable } from "@/components/dashboard/applications-table";
 import type { AppRow, VerificationStatus } from "@/lib/types";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { softDeleteApplication } from "@/app/actions";
+import { useRouter } from "next/navigation";
 
 type ApplicationsClientProps = {
   initialApplications: AppRow[];
@@ -17,15 +18,36 @@ type ApplicationsClientProps = {
 export function ApplicationsClient({ initialApplications, userRole, userEmail }: ApplicationsClientProps) {
   const [statusFilter, setStatusFilter] = useState<VerificationStatus | "all">("all");
   const { toast } = useToast();
+  const router = useRouter();
   
   // No more local 'applications' state. We use the prop directly.
   // This ensures that when the parent Server Component re-renders with new data,
   // this component also re-renders with the fresh data.
-  const isAdmin = userRole === "admin";
+  const isAdmin = userRole === "admin" || userRole === "god";
   const applications = useMemo(() => {
-    if (isAdmin) return initialApplications;
+    const normalizedApplications = initialApplications
+      .filter((app): app is AppRow => Boolean(app?.appId))
+      .map((app) => ({
+        appId: app.appId,
+        fullName: typeof app.fullName === "string" && app.fullName.trim().length > 0 ? app.fullName : "ไม่ระบุชื่อ",
+        email: typeof app.email === "string" ? app.email : undefined,
+        phone: typeof app.phone === "string" ? app.phone : undefined,
+        createdAt:
+          typeof app.createdAt === "string" && Number.isFinite(new Date(app.createdAt).getTime())
+            ? app.createdAt
+            : new Date(0).toISOString(),
+        status:
+          app.status === "approved" ||
+          app.status === "rejected" ||
+          app.status === "terminated" ||
+          app.status === "pending"
+            ? app.status
+            : "pending",
+      }));
+
+    if (isAdmin) return normalizedApplications;
     // employee: แสดงเฉพาะของตัวเอง ถ้าหารายการไม่เจอ ให้ได้เป็น [] ไม่เห็นของคนอื่น
-    return initialApplications.filter(
+    return normalizedApplications.filter(
       (app) => app.email?.toLowerCase() === userEmail?.toLowerCase()
     );
   }, [initialApplications, isAdmin, userEmail]);
@@ -43,19 +65,21 @@ export function ApplicationsClient({ initialApplications, userRole, userEmail }:
   }, [applications, statusFilter]);
 
   const handleDeleteApplication = async (applicationId: string) => {
-    // This is a placeholder. In a real app, you would call a DELETE API endpoint.
-    // This endpoint would need to:
-    // 1. Delete all files in the `applications/{appId}` folder in R2.
-    // 2. Delete the `manifest.json`.
-    // 3. Remove the entry from `index.json`.
-    // After that, it should call revalidateTag('r2-index') and the UI will update.
-    console.log(`TODO: Implement deletion for ${applicationId}`);
-    
-    toast({
-      title: "ยังไม่รองรับการลบ",
-      description: "ฟังก์ชันการลบข้อมูลยังไม่ถูกสร้างขึ้น",
-      variant: "destructive"
-    })
+    const result = await softDeleteApplication(applicationId);
+
+    if (result.success) {
+      toast({
+        title: "ลบใบสมัครสำเร็จ",
+        description: "ใบสมัครถูกย้ายไปในถังขยะ สามารถกู้คืนได้",
+      });
+      router.refresh();
+    } else {
+      toast({
+        title: "ลบใบสมัครไม่สำเร็จ",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
   };
 
   return (

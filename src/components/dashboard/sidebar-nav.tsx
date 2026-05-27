@@ -17,6 +17,7 @@ import {
   UserCircle,
   ClipboardList,
   Users,
+  MapPin,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -50,6 +51,12 @@ export function SidebarNav() {
       icon: Users,
       adminOnly: true,
     },
+    {
+      href: "/dashboard/hubs",
+      label: "จัดการ Hub",
+      icon: MapPin,
+      adminOnly: true,
+    },
   ];
 
   return (
@@ -60,7 +67,7 @@ export function SidebarNav() {
       <SidebarContent className="p-2">
         <SidebarMenu>
           {menuItems
-            .filter((item) => !item.adminOnly || user?.role === "admin")
+            .filter((item) => !item.adminOnly || user?.role === "admin" || user?.role === "god")
             .map((item) => (
               <SidebarMenuItem key={item.href}>
                 <Link href={item.href}>

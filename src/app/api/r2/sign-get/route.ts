@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { resolvePublicOrigin } from "@/lib/public-url";
 import { getWorkerFileUrl } from "@/lib/worker-url";
 
 const Body = z.object({ r2Key: z.string().min(1) });
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     // T-050: Use Worker Proxy instead of S3 Presigned URL
     // This solves encoding issues and allows caching.
-    const url = getWorkerFileUrl(r2Key);
+    const url = getWorkerFileUrl(r2Key, { origin: resolvePublicOrigin(req) });
 
     return NextResponse.json({ url });
 

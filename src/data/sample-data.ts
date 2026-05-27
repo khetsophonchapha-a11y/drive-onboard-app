@@ -35,6 +35,10 @@ const SLOT_PLACEHOLDERS: Record<DailyReportSlotId, string> = {
     "https://images.unsplash.com/photo-1503424886300-4ce5a5438e02?auto=format&fit=crop&w=800&q=60",
   "payment-proof":
     "https://images.unsplash.com/photo-1523289333742-be1143f6b766?auto=format&fit=crop&w=800&q=60",
+  "other-1":
+    "https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=800&q=60",
+  "other-2":
+    "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=60",
 };
 
 export const sampleAdminAccount: SampleAccount = {

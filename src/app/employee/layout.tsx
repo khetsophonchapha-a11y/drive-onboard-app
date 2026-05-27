@@ -1,7 +1,19 @@
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/dashboard/header";
 import { AuthProvider } from "@/components/auth-provider";
 
-export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
+export default async function EmployeeLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect("/login?callbackUrl=/employee/daily-report");
+  }
+
+  if ((session.user as { role?: string }).role !== "employee") {
+    redirect("/dashboard");
+  }
+
   return (
     <AuthProvider>
       <div className="flex min-h-screen w-full flex-col">
@@ -11,4 +23,3 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
     </AuthProvider>
   );
 }
-

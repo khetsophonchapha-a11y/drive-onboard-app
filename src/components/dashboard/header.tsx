@@ -6,7 +6,7 @@ import React from "react";
 import { Logo } from "../logo";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "../ui/button";
-import { LogOut, UserCircle, Shield, Menu } from "lucide-react";
+import { LogOut, UserCircle, Shield, Menu, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -16,14 +16,15 @@ export function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [open, setOpen] = React.useState(false);
-  const homeHref = user?.role === "employee" ? "/employee/daily-report" : "/dashboard";
+  const homeHref = (user?.role === "admin" || user?.role === "god") ? "/dashboard" : "/employee/daily-report";
 
   const navItems = React.useMemo(() => {
-    if (user?.role === "admin") {
+    if (user?.role === "admin" || user?.role === "god") {
       return [
         { href: "/dashboard", label: "Dashboard" },
         { href: "/dashboard/daily-report", label: "Daily Report" },
         { href: "/dashboard/users", label: "Users" },
+        { href: "/dashboard/trash", label: "ถังขยะ", icon: Trash2 },
       ];
     }
 
@@ -109,7 +110,7 @@ export function Header() {
                 <span className="text-xs text-muted-foreground truncate">{user.email}</span>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Shield className="h-3 w-3" />
-                  {user.role === "admin" ? "ผู้ดูแลระบบ" : "พนักงาน"}
+                  {user.role === "god" ? "ระดับสูงสุด" : user.role === "admin" ? "ผู้ดูแลระบบ" : "พนักงาน"}
                 </span>
               </div>
             </div>

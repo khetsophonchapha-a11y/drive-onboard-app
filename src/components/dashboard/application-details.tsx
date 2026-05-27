@@ -14,6 +14,17 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
     FileQuestion,
     File as FileIcon,
     Copy,
@@ -30,6 +41,7 @@ import {
     XCircle,
     FileClock,
     Download,
+    ChevronLeft,
 } from "lucide-react";
 import {
     Form,
@@ -58,9 +70,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+
+import { HubSelectModal } from "./hub-select-modal";
 import { Separator } from "../ui/separator";
 import { useRouter } from "next/navigation";
-import { updateApplicationStatus } from "@/app/actions";
+import { updateApplicationStatus, fetchDriverHub, updateDriverHub } from "@/app/actions";
 import { cloneDeepWith } from 'lodash';
 import { z } from "zod";
 import {
@@ -195,11 +209,13 @@ function DocumentGroup({
     files, // Combined existing and temp files for display
     onFileUpload,
     onFileDelete,
+    disabled = false,
 }: {
     docSchema: typeof requiredDocumentsSchema[0];
     files: ({ type: 'existing', ref: FileRef, displayUrl: string } | { type: 'temp', ref: TempFile, displayUrl: string })[];
     onFileUpload: (docId: string, file: File, replaceKey?: string) => void;
     onFileDelete: (docId: string, key: string) => void;
+    disabled?: boolean;
 }) {
     const hasFile = files.length > 0;
     const allowMultiple = false; // Hardcoded to false as per new requirement
@@ -229,13 +245,14 @@ function DocumentGroup({
                                 />
                             </div>
                             <div className="flex gap-2 pt-1 justify-end">
-                                <Button asChild size="sm" variant="outline" type="button">
-                                    <label className="cursor-pointer">
+                                <Button asChild size="sm" variant="outline" type="button" disabled={disabled}>
+                                    <label className={`cursor-pointer ${disabled ? 'pointer-events-none opacity-50' : ''}`}>
                                         <Pencil className="h-4 w-4 mr-1" /> เปลี่ยนไฟล์
                                         <Input
                                             type="file"
                                             className="hidden"
                                             accept="image/jpeg,image/png,application/pdf"
+                                            disabled={disabled}
                                             onChange={(e) => {
                                                 if (e.target.files?.[0]) {
                                                     const keyToDelete = fileItem.type === 'existing' ? fileItem.ref.r2Key : fileItem.ref.objectUrl;
@@ -246,7 +263,7 @@ function DocumentGroup({
                                         />
                                     </label>
                                 </Button>
-                                <Button size="sm" variant="destructive" type="button" onClick={() => onFileDelete(docSchema.id, fileItem.type === 'existing' ? fileItem.ref.r2Key : fileItem.ref.objectUrl)}>
+                                <Button size="sm" variant="destructive" type="button" disabled={disabled} onClick={() => onFileDelete(docSchema.id, fileItem.type === 'existing' ? fileItem.ref.r2Key : fileItem.ref.objectUrl)}>
                                     <Trash2 className="h-4 w-4 mr-1" /> ลบ
                                 </Button>
                             </div>
@@ -259,14 +276,15 @@ function DocumentGroup({
                 <div className="flex items-center justify-center p-6 bg-muted/50 rounded-md border-dashed border-2">
                     <div className="text-center text-muted-foreground">
                         <p className="font-medium">ยังไม่ได้อัปโหลดเอกสาร</p>
-                        <Button asChild size="sm" variant="outline" className="mt-2" type="button">
-                            <label className="cursor-pointer">
+                        <Button asChild size="sm" variant="outline" className="mt-2" type="button" disabled={disabled}>
+                            <label className={`cursor-pointer ${disabled ? 'pointer-events-none opacity-50' : ''}`}>
                                 <UploadCloud className="mr-2 h-4 w-4" />
                                 อัปโหลด
                                 <Input
                                     type="file"
                                     className="hidden"
                                     accept="image/jpeg,image/png,application/pdf"
+                                    disabled={disabled}
                                     onChange={(e) => {
                                         if (e.target.files?.[0]) {
                                             onFileUpload(docSchema.id, e.target.files[0]);
@@ -1099,7 +1117,7 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
             const dobValue = values.applicant?.dateOfBirth;
             const dob = dobValue instanceof Date ? dobValue : dobValue ? new Date(dobValue as unknown as string) : undefined;
             const computedAge = calculateAge(dob);
-            applicant.age = computedAge;
+            applicant.age = computedAge ?? applicant.age;
             applicant.fullName = `${values.applicant?.firstName || ''} ${values.applicant?.lastName || ''}`.trim();
 
             if (applicant.isPermanentAddressSame && applicant.currentAddress) {
@@ -1397,11 +1415,22 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
         });
     };
 
+    const [isHubModalOpen, setIsHubModalOpen] = useState(false);
 
-    const handleUpdateStatus = (status: VerificationStatus) => {
+    const [currentHubId, setCurrentHubId] = useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (initialApplication?.status?.verification === 'approved' && initialApplication?.applicant?.email) {
+            fetchDriverHub(initialApplication.applicant.email).then(hubId => {
+                if (hubId) setCurrentHubId(hubId);
+            });
+        }
+    }, [initialApplication?.status?.verification, initialApplication?.applicant?.email]);
+
+    const handleUpdateStatus = (status: VerificationStatus, hubId?: string) => {
         startStatusTransition(async () => {
             if (!initialApplication.appId) return;
-            const result = await updateApplicationStatus(initialApplication.appId, status);
+            const result = await updateApplicationStatus(initialApplication.appId, status, hubId);
             if (result.success) {
                 toast({
                     title: `อัปเดตสถานะสำเร็จ`,
@@ -1417,6 +1446,15 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                 });
             }
         });
+    };
+
+    const handleApproveClick = () => {
+        setIsHubModalOpen(true);
+    };
+
+    const handleHubConfirm = (hubId?: string) => {
+        handleUpdateStatus('approved', hubId);
+        setIsHubModalOpen(false);
     };
 
 
@@ -1555,11 +1593,23 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
             <Card>
                 <CardHeader>
                     <div className="flex justify-between items-start">
-                        <div>
-                            <CardTitle className="font-headline text-2xl">
-                                {applicantName || "ผู้สมัครไม่มีชื่อ"}
-                            </CardTitle>
-                            <CardDescription>รหัสใบสมัคร: {initialApplication.appId}</CardDescription>
+                        <div className="flex items-start gap-4">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                type="button"
+                                onClick={() => router.back()}
+                                className="h-10 w-10 shrink-0"
+                                title="กลับ"
+                            >
+                                <ChevronLeft className="h-6 w-6" />
+                            </Button>
+                            <div>
+                                <CardTitle className="font-headline text-2xl">
+                                    {applicantName || "ผู้สมัครไม่มีชื่อ"}
+                                </CardTitle>
+                                <CardDescription>รหัสใบสมัคร: {initialApplication.appId}</CardDescription>
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <Badge
@@ -2090,45 +2140,68 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                     <FormField control={control} name="applicant.currentAddress.street" render={({ field }) => (
                                         <FormItem><FormLabel>ถนน</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="ex. วิภาวดีรังสิต" /></FormControl><FormMessage /></FormItem>
                                     )} />
-                                    <FormField control={control} name="applicant.currentAddress.subDistrict" render={({ field }) => (
+                                    <FormField control={control} name="applicant.currentAddress.province" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                            <FormLabel>จังหวัด<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
                                             <FormControl>
                                                 <SearchableSelect
-                                                    options={applicantSubDistrictOptions}
+                                                    options={applicantProvinceOptions}
                                                     value={
                                                         field.value
                                                             ? field.value
-                                                            : isCurrentSubDistrictCustom
+                                                            : isCurrentProvinceCustom
                                                                 ? otherOption.value
                                                                 : undefined
                                                     }
                                                     onChange={(value) => {
                                                         if (value === undefined) {
+                                                            setIsCurrentDistrictCustom(false);
                                                             setIsCurrentSubDistrictCustom(false);
+                                                            form.setValue('applicant.currentAddress.district', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            form.setValue('applicant.currentAddress.subDistrict', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            setIsCurrentProvinceCustom(false);
                                                             field.onChange('');
                                                             return;
                                                         }
                                                         if (value === otherOption.value) {
-                                                            setIsCurrentSubDistrictCustom(true);
+                                                            setIsCurrentDistrictCustom(false);
+                                                            setIsCurrentSubDistrictCustom(false);
+                                                            form.setValue('applicant.currentAddress.district', '', {
+                                                                shouldDirty: true,
+                                                            });
                                                             form.setValue('applicant.currentAddress.subDistrict', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            setIsCurrentProvinceCustom(true);
+                                                            form.setValue('applicant.currentAddress.province', '', {
                                                                 shouldDirty: true,
                                                             });
                                                             return;
                                                         }
+                                                        setIsCurrentDistrictCustom(false);
                                                         setIsCurrentSubDistrictCustom(false);
+                                                        form.setValue('applicant.currentAddress.district', '', {
+                                                            shouldDirty: true,
+                                                        });
+                                                        form.setValue('applicant.currentAddress.subDistrict', '', {
+                                                            shouldDirty: true,
+                                                        });
+                                                        setIsCurrentProvinceCustom(false);
                                                         field.onChange(value);
                                                     }}
-                                                    placeholder="เลือกตำบล/แขวง..."
+                                                    placeholder="เลือกจังหวัด..."
                                                     allowClear
-                                                    disabled={!watchCurrentProvince || !watchCurrentDistrict}
                                                 />
                                             </FormControl>
-                                            {isCurrentSubDistrictCustom && (
+                                            {isCurrentProvinceCustom && (
                                                 <FormControl className="mt-2">
                                                     <Input
                                                         value={field.value || ''}
-                                                        placeholder="ex. จอมพล"
+                                                        placeholder="ex. กรุงเทพมหานคร"
                                                         onChange={(event) => field.onChange(event.target.value)}
                                                     />
                                                 </FormControl>
@@ -2244,6 +2317,144 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                                     <Input
                                                         value={field.value || ''}
                                                         placeholder="ex. กรุงเทพมหานคร"
+                                                        onChange={(event) => field.onChange(event.target.value)}
+                                                    />
+                                                </FormControl>
+                                            )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={control} name="applicant.currentAddress.district" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>อำเภอ/เขต<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                            <FormControl>
+                                                <SearchableSelect
+                                                    options={applicantDistrictOptions}
+                                                    value={
+                                                        field.value
+                                                            ? field.value
+                                                            : isCurrentDistrictCustom
+                                                                ? otherOption.value
+                                                                : undefined
+                                                    }
+                                                    onChange={(value) => {
+                                                        if (value === undefined) {
+                                                            setIsCurrentDistrictCustom(false);
+                                                            field.onChange('');
+                                                            return;
+                                                        }
+                                                        if (value === otherOption.value) {
+                                                            setIsCurrentDistrictCustom(true);
+                                                            form.setValue('applicant.currentAddress.district', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            return;
+                                                        }
+                                                        setIsCurrentDistrictCustom(false);
+                                                        field.onChange(value);
+                                                    }}
+                                                    placeholder="เลือกอำเภอ/เขต..."
+                                                    allowClear
+                                                    disabled={!watchCurrentProvince}
+                                                />
+                                            </FormControl>
+                                            {isCurrentDistrictCustom && (
+                                                <FormControl className="mt-2">
+                                                    <Input
+                                                        value={field.value || ''}
+                                                        placeholder="ex. จตุจักร"
+                                                        onChange={(event) => field.onChange(event.target.value)}
+                                                    />
+                                                </FormControl>
+                                            )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={control} name="applicant.currentAddress.subDistrict" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                            <FormControl>
+                                                <SearchableSelect
+                                                    options={applicantSubDistrictOptions}
+                                                    value={
+                                                        field.value
+                                                            ? field.value
+                                                            : isCurrentSubDistrictCustom
+                                                                ? otherOption.value
+                                                                : undefined
+                                                    }
+                                                    onChange={(value) => {
+                                                        if (value === undefined) {
+                                                            setIsCurrentSubDistrictCustom(false);
+                                                            field.onChange('');
+                                                            return;
+                                                        }
+                                                        if (value === otherOption.value) {
+                                                            setIsCurrentSubDistrictCustom(true);
+                                                            form.setValue('applicant.currentAddress.subDistrict', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            return;
+                                                        }
+                                                        setIsCurrentSubDistrictCustom(false);
+                                                        field.onChange(value);
+                                                    }}
+                                                    placeholder="เลือกตำบล/แขวง..."
+                                                    allowClear
+                                                    disabled={!watchCurrentProvince || !watchCurrentDistrict}
+                                                />
+                                            </FormControl>
+                                            {isCurrentSubDistrictCustom && (
+                                                <FormControl className="mt-2">
+                                                    <Input
+                                                        value={field.value || ''}
+                                                        placeholder="ex. จอมพล"
+                                                        onChange={(event) => field.onChange(event.target.value)}
+                                                    />
+                                                </FormControl>
+                                            )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={control} name="applicant.currentAddress.subDistrict" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                            <FormControl>
+                                                <SearchableSelect
+                                                    options={applicantSubDistrictOptions}
+                                                    value={
+                                                        field.value
+                                                            ? field.value
+                                                            : isCurrentSubDistrictCustom
+                                                                ? otherOption.value
+                                                                : undefined
+                                                    }
+                                                    onChange={(value) => {
+                                                        if (value === undefined) {
+                                                            setIsCurrentSubDistrictCustom(false);
+                                                            field.onChange('');
+                                                            return;
+                                                        }
+                                                        if (value === otherOption.value) {
+                                                            setIsCurrentSubDistrictCustom(true);
+                                                            form.setValue('applicant.currentAddress.subDistrict', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            return;
+                                                        }
+                                                        setIsCurrentSubDistrictCustom(false);
+                                                        field.onChange(value);
+                                                    }}
+                                                    placeholder="เลือกตำบล/แขวง..."
+                                                    allowClear
+                                                    disabled={!watchCurrentProvince || !watchCurrentDistrict}
+                                                />
+                                            </FormControl>
+                                            {isCurrentSubDistrictCustom && (
+                                                <FormControl className="mt-2">
+                                                    <Input
+                                                        value={field.value || ''}
+                                                        placeholder="ex. จอมพล"
                                                         onChange={(event) => field.onChange(event.target.value)}
                                                     />
                                                 </FormControl>
@@ -2390,45 +2601,68 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                                 <FormMessage />
                                             </FormItem>
                                         )} />
-                                        <FormField control={control} name="applicant.permanentAddress.subDistrict" render={({ field }) => (
+                                        <FormField control={control} name="applicant.permanentAddress.province" render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                                <FormLabel>จังหวัด<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
                                                 <FormControl>
                                                     <SearchableSelect
-                                                        options={permanentSubDistrictOptions}
+                                                        options={permanentProvinceOptions}
                                                         value={
                                                             field.value
                                                                 ? field.value
-                                                                : isPermanentSubDistrictCustom
+                                                                : isPermanentProvinceCustom
                                                                     ? otherOption.value
                                                                     : undefined
                                                         }
                                                         onChange={(value) => {
                                                             if (value === undefined) {
+                                                                setIsPermanentDistrictCustom(false);
                                                                 setIsPermanentSubDistrictCustom(false);
+                                                                form.setValue('applicant.permanentAddress.district', '', {
+                                                                    shouldDirty: true,
+                                                                });
+                                                                form.setValue('applicant.permanentAddress.subDistrict', '', {
+                                                                    shouldDirty: true,
+                                                                });
+                                                                setIsPermanentProvinceCustom(false);
                                                                 field.onChange('');
                                                                 return;
                                                             }
                                                             if (value === otherOption.value) {
-                                                                setIsPermanentSubDistrictCustom(true);
+                                                                setIsPermanentDistrictCustom(false);
+                                                                setIsPermanentSubDistrictCustom(false);
+                                                                form.setValue('applicant.permanentAddress.district', '', {
+                                                                    shouldDirty: true,
+                                                                });
                                                                 form.setValue('applicant.permanentAddress.subDistrict', '', {
+                                                                    shouldDirty: true,
+                                                                });
+                                                                setIsPermanentProvinceCustom(true);
+                                                                form.setValue('applicant.permanentAddress.province', '', {
                                                                     shouldDirty: true,
                                                                 });
                                                                 return;
                                                             }
+                                                            setIsPermanentDistrictCustom(false);
                                                             setIsPermanentSubDistrictCustom(false);
+                                                            form.setValue('applicant.permanentAddress.district', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            form.setValue('applicant.permanentAddress.subDistrict', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            setIsPermanentProvinceCustom(false);
                                                             field.onChange(value);
                                                         }}
-                                                        placeholder="เลือกตำบล/แขวง..."
+                                                        placeholder="เลือกจังหวัด..."
                                                         allowClear
-                                                        disabled={!watchPermanentProvince || !watchPermanentDistrict}
                                                     />
                                                 </FormControl>
-                                                {isPermanentSubDistrictCustom && (
+                                                {isPermanentProvinceCustom && (
                                                     <FormControl className="mt-2">
                                                         <Input
                                                             value={field.value || ''}
-                                                            placeholder="ex. จอมพล"
+                                                            placeholder="ex. กรุงเทพมหานคร"
                                                             onChange={(event) => field.onChange(event.target.value)}
                                                         />
                                                     </FormControl>
@@ -2544,6 +2778,144 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                                         <Input
                                                             value={field.value || ''}
                                                             placeholder="ex. กรุงเทพมหานคร"
+                                                            onChange={(event) => field.onChange(event.target.value)}
+                                                        />
+                                                    </FormControl>
+                                                )}
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={control} name="applicant.permanentAddress.district" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>อำเภอ/เขต<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                                <FormControl>
+                                                    <SearchableSelect
+                                                        options={permanentDistrictOptions}
+                                                        value={
+                                                            field.value
+                                                                ? field.value
+                                                                : isPermanentDistrictCustom
+                                                                    ? otherOption.value
+                                                                    : undefined
+                                                        }
+                                                        onChange={(value) => {
+                                                            if (value === undefined) {
+                                                                setIsPermanentDistrictCustom(false);
+                                                                field.onChange('');
+                                                                return;
+                                                            }
+                                                            if (value === otherOption.value) {
+                                                                setIsPermanentDistrictCustom(true);
+                                                                form.setValue('applicant.permanentAddress.district', '', {
+                                                                    shouldDirty: true,
+                                                                });
+                                                                return;
+                                                            }
+                                                            setIsPermanentDistrictCustom(false);
+                                                            field.onChange(value);
+                                                        }}
+                                                        placeholder="เลือกอำเภอ/เขต..."
+                                                        allowClear
+                                                        disabled={!watchPermanentProvince}
+                                                    />
+                                                </FormControl>
+                                                {isPermanentDistrictCustom && (
+                                                    <FormControl className="mt-2">
+                                                        <Input
+                                                            value={field.value || ''}
+                                                            placeholder="ex. จตุจักร"
+                                                            onChange={(event) => field.onChange(event.target.value)}
+                                                        />
+                                                    </FormControl>
+                                                )}
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={control} name="applicant.permanentAddress.subDistrict" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                                <FormControl>
+                                                    <SearchableSelect
+                                                        options={permanentSubDistrictOptions}
+                                                        value={
+                                                            field.value
+                                                                ? field.value
+                                                                : isPermanentSubDistrictCustom
+                                                                    ? otherOption.value
+                                                                    : undefined
+                                                        }
+                                                        onChange={(value) => {
+                                                            if (value === undefined) {
+                                                                setIsPermanentSubDistrictCustom(false);
+                                                                field.onChange('');
+                                                                return;
+                                                            }
+                                                            if (value === otherOption.value) {
+                                                                setIsPermanentSubDistrictCustom(true);
+                                                                form.setValue('applicant.permanentAddress.subDistrict', '', {
+                                                                    shouldDirty: true,
+                                                                });
+                                                                return;
+                                                            }
+                                                            setIsPermanentSubDistrictCustom(false);
+                                                            field.onChange(value);
+                                                        }}
+                                                        placeholder="เลือกตำบล/แขวง..."
+                                                        allowClear
+                                                        disabled={!watchPermanentProvince || !watchPermanentDistrict}
+                                                    />
+                                                </FormControl>
+                                                {isPermanentSubDistrictCustom && (
+                                                    <FormControl className="mt-2">
+                                                        <Input
+                                                            value={field.value || ''}
+                                                            placeholder="ex. จอมพล"
+                                                            onChange={(event) => field.onChange(event.target.value)}
+                                                        />
+                                                    </FormControl>
+                                                )}
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={control} name="applicant.permanentAddress.subDistrict" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                                <FormControl>
+                                                    <SearchableSelect
+                                                        options={permanentSubDistrictOptions}
+                                                        value={
+                                                            field.value
+                                                                ? field.value
+                                                                : isPermanentSubDistrictCustom
+                                                                    ? otherOption.value
+                                                                    : undefined
+                                                        }
+                                                        onChange={(value) => {
+                                                            if (value === undefined) {
+                                                                setIsPermanentSubDistrictCustom(false);
+                                                                field.onChange('');
+                                                                return;
+                                                            }
+                                                            if (value === otherOption.value) {
+                                                                setIsPermanentSubDistrictCustom(true);
+                                                                form.setValue('applicant.permanentAddress.subDistrict', '', {
+                                                                    shouldDirty: true,
+                                                                });
+                                                                return;
+                                                            }
+                                                            setIsPermanentSubDistrictCustom(false);
+                                                            field.onChange(value);
+                                                        }}
+                                                        placeholder="เลือกตำบล/แขวง..."
+                                                        allowClear
+                                                        disabled={!watchPermanentProvince || !watchPermanentDistrict}
+                                                    />
+                                                </FormControl>
+                                                {isPermanentSubDistrictCustom && (
+                                                    <FormControl className="mt-2">
+                                                        <Input
+                                                            value={field.value || ''}
+                                                            placeholder="ex. จอมพล"
                                                             onChange={(event) => field.onChange(event.target.value)}
                                                         />
                                                     </FormControl>
@@ -3066,45 +3438,68 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                     <FormField control={control} name="guarantor.address.street" render={({ field }) => (
                                         <FormItem><FormLabel>ถนน</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="ex. วิภาวดีรังสิต" /></FormControl><FormMessage /></FormItem>
                                     )} />
-                                    <FormField control={control} name="guarantor.address.subDistrict" render={({ field }) => (
+                                    <FormField control={control} name="guarantor.address.province" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                            <FormLabel>จังหวัด<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
                                             <FormControl>
                                                 <SearchableSelect
-                                                    options={guarantorSubDistrictOptions}
+                                                    options={guarantorProvinceOptions}
                                                     value={
                                                         field.value
                                                             ? field.value
-                                                            : isGuarantorSubDistrictCustom
+                                                            : isGuarantorProvinceCustom
                                                                 ? otherOption.value
                                                                 : undefined
                                                     }
                                                     onChange={(value) => {
                                                         if (value === undefined) {
+                                                            setIsGuarantorDistrictCustom(false);
                                                             setIsGuarantorSubDistrictCustom(false);
+                                                            form.setValue('guarantor.address.district', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            form.setValue('guarantor.address.subDistrict', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            setIsGuarantorProvinceCustom(false);
                                                             field.onChange('');
                                                             return;
                                                         }
                                                         if (value === otherOption.value) {
-                                                            setIsGuarantorSubDistrictCustom(true);
+                                                            setIsGuarantorDistrictCustom(false);
+                                                            setIsGuarantorSubDistrictCustom(false);
+                                                            form.setValue('guarantor.address.district', '', {
+                                                                shouldDirty: true,
+                                                            });
                                                             form.setValue('guarantor.address.subDistrict', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            setIsGuarantorProvinceCustom(true);
+                                                            form.setValue('guarantor.address.province', '', {
                                                                 shouldDirty: true,
                                                             });
                                                             return;
                                                         }
+                                                        setIsGuarantorDistrictCustom(false);
                                                         setIsGuarantorSubDistrictCustom(false);
+                                                        form.setValue('guarantor.address.district', '', {
+                                                            shouldDirty: true,
+                                                        });
+                                                        form.setValue('guarantor.address.subDistrict', '', {
+                                                            shouldDirty: true,
+                                                        });
+                                                        setIsGuarantorProvinceCustom(false);
                                                         field.onChange(value);
                                                     }}
-                                                    placeholder="เลือกตำบล/แขวง..."
+                                                    placeholder="เลือกจังหวัด..."
                                                     allowClear
-                                                    disabled={!watchGuarantorProvince || !watchGuarantorDistrict}
                                                 />
                                             </FormControl>
-                                            {isGuarantorSubDistrictCustom && (
+                                            {isGuarantorProvinceCustom && (
                                                 <FormControl className="mt-2">
                                                     <Input
                                                         value={field.value || ''}
-                                                        placeholder="ex. จอมพล"
+                                                        placeholder="ex. กรุงเทพมหานคร"
                                                         onChange={(event) => field.onChange(event.target.value)}
                                                     />
                                                 </FormControl>
@@ -3227,6 +3622,144 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                             <FormMessage />
                                         </FormItem>
                                     )} />
+                                    <FormField control={control} name="guarantor.address.district" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>อำเภอ/เขต<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                            <FormControl>
+                                                <SearchableSelect
+                                                    options={guarantorDistrictOptions}
+                                                    value={
+                                                        field.value
+                                                            ? field.value
+                                                            : isGuarantorDistrictCustom
+                                                                ? otherOption.value
+                                                                : undefined
+                                                    }
+                                                    onChange={(value) => {
+                                                        if (value === undefined) {
+                                                            setIsGuarantorDistrictCustom(false);
+                                                            field.onChange('');
+                                                            return;
+                                                        }
+                                                        if (value === otherOption.value) {
+                                                            setIsGuarantorDistrictCustom(true);
+                                                            form.setValue('guarantor.address.district', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            return;
+                                                        }
+                                                        setIsGuarantorDistrictCustom(false);
+                                                        field.onChange(value);
+                                                    }}
+                                                    placeholder="เลือกอำเภอ/เขต..."
+                                                    allowClear
+                                                    disabled={!watchGuarantorProvince}
+                                                />
+                                            </FormControl>
+                                            {isGuarantorDistrictCustom && (
+                                                <FormControl className="mt-2">
+                                                    <Input
+                                                        value={field.value || ''}
+                                                        placeholder="ex. จตุจักร"
+                                                        onChange={(event) => field.onChange(event.target.value)}
+                                                    />
+                                                </FormControl>
+                                            )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={control} name="guarantor.address.subDistrict" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                            <FormControl>
+                                                <SearchableSelect
+                                                    options={guarantorSubDistrictOptions}
+                                                    value={
+                                                        field.value
+                                                            ? field.value
+                                                            : isGuarantorSubDistrictCustom
+                                                                ? otherOption.value
+                                                                : undefined
+                                                    }
+                                                    onChange={(value) => {
+                                                        if (value === undefined) {
+                                                            setIsGuarantorSubDistrictCustom(false);
+                                                            field.onChange('');
+                                                            return;
+                                                        }
+                                                        if (value === otherOption.value) {
+                                                            setIsGuarantorSubDistrictCustom(true);
+                                                            form.setValue('guarantor.address.subDistrict', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            return;
+                                                        }
+                                                        setIsGuarantorSubDistrictCustom(false);
+                                                        field.onChange(value);
+                                                    }}
+                                                    placeholder="เลือกตำบล/แขวง..."
+                                                    allowClear
+                                                    disabled={!watchGuarantorProvince || !watchGuarantorDistrict}
+                                                />
+                                            </FormControl>
+                                            {isGuarantorSubDistrictCustom && (
+                                                <FormControl className="mt-2">
+                                                    <Input
+                                                        value={field.value || ''}
+                                                        placeholder="ex. จอมพล"
+                                                        onChange={(event) => field.onChange(event.target.value)}
+                                                    />
+                                                </FormControl>
+                                            )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={control} name="guarantor.address.subDistrict" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
+                                            <FormControl>
+                                                <SearchableSelect
+                                                    options={guarantorSubDistrictOptions}
+                                                    value={
+                                                        field.value
+                                                            ? field.value
+                                                            : isGuarantorSubDistrictCustom
+                                                                ? otherOption.value
+                                                                : undefined
+                                                    }
+                                                    onChange={(value) => {
+                                                        if (value === undefined) {
+                                                            setIsGuarantorSubDistrictCustom(false);
+                                                            field.onChange('');
+                                                            return;
+                                                        }
+                                                        if (value === otherOption.value) {
+                                                            setIsGuarantorSubDistrictCustom(true);
+                                                            form.setValue('guarantor.address.subDistrict', '', {
+                                                                shouldDirty: true,
+                                                            });
+                                                            return;
+                                                        }
+                                                        setIsGuarantorSubDistrictCustom(false);
+                                                        field.onChange(value);
+                                                    }}
+                                                    placeholder="เลือกตำบล/แขวง..."
+                                                    allowClear
+                                                    disabled={!watchGuarantorProvince || !watchGuarantorDistrict}
+                                                />
+                                            </FormControl>
+                                            {isGuarantorSubDistrictCustom && (
+                                                <FormControl className="mt-2">
+                                                    <Input
+                                                        value={field.value || ''}
+                                                        placeholder="ex. จอมพล"
+                                                        onChange={(event) => field.onChange(event.target.value)}
+                                                    />
+                                                </FormControl>
+                                            )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
                                     <FormField control={control} name="guarantor.address.postalCode" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>รหัสไปรษณีย์<span className="text-destructive ml-1">(จำเป็น)</span></FormLabel>
@@ -3261,6 +3794,7 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                                 <SignatureInput
                                                     value={typeof field.value === 'string' ? field.value : undefined}
                                                     onChange={field.onChange}
+                                                    disabled={readOnly}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -3286,6 +3820,7 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                     files={getDisplayFiles(reqDoc.id)}
                                     onFileUpload={handleFileUpload}
                                     onFileDelete={handleFileDelete}
+                                    disabled={readOnly}
                                 />
                             ))}
 
@@ -3301,6 +3836,7 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                                 <SignatureInput
                                                     value={typeof field.value === 'string' ? field.value : undefined}
                                                     onChange={field.onChange}
+                                                    disabled={readOnly}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -3318,7 +3854,7 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                         <div className="flex gap-2">
                                             {initialApplication.status?.verification === 'pending' && (
                                                 <>
-                                                    <Button variant="default" onClick={() => handleUpdateStatus('approved')} disabled={isStatusPending}>
+                                                    <Button variant="default" onClick={handleApproveClick} disabled={isStatusPending}>
                                                         {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                                                         อนุมัติใบสมัคร
                                                     </Button>
@@ -3329,10 +3865,28 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                                                 </>
                                             )}
                                             {initialApplication.status?.verification === 'approved' && (
-                                                <Button variant="secondary" onClick={() => handleUpdateStatus('terminated')} disabled={isStatusPending}>
-                                                    {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
-                                                    เลิกจ้าง
-                                                </Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="secondary" disabled={isStatusPending}>
+                                                            {isStatusPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+                                                            เลิกจ้าง
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>ยืนยันการเลิกจ้าง</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                คุณแน่ใจหรือไม่ว่าต้องการเลิกจ้างพนักงานคนนี้? การดำเนินการนี้จะอัปเดตสถานะผู้สมัครเป็น "เลิกจ้าง"
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleUpdateStatus('terminated')} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                                                ยืนยันการเลิกจ้าง
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
                                             )}
                                             {(initialApplication.status?.verification === 'rejected' || initialApplication.status?.verification === 'terminated') && (
                                                 <Button variant="outline" onClick={() => handleUpdateStatus('pending')} disabled={isStatusPending}>
@@ -3346,6 +3900,13 @@ export function ApplicationDetails({ application: initialApplication, readOnly =
                             </CardFooter>
                         )}
                     </Card>
+
+                    <HubSelectModal
+                        isOpen={isHubModalOpen}
+                        onClose={() => setIsHubModalOpen(false)}
+                        onConfirm={handleHubConfirm}
+                        isPending={isStatusPending}
+                    />
 
                     </fieldset>
 

@@ -14,7 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle, Loader2, UserX, FileClock } from "lucide-react"
+import { PlusCircle, Calendar as CalendarIcon, X, Trash2, MoreHorizontal, Eye, Check, XCircle, Loader2, UserX, FileClock, Pencil } from "lucide-react"
 import Link from "next/link"
 import { DateRange } from "react-day-picker"
 import { useRouter } from "next/navigation";
@@ -55,7 +55,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { updateApplicationStatus } from "@/app/actions";
+import { updateApplicationStatus, updateDriverHub } from "@/app/actions";
+import { HubSelectModal } from "./hub-select-modal";
 
 
 type BadgeVariant = "default" | "secondary" | "success" | "destructive" | "outline";
@@ -82,6 +83,26 @@ type ApplicationsTableProps = {
   onDelete: (applicationId: string) => void;
 };
 
+function normalizeStatus(status: unknown): VerificationStatus {
+  if (status === "approved" || status === "rejected" || status === "terminated") {
+    return status;
+  }
+  return "pending";
+}
+
+function formatApplicationDate(value: unknown) {
+  if (typeof value !== "string") {
+    return "—";
+  }
+
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return "—";
+  }
+
+  return format(parsed, "PPP", { locale: th });
+}
+
 export function ApplicationsTable({
   applications,
   onDelete,
@@ -106,10 +127,37 @@ export function ApplicationsTable({
   const [isPending, startTransition] = React.useTransition();
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
 
-  const handleUpdateStatus = (appId: string, status: VerificationStatus) => {
+  const [isHubModalOpen, setIsHubModalOpen] = React.useState(false);
+  const [pendingApprovalId, setPendingApprovalId] = React.useState<string | null>(null);
+
+  const [isEditHubModalOpen, setIsEditHubModalOpen] = React.useState(false);
+  const [editingHubEmail, setEditingHubEmail] = React.useState<string | null>(null);
+
+  const handleEditHubClick = (email?: string) => {
+    if (!email) return;
+    setEditingHubEmail(email);
+    setIsEditHubModalOpen(true);
+  };
+
+  const handleEditHubConfirm = (hubId?: string) => {
+    if (!editingHubEmail) return;
+    startTransition(async () => {
+      const result = await updateDriverHub(editingHubEmail, hubId || null);
+      if (result.success) {
+        toast({ title: 'อัปเดต Hub สำเร็จ' });
+        router.refresh();
+      } else {
+        toast({ title: 'เกิดข้อผิดพลาด', description: result.error, variant: 'destructive' });
+      }
+      setIsEditHubModalOpen(false);
+      setEditingHubEmail(null);
+    });
+  };
+
+  const handleUpdateStatus = (appId: string, status: VerificationStatus, hubId?: string) => {
     setUpdatingId(appId);
     startTransition(async () => {
-      const result = await updateApplicationStatus(appId, status);
+      const result = await updateApplicationStatus(appId, status, hubId);
       if (result.success) {
         toast({
           title: `อัปเดตสถานะสำเร็จ`,
@@ -128,6 +176,19 @@ export function ApplicationsTable({
       }
       setUpdatingId(null);
     });
+  };
+
+  const handleApproveClick = (appId: string) => {
+    setPendingApprovalId(appId);
+    setIsHubModalOpen(true);
+  };
+
+  const handleHubConfirm = (hubId?: string) => {
+    if (pendingApprovalId) {
+      handleUpdateStatus(pendingApprovalId, "approved", hubId);
+    }
+    setIsHubModalOpen(false);
+    setPendingApprovalId(null);
   };
 
   const handleOpenDeleteDialog = (application: AppRow) => {
@@ -153,7 +214,7 @@ export function ApplicationsTable({
       accessorKey: "status",
       header: "สถานะ",
       cell: ({ row }) => {
-        const status = row.getValue("status") as VerificationStatus;
+        const status = normalizeStatus(row.getValue("status"));
         return <Badge variant={statusVariantMap[status]}>{statusText[status]}</Badge>;
       },
     },
@@ -161,7 +222,35 @@ export function ApplicationsTable({
       accessorKey: "createdAt",
       header: "วันที่ส่ง",
       cell: ({ row }) => {
-        return <div>{format(new Date(row.getValue("createdAt")), "PPP", { locale: th })}</div>;
+        return <div>{formatApplicationDate(row.getValue("createdAt"))}</div>;
+      },
+    },
+    {
+      accessorKey: "terminatedAt",
+      header: "วันที่เลิกจ้าง",
+      cell: ({ row }) => {
+        const terminatedAt = row.getValue("terminatedAt") as string | undefined | null;
+        if (!terminatedAt) return <div className="text-muted-foreground">-</div>;
+        return <div>{formatApplicationDate(terminatedAt)}</div>;
+      },
+    },
+    {
+      accessorKey: "hubName",
+      header: "Hub",
+      cell: ({ row }) => {
+        const application = row.original;
+        const status = normalizeStatus(application.status);
+        if (status !== 'approved' && status !== 'terminated') return <div className="text-muted-foreground">-</div>;
+        return (
+          <div className="flex items-center gap-2">
+            <span>{application.hubName || "ไม่ระบุ"}</span>
+            {isAdmin && application.email && (
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEditHubClick(application.email)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -171,7 +260,7 @@ export function ApplicationsTable({
         const application = row.original;
         const admin = Boolean(isAdmin);
         const isCurrentUpdating = isPending && updatingId === application.appId;
-        const status = application.status;
+        const status = normalizeStatus(application.status);
 
         return (
           <div className="flex items-center justify-end gap-2">
@@ -183,7 +272,7 @@ export function ApplicationsTable({
 
             {admin && status === 'pending' && (
               <>
-                <Button variant="success" size="sm" onClick={() => handleUpdateStatus(application.appId, 'approved')} disabled={isCurrentUpdating}>
+                <Button variant="success" size="sm" onClick={() => handleApproveClick(application.appId)} disabled={isCurrentUpdating}>
                   {isCurrentUpdating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
                   อนุมัติ
                 </Button>
@@ -210,6 +299,12 @@ export function ApplicationsTable({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions เพิ่มเติม</DropdownMenuLabel>
+                <DropdownMenuItem asChild>
+                  <Link href={`${detailBasePath}/${application.appId}`} className="cursor-pointer">
+                    <Pencil className="mr-2 h-4 w-4" />
+                    <span>แก้ไขข้อมูล</span>
+                  </Link>
+                </DropdownMenuItem>
                 {status !== 'pending' && (
                   <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'pending')}>
                     <FileClock className="mr-2 h-4 w-4" />
@@ -217,7 +312,7 @@ export function ApplicationsTable({
                   </DropdownMenuItem>
                 )}
                 {status !== 'approved' && status !== 'pending' && (
-                  <DropdownMenuItem onClick={() => handleUpdateStatus(application.appId, 'approved')}>
+                  <DropdownMenuItem onClick={() => handleApproveClick(application.appId)}>
                     <Check className="mr-2 h-4 w-4" />
                     <span>เปลี่ยนเป็น "อนุมัติ"</span>
                   </DropdownMenuItem>
@@ -440,7 +535,7 @@ export function ApplicationsTable({
             <AlertDialogDescription>
               คุณแน่ใจหรือไม่ว่าต้องการลบใบสมัครของ{" "}
               <span className="font-semibold">{applicationToDelete?.fullName}</span>?
-              การกระทำนี้ไม่สามารถย้อนกลับได้ (ในตอนนี้จะเป็นการลบจากหน้าจอเท่านั้น)
+              ใบสมัครจะถูกย้ายไปยังถังขยะ และสามารถกู้คืนได้ภายหลัง
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -454,6 +549,19 @@ export function ApplicationsTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <HubSelectModal
+        isOpen={isHubModalOpen}
+        onClose={() => setIsHubModalOpen(false)}
+        onConfirm={handleHubConfirm}
+        isPending={isPending}
+      />
+      <HubSelectModal
+        isOpen={isEditHubModalOpen}
+        onClose={() => setIsEditHubModalOpen(false)}
+        onConfirm={handleEditHubConfirm}
+        isPending={isPending}
+      />
     </div>
   )
 }

@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       password: body.password,
       phone: body.phone,
       avatarUrl: body.avatarUrl,
+      hubId: body.hubId,
     });
 
     if ("error" in res && res.error) {

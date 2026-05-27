@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import type { User } from "@/lib/types";
-import { MoreHorizontal, UserCog, Trash2 } from "lucide-react";
+import { MoreHorizontal, UserCog, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,11 +14,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 interface GetColumnsProps {
-  onEdit: (user: User) => void;
   onDelete: (user: User) => void;
+  onEditHub: (user: User) => void;
+  getHubName: (hubId?: string | null) => string;
 }
 
-export const getColumns = ({ onEdit, onDelete }: GetColumnsProps): ColumnDef<User>[] => [
+export const getColumns = ({ onDelete, onEditHub, getHubName }: GetColumnsProps): ColumnDef<User>[] => [
   {
     accessorKey: "name",
     header: "ชื่อ-สกุล",
@@ -26,6 +27,21 @@ export const getColumns = ({ onEdit, onDelete }: GetColumnsProps): ColumnDef<Use
   {
     accessorKey: "email",
     header: "อีเมล",
+  },
+  {
+    accessorKey: "hubId",
+    header: "Hub",
+    cell: ({ row }) => {
+      const user = row.original;
+      return (
+        <div className="flex items-center gap-2">
+          <span>{getHubName(user.hubId)}</span>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditHub(user)}>
+            <Pencil className="h-3 w-3" />
+          </Button>
+        </div>
+      );
+    },
   },
   {
     accessorKey: "role",
@@ -56,10 +72,6 @@ export const getColumns = ({ onEdit, onDelete }: GetColumnsProps): ColumnDef<Use
                 onClick={() => navigator.clipboard.writeText(user.id)}
               >
                 คัดลอก ID
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit(user)}>
-                <UserCog className="mr-2 h-4 w-4" />
-                แก้ไขข้อมูล
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"

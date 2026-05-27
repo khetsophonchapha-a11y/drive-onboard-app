@@ -5,7 +5,6 @@ import type { Manifest } from '@/lib/types';
 import { revalidateTag } from 'next/cache';
 import { getDb } from '@/lib/db';
 import { applications } from '@/db/schema';
-import { eq } from 'drizzle-orm';
 import { findApplicationByEmail, normalizeEmail } from '@/lib/applications';
 
 // We don't use the ManifestSchema directly because it has derived/read-only fields
@@ -39,18 +38,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Database connection unavailable.' }, { status: 503 });
     }
 
-    // Check if exists using Drizzle
-    let existingApp = null;
-    try {
-      existingApp = await db.select().from(applications).where(eq(applications.appId, appId)).get();
-    } catch (dbError) {
-      console.error('[Submit API] Error querying existing application:', dbError);
-      // Continue to try insert if query failed (assuming it might be connection issue or truly new) - strict check better
-      // But if query fails, insert likely fails too. Let's process.
-    }
-
-    console.log(`[Submit API] Existing app check result: ${existingApp ? 'Found' : 'Not Found'}`);
-
     const normalizedEmail = normalizeEmail(manifest.applicant.email);
     const duplicateApplication = await findApplicationByEmail(normalizedEmail, { excludeAppId: appId });
     if (duplicateApplication) {
@@ -62,37 +49,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (existingApp && existingApp.appId) {
-      // Update existing using Drizzle
-      console.log(`[Submit API] Updating application ${appId}...`);
-      await db.update(applications)
-        .set({
-          fullName: manifest.applicant.fullName,
-          verificationStatus: manifest.status.verification,
-          completenessStatus: manifest.status.completeness,
-          phone: manifest.applicant.mobilePhone || manifest.applicant.homePhone || "",
-          rawData: JSON.stringify(manifest),
-          updatedAt: new Date().toISOString()
-        })
-        .where(eq(applications.appId, appId));
-    } else {
-      // Insert new using Drizzle
-      console.log(`[Submit API] Inserting new application ${appId}...`);
-      const safeCreatedAt = manifest.createdAt ?? new Date().toISOString();
-      const phone = manifest.applicant.mobilePhone || manifest.applicant.homePhone || "";
+    const safeCreatedAt = manifest.createdAt ?? new Date().toISOString();
+    const updatedAt = new Date().toISOString();
+    const phone = manifest.applicant.mobilePhone || manifest.applicant.homePhone || '';
+    const persistedApplication = {
+      appId,
+      fullName: manifest.applicant.fullName,
+      nationalId: manifest.applicant.nationalId,
+      verificationStatus: manifest.status.verification,
+      completenessStatus: manifest.status.completeness,
+      createdAt: safeCreatedAt,
+      updatedAt,
+      phone,
+      rawData: JSON.stringify(manifest),
+    };
 
-      await db.insert(applications).values({
-        appId: appId,
-        fullName: manifest.applicant.fullName,
-        nationalId: manifest.applicant.nationalId,
-        verificationStatus: manifest.status.verification,
-        completenessStatus: manifest.status.completeness,
-        createdAt: safeCreatedAt,
-        updatedAt: safeCreatedAt,
-        phone: phone,
-        rawData: JSON.stringify(manifest)
+    console.log(`[Submit API] Upserting application ${appId}...`);
+    await db
+      .insert(applications)
+      .values(persistedApplication)
+      .onConflictDoUpdate({
+        target: applications.appId,
+        set: {
+          fullName: persistedApplication.fullName,
+          nationalId: persistedApplication.nationalId,
+          verificationStatus: persistedApplication.verificationStatus,
+          completenessStatus: persistedApplication.completenessStatus,
+          updatedAt: persistedApplication.updatedAt,
+          phone: persistedApplication.phone,
+          rawData: persistedApplication.rawData,
+        },
       });
-    }
 
     // --- Step 3: Revalidate caches ---
     console.log('[Submit API] Revalidating cache tags...');

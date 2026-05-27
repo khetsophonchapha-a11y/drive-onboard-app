@@ -33,44 +33,32 @@ const baseSchema = z.object({
   phone: z.string().optional(),
 });
 
-const createSchema = baseSchema.extend({
+const formSchema = baseSchema.extend({
   password: z.string().min(6, {
     message: "Password must be at least 6 characters.",
   }),
 });
 
-const editSchema = baseSchema.extend({
-  password: z.string().min(6, {
-    message: "Password must be at least 6 characters.",
-  }).optional().or(z.literal('')),
-});
-
 
 interface UserFormProps {
-  user?: User;
-  onSubmit: (values: z.infer<typeof createSchema | typeof editSchema>) => void;
+  onSubmit: (values: z.infer<typeof formSchema>) => void;
   isPending: boolean;
 }
 
-export function UserForm({ user, onSubmit, isPending }: UserFormProps) {
-  const formSchema = user ? editSchema : createSchema;
+export function UserForm({ onSubmit, isPending }: UserFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: user?.name || "",
-      email: user?.email || "",
-      role: user?.role || "employee",
-      phone: user?.phone || "",
+      name: "",
+      email: "",
+      role: "employee",
+      phone: "",
       password: "",
     },
   });
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    const submissionValues = { ...values };
-    if (!submissionValues.password) {
-      delete submissionValues.password;
-    }
-    onSubmit(submissionValues);
+    onSubmit(values);
   };
 
   return (
@@ -122,7 +110,7 @@ export function UserForm({ user, onSubmit, isPending }: UserFormProps) {
             <FormItem>
               <FormLabel>รหัสผ่าน</FormLabel>
               <FormControl>
-                <Input type="text" placeholder="กรอกรหัสผ่านหากต้องการเปลี่ยนหรือรีเซ็ต" {...field} />
+                <Input type="password" placeholder="กรอกรหัสผ่าน" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

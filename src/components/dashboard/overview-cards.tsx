@@ -14,7 +14,14 @@ type OverviewCardsProps = {
 
 export function OverviewCards({ onStatusSelect, selectedStatus, applications }: OverviewCardsProps) {
   const statusCounts = applications.reduce((acc, app) => {
-    acc[app.status] = (acc[app.status] || 0) + 1;
+    const status: VerificationStatus =
+      app.status === "approved" ||
+      app.status === "rejected" ||
+      app.status === "terminated" ||
+      app.status === "pending"
+        ? app.status
+        : "pending";
+    acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {} as Record<VerificationStatus, number>);
 

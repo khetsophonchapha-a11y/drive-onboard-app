@@ -8,7 +8,11 @@ import type {
   DailyReportResponse,
   DailyReportResponseSlot,
 } from "@/lib/daily-report";
-import { dailyReportSlotOrder, TOTAL_DAILY_REPORT_SLOTS } from "@/lib/daily-report";
+import {
+  countUploadedResponseSlots,
+  dailyReportSlotOrder,
+  TOTAL_DAILY_REPORT_SLOTS,
+} from "@/lib/daily-report";
 import { getSampleDailyReport } from "@/data/sample-data";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -39,7 +43,7 @@ export interface DailyReportViewProps {
 
 export function DailyReportView({ overrideDate, overrideEmail, className, onUpdate }: DailyReportViewProps = {}) {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "god";
   const { toast } = useToast();
 
   const isPopupMode = !!(overrideDate || overrideEmail);
@@ -71,6 +75,7 @@ export function DailyReportView({ overrideDate, overrideEmail, className, onUpda
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [slotUploading, setSlotUploading] = useState<SlotUploadingState>({});
   const [slotDeleting, setSlotDeleting] = useState<SlotUploadingState>({});
+  const [slotDescriptionSaving, setSlotDescriptionSaving] = useState<SlotUploadingState>({});
   const [isSampleData, setIsSampleData] = useState(false);
 
   // Worker Ref
@@ -161,7 +166,7 @@ export function DailyReportView({ overrideDate, overrideEmail, className, onUpda
             ? payload.completedDates
             : Array.isArray(payload)
               ? payload
-                .filter((row: any) => (row?.uploadedCount ?? 0) > 0)
+                .filter((row: any) => ((row?.uploadedCount ?? 0) + (row?.extraUploadedCount ?? 0)) > 0)
                 .map((row: any) => row?.date)
                 .filter(Boolean)
               : [];
@@ -188,6 +193,7 @@ export function DailyReportView({ overrideDate, overrideEmail, className, onUpda
   const slots = report?.slots ?? emptySlots;
   const beforeSlots = slots.filter((slot) => slot.group === "before" || slot.id.startsWith("start"));
   const afterSlots = slots.filter((slot) => slot.group === "after" || slot.id.startsWith("end"));
+  const extraSlots = slots.filter((slot) => slot.group === "extra");
 
   const loadReport = useCallback(async () => {
     if (!selectedEmail) return;
@@ -326,8 +332,9 @@ export function DailyReportView({ overrideDate, overrideEmail, className, onUpda
         const updated: DailyReportResponse = await saveRes.json();
         updateCache(cacheKey, updated);
 
-        const uploadedCount = updated.slots.filter(s => s.r2Key).length;
-        if (uploadedCount >= TOTAL_DAILY_REPORT_SLOTS) {
+        const uploadedCount = countUploadedResponseSlots(updated.slots);
+        const extraUploadedCount = countUploadedResponseSlots(updated.slots, "extra");
+        if (uploadedCount + extraUploadedCount > 0) {
           setCompletedDates(prev => {
             if (!prev.find(d => format(d, 'yyyy-MM-dd') === selectedDateStr)) return [...prev, selectedDate];
             return prev;
@@ -368,8 +375,9 @@ export function DailyReportView({ overrideDate, overrideEmail, className, onUpda
         const updated: DailyReportResponse = await res.json();
         updateCache(cacheKey, updated);
 
-        const uploadedCount = updated.slots.filter((s) => s.r2Key).length;
-        if (uploadedCount < TOTAL_DAILY_REPORT_SLOTS) {
+        const uploadedCount = countUploadedResponseSlots(updated.slots);
+        const extraUploadedCount = countUploadedResponseSlots(updated.slots, "extra");
+        if (uploadedCount + extraUploadedCount === 0) {
           setCompletedDates(prev => prev.filter(d => format(d, 'yyyy-MM-dd') !== selectedDateStr));
         }
 
@@ -385,6 +393,41 @@ export function DailyReportView({ overrideDate, overrideEmail, className, onUpda
     [isSampleData, selectedEmail, selectedDateStr, slots, toast, cacheKey, updateCache, onUpdate]
   );
 
+  const handleDescriptionSave = useCallback(
+    async (slotId: string, description: string) => {
+      if (!selectedEmail) return;
+      if (isSampleData) {
+        toast({ variant: "destructive", title: "ไม่สามารถบันทึกคำอธิบายได้", description: "โหมดทดลองใช้งาน" });
+        return;
+      }
+
+      setSlotDescriptionSaving((prev) => ({ ...prev, [slotId]: true }));
+      try {
+        const res = await fetch("/api/daily-reports", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: selectedEmail, date: selectedDateStr, slotId, description }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || "ไม่สามารถบันทึกคำอธิบายได้");
+        }
+
+        const updated: DailyReportResponse = await res.json();
+        updateCache(cacheKey, updated);
+        toast({ title: "บันทึกคำอธิบายเรียบร้อย" });
+        onUpdate?.();
+      } catch (error) {
+        console.error("[DailyReport] description save error", error);
+        toast({ variant: "destructive", title: "เกิดข้อผิดพลาด", description: error instanceof Error ? error.message : "ไม่สามารถบันทึกคำอธิบายได้" });
+      } finally {
+        setSlotDescriptionSaving((prev) => ({ ...prev, [slotId]: false }));
+      }
+    },
+    [cacheKey, isSampleData, onUpdate, selectedDateStr, selectedEmail, toast, updateCache]
+  );
+
   if (!selectedEmail) {
     return (
       <div className="mx-auto max-w-3xl py-12 text-center">
@@ -395,7 +438,7 @@ export function DailyReportView({ overrideDate, overrideEmail, className, onUpda
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <div className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6", className)}>
       {!isPopupMode && (
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">Daily Report</h1>
@@ -489,6 +532,7 @@ export function DailyReportView({ overrideDate, overrideEmail, className, onUpda
                     slot={slot}
                     uploading={slotUploading[slot.id]}
                     deleting={slotDeleting[slot.id]}
+                    descriptionSaving={slotDescriptionSaving[slot.id]}
                     onUpload={(file) => handleFileUpload(slot.id, file)}
                     onDelete={() => handleFileDelete(slot.id)}
                     disabled={isReadOnly}
@@ -508,10 +552,37 @@ export function DailyReportView({ overrideDate, overrideEmail, className, onUpda
                     slot={slot}
                     uploading={slotUploading[slot.id]}
                     deleting={slotDeleting[slot.id]}
+                    descriptionSaving={slotDescriptionSaving[slot.id]}
                     onUpload={(file) => handleFileUpload(slot.id, file)}
                     onDelete={() => handleFileDelete(slot.id)}
                     disabled={isReadOnly}
                     disabledReason="ไม่สามารถแก้ไขย้อนหลังได้"
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1 border-b pb-2">
+                <h2 className="text-xl font-semibold">อื่นๆ</h2>
+                <p className="text-sm text-muted-foreground">
+                  อัปโหลดรูปเพิ่มเติมได้อีก 2 รูป พร้อมใส่รายละเอียดได้แบบไม่บังคับ โดยไม่นับรวมใน 6 รูปหลัก
+                </p>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                {extraSlots.map(slot => (
+                  <DailyReportSlotCard
+                    key={slot.id}
+                    slot={slot}
+                    uploading={slotUploading[slot.id]}
+                    deleting={slotDeleting[slot.id]}
+                    descriptionSaving={slotDescriptionSaving[slot.id]}
+                    onUpload={(file) => handleFileUpload(slot.id, file)}
+                    onDelete={() => handleFileDelete(slot.id)}
+                    onDescriptionSave={(description) => handleDescriptionSave(slot.id, description)}
+                    disabled={isReadOnly}
+                    disabledReason="ไม่สามารถแก้ไขย้อนหลังได้"
+                    showDescriptionField
                   />
                 ))}
               </div>

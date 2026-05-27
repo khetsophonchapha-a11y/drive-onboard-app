@@ -25,7 +25,7 @@ export function DashboardTabs({
   userEmail,
   userRole,
 }: DashboardTabsProps) {
-  const isAdmin = userRole === "admin";
+  const isAdmin = userRole === "admin" || userRole === "god";
 
   return (
     <Tabs defaultValue="applications" className="space-y-6">

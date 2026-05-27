@@ -14,6 +14,8 @@ export type D1UserRow = {
   phone?: string | null;
   password_hash?: string | null;
   avatar_url?: string | null;
+  status: string; // "active" | "archived"
+  hub_id?: string | null;
 };
 
 function toUser(row: any): User {
@@ -24,6 +26,8 @@ function toUser(row: any): User {
     role: row.role as User["role"], // specific cast
     phone: row.phone ?? undefined,
     avatarUrl: row.avatar_url ?? undefined,
+    status: (row.status || "active") as User["status"],
+    hubId: row.hub_id ?? undefined,
   };
 }
 
@@ -77,11 +81,26 @@ export async function verifyPassword(password: string, hash: string | undefined 
 }
 
 export async function fetchAllUsers(): Promise<User[]> {
-  const db = await getDb();
-  if (!db) return [];
   try {
-    const rows = await db.select().from(users).all();
-    return rows.map(toUser);
+    let rows: any[] = [];
+    try {
+        const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+        const { env }: any = await getCloudflareContext();
+        if (env && env.DB && env.DB.prepare) {
+            console.log("Using raw D1 API for fetchAllUsers");
+            const res = await env.DB.prepare("SELECT * FROM users").all();
+            rows = res.results || [];
+        }
+    } catch (e) {
+        // Ignored in local
+    }
+
+    if (rows.length === 0) {
+        const db = await getDb();
+        if (!db) return [];
+        rows = await db.select().from(users).all();
+    }
+    return rows.map(toUser).filter(u => u.role !== 'god');
   } catch (error) {
     console.error("[D1] fetchAllUsers error:", error);
     return [];
@@ -128,7 +147,7 @@ export async function deleteUserById(id: string): Promise<boolean> {
 
 export async function updateUserById(
   id: string,
-  input: { email?: string; name?: string; role?: User["role"]; password?: string; avatarUrl?: string; phone?: string }
+  input: { email?: string; name?: string; role?: User["role"]; password?: string; avatarUrl?: string; phone?: string; status?: User["status"]; hubId?: string | null }
 ): Promise<D1UserRow | null> {
   const db = await getDb();
   if (!db) return null;
@@ -145,6 +164,8 @@ export async function updateUserById(
   if (password_hash !== undefined) updateData.password_hash = password_hash;
   if (input.avatarUrl !== undefined) updateData.avatar_url = input.avatarUrl;
   if (input.phone !== undefined) updateData.phone = input.phone;
+  if (input.status !== undefined) updateData.status = input.status;
+  if (input.hubId !== undefined) updateData.hub_id = input.hubId;
 
   try {
     const result = await db.update(users).set(updateData).where(eq(users.id, id)).returning();
@@ -156,7 +177,16 @@ export async function updateUserById(
   }
 }
 
-export async function createUser(input: { email: string; name: string; role: User["role"]; password: string; avatarUrl?: string; phone?: string }) {
+export async function createUser(input: {
+  email: string;
+  name: string;
+  role: User["role"];
+  password: string;
+  avatarUrl?: string;
+  phone?: string;
+  status?: User["status"];
+  hubId?: string | null;
+}) {
   const db = await getDb();
   if (!db) return { error: "D1 not configured" };
 
@@ -172,6 +202,8 @@ export async function createUser(input: { email: string; name: string; role: Use
       password_hash,
       phone: input.phone,
       avatar_url: input.avatarUrl,
+      status: input.status || "active",
+      hub_id: input.hubId,
     }).returning();
 
     return { data: result[0] };

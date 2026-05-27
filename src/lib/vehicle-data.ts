@@ -30,6 +30,7 @@ export const vehicleCatalog: Record<VehicleType, VehicleBrandOption[]> = {
       value: 'Toyota',
       label: 'Toyota',
       models: [
+        { value: 'Hilux Vigo', label: 'Hilux Vigo' },
         { value: 'Hilux Revo', label: 'Hilux Revo' },
         { value: 'Fortuner', label: 'Fortuner' },
         { value: 'Hiace', label: 'Hiace' },

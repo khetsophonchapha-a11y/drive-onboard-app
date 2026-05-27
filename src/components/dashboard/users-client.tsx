@@ -5,6 +5,9 @@ import type { User } from "@/lib/types";
 import { UsersTable } from "./users-table";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import type { Hub } from "@/lib/d1-hubs";
+import { HubSelectModal } from "./hub-select-modal";
+import { updateDriverHub } from "@/app/actions";
 import {
   Dialog,
   DialogContent,
@@ -43,16 +46,46 @@ const formSchema = z.object({
 
 interface UsersClientProps {
   data: User[];
+  hubs?: Hub[];
+  currentUserEmail?: string;
+  currentUserRole?: string;
 }
 
-export function UsersClient({ data }: UsersClientProps) {
+export function UsersClient({ data, hubs = [], currentUserEmail, currentUserRole }: UsersClientProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isEditHubModalOpen, setIsEditHubModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
+
+  const getHubName = (hubId?: string | null) => {
+    if (!hubId) return "ไม่มี Hub";
+    const hub = hubs.find((h) => h.id === hubId);
+    return hub ? hub.name : "ไม่ทราบ Hub";
+  };
+
+  const handleEditHubClick = (user: User) => {
+    setEditingUser(user);
+    setIsEditHubModalOpen(true);
+  };
+
+  const handleEditHubConfirm = async (hubId?: string) => {
+    if (!editingUser) return;
+    startTransition(async () => {
+      const result = await updateDriverHub(editingUser.email, hubId || null);
+      if (result.success) {
+        toast({ title: 'อัปเดต Hub สำเร็จ' });
+        router.refresh();
+      } else {
+        toast({ title: 'เกิดข้อผิดพลาด', description: result.error, variant: 'destructive' });
+      }
+      setIsEditHubModalOpen(false);
+      setEditingUser(null);
+    });
+  };
 
   const handleCreateUser = async (values: z.infer<typeof formSchema>) => {
     startTransition(async () => {
@@ -85,39 +118,7 @@ export function UsersClient({ data }: UsersClientProps) {
     });
   };
 
-  const handleUpdateUser = async (values: z.infer<typeof formSchema>) => {
-    if (!selectedUser) return;
 
-    startTransition(async () => {
-      try {
-        const response = await fetch(`/api/users/${selectedUser.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(values),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update user');
-        }
-
-        toast({
-          title: "สำเร็จ",
-          description: "ข้อมูลสมาชิกถูกอัปเดตเรียบร้อยแล้ว",
-        });
-        setIsEditDialogOpen(false);
-        setSelectedUser(null);
-        router.refresh();
-      } catch (error) {
-        toast({
-          title: "เกิดข้อผิดพลาด",
-          description: "ไม่สามารถอัปเดตข้อมูลสมาชิกได้",
-          variant: "destructive",
-        });
-      }
-    });
-  };
 
   const handleOpenDeleteDialog = (user: User) => {
     setSelectedUser(user);
@@ -154,10 +155,7 @@ export function UsersClient({ data }: UsersClientProps) {
     });
   };
   
-  const handleEditUser = (user: User) => {
-    setSelectedUser(user);
-    setIsEditDialogOpen(true);
-  };
+
 
   return (
     <>
@@ -178,21 +176,14 @@ export function UsersClient({ data }: UsersClientProps) {
           </DialogContent>
         </Dialog>
       </div>
-      <UsersTable data={data} onEdit={handleEditUser} onDelete={handleOpenDeleteDialog} />
+      <UsersTable 
+        data={data} 
+        onDelete={handleOpenDeleteDialog}
+        onEditHub={handleEditHubClick}
+        getHubName={getHubName} 
+      />
 
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>แก้ไขข้อมูลสมาชิก</DialogTitle>
-          </DialogHeader>
-          <UserForm
-            user={selectedUser!}
-            onSubmit={handleUpdateUser}
-            isPending={isPending}
-          />
-        </DialogContent>
-      </Dialog>
+
 
       {/* Delete User Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -217,6 +208,13 @@ export function UsersClient({ data }: UsersClientProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <HubSelectModal
+        isOpen={isEditHubModalOpen}
+        onClose={() => setIsEditHubModalOpen(false)}
+        onConfirm={handleEditHubConfirm}
+        isPending={isPending}
+      />
     </>
   );
 }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -28,14 +28,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 import { requiredDocumentsSchema } from "@/lib/schema";
 import { FileUp, FileCheck, X, Send, Loader2, AlertCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Manifest, FileRef } from "@/lib/types";
-import { ManifestSchema } from "@/lib/types";
+import { ManifestSchema, RequiredAddressSchema } from "@/lib/types";
 import { carColors, getVehicleBrands, getVehicleModels, vehicleTypes } from "@/lib/vehicle-data";
 import { DateWheelPicker } from "@/components/ui/date-wheel-picker";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -116,13 +115,33 @@ const calculateAge = (date: Date | undefined) => {
     return age < 0 ? 0 : age;
 };
 
-// We create a new schema for the form by picking only the fields we need
-const ApplicationFormSchema = ManifestSchema.pick({
-    applicant: true,
-    applicationDetails: true,
-    guarantor: true,
-    vehicle: true,
-}).extend({
+const GuarantorFormSchema = ManifestSchema.shape.guarantor
+    .extend({
+        address: RequiredAddressSchema.optional(),
+    })
+    .superRefine((data, ctx) => {
+        if (data.isAddressSameAsApplicantCurrent) {
+            return;
+        }
+
+        const addressValidation = RequiredAddressSchema.safeParse(data.address);
+        if (addressValidation.success) {
+            return;
+        }
+
+        for (const issue of addressValidation.error.issues) {
+            ctx.addIssue({
+                ...issue,
+                path: ['address', ...issue.path],
+            });
+        }
+    });
+
+const ApplicationFormSchema = z.object({
+    applicant: ManifestSchema.shape.applicant,
+    applicationDetails: ManifestSchema.shape.applicationDetails,
+    guarantor: GuarantorFormSchema,
+    vehicle: ManifestSchema.shape.vehicle,
     signature: z.string({ required_error: 'กรุณาลงลายมือชื่อ' }).min(1, 'กรุณาลงลายมือชื่อ'),
     guarantorSignature: z.string().optional(),
     documents: z.array(documentSchema)
@@ -141,13 +160,23 @@ type ManifestDocs = NonNullable<Manifest['docs']>;
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+const EMPTY_REQUIRED_ADDRESS = {
+    houseNo: '',
+    moo: '',
+    street: '',
+    subDistrict: '',
+    district: '',
+    province: '',
+    postalCode: '',
+};
 
 export function ApplicationForm() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionProgress, setSubmissionProgress] = useState(0);
     const router = useRouter();
     const { toast } = useToast();
-    const { user } = useAuth();
+    const guarantorAddressDraftRef = useRef<NonNullable<FormValues['guarantor']['address']> | null>(null);
+    const previousGuarantorAddressSameRef = useRef(false);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(ApplicationFormSchema),
@@ -218,6 +247,22 @@ export function ApplicationForm() {
                 colorOther: '',
                 year: undefined,
             },
+            guarantor: {
+                contractDate: undefined,
+                firstName: '',
+                lastName: '',
+                age: undefined,
+                race: 'ไทย',
+                nationality: 'ไทย',
+                address: {
+                    ...EMPTY_REQUIRED_ADDRESS,
+                },
+                isAddressSameAsApplicantCurrent: false,
+                nationalId: '',
+                phone: '',
+                occupation: '',
+                applicantStartDate: undefined,
+            },
             documents: requiredDocumentsSchema.map(doc => ({
                 ...doc,
                 upload: { status: 'pending', progress: 0, file: null }
@@ -241,6 +286,7 @@ export function ApplicationForm() {
     const watchPermanentDistrict = form.watch('applicant.permanentAddress.district');
     const watchGuarantorProvince = form.watch('guarantor.address.province');
     const watchGuarantorDistrict = form.watch('guarantor.address.district');
+    const watchGuarantorAddressSame = form.watch('guarantor.isAddressSameAsApplicantCurrent');
     const watchRelation = form.watch('applicationDetails.emergencyContact.relation');
     const watchVehicleType = form.watch('vehicle.type');
     const watchVehicleBrand = form.watch('vehicle.brand');
@@ -305,6 +351,43 @@ export function ApplicationForm() {
             }
         }
     }, [watchIsPermanentAddressSame, form]);
+
+    useEffect(() => {
+        const wasUsingApplicantAddress = previousGuarantorAddressSameRef.current;
+
+        if (watchGuarantorAddressSame && !wasUsingApplicantAddress) {
+            guarantorAddressDraftRef.current = {
+                ...EMPTY_REQUIRED_ADDRESS,
+                ...(form.getValues('guarantor.address') ?? {}),
+            };
+            form.clearErrors('guarantor.address');
+        }
+
+        if (!watchGuarantorAddressSame && wasUsingApplicantAddress && guarantorAddressDraftRef.current) {
+            form.setValue(
+                'guarantor.address',
+                { ...guarantorAddressDraftRef.current },
+                { shouldDirty: true, shouldValidate: true }
+            );
+        }
+
+        previousGuarantorAddressSameRef.current = watchGuarantorAddressSame;
+    }, [watchGuarantorAddressSame, form]);
+
+    useEffect(() => {
+        if (!watchGuarantorAddressSame) {
+            return;
+        }
+
+        const currentAddress = form.getValues('applicant.currentAddress');
+        if (currentAddress) {
+            form.setValue(
+                'guarantor.address',
+                { ...currentAddress },
+                { shouldDirty: true, shouldValidate: false }
+            );
+        }
+    }, [watchGuarantorAddressSame, watchCurrentAddress, form]);
 
     useEffect(() => {
         const dateOfBirth = watchDateOfBirth instanceof Date ? watchDateOfBirth : undefined;
@@ -584,9 +667,18 @@ export function ApplicationForm() {
             if (applicantData.isPermanentAddressSame && applicantData.currentAddress) {
                 applicantData.permanentAddress = { ...applicantData.currentAddress };
             }
-            if (guarantorData && guarantorData.address) {
+            if (guarantorData?.isAddressSameAsApplicantCurrent && applicantData.currentAddress) {
+                guarantorData.address = { ...applicantData.currentAddress };
+            } else if (guarantorData && guarantorData.address) {
                 guarantorData.address = { ...guarantorData.address };
             }
+            if (!guarantorData?.address) {
+                throw new Error('กรุณากรอกที่อยู่ผู้ค้ำประกันให้ครบถ้วน');
+            }
+            const normalizedGuarantorData = {
+                ...guarantorData,
+                address: { ...guarantorData.address },
+            };
             if (applicationDetails.criminalRecord !== 'yes') {
                 applicationDetails.criminalRecordDetails = undefined;
             }
@@ -668,8 +760,8 @@ export function ApplicationForm() {
                 },
                 applicationDetails,
                 guarantor: {
-                    ...guarantorData,
-                    fullName: `${guarantorData.firstName ?? ''} ${guarantorData.lastName ?? ''}`.trim() || undefined
+                    ...normalizedGuarantorData,
+                    fullName: `${normalizedGuarantorData.firstName ?? ''} ${normalizedGuarantorData.lastName ?? ''}`.trim() || undefined
                 },
                 vehicle: vehicleData,
                 docs,
@@ -698,101 +790,6 @@ export function ApplicationForm() {
                 description: error.message || "เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่อีกครั้ง",
             });
         }
-    };
-
-
-    const handleMockData = () => {
-        form.setValue("applicant.prefix", "นาย", { shouldValidate: true });
-        form.setValue("applicant.firstName", "สมชาย", { shouldValidate: true });
-        form.setValue("applicant.lastName", "ใจดี", { shouldValidate: true });
-        form.setValue("applicant.nickname", "ชาย", { shouldValidate: true });
-        form.setValue("applicant.nationalId", "1234567890123", { shouldValidate: true });
-        form.setValue("applicant.nationalIdIssueDate", new Date(CURRENT_YEAR - 5, 0, 1), { shouldValidate: true });
-        form.setValue("applicant.nationalIdExpiryDate", new Date(CURRENT_YEAR + 5, 0, 1), { shouldValidate: true });
-        form.setValue("applicant.dateOfBirth", new Date(CURRENT_YEAR - 25, 0, 1), { shouldValidate: true });
-        form.setValue("applicant.age", 25, { shouldValidate: true });
-        form.setValue("applicant.height", 175, { shouldValidate: true });
-        form.setValue("applicant.weight", 70, { shouldValidate: true });
-        form.setValue("applicant.race", "ไทย", { shouldValidate: true });
-        form.setValue("applicant.nationality", "ไทย", { shouldValidate: true });
-        form.setValue("applicant.religion", "พุทธ", { shouldValidate: true });
-        form.setValue("applicant.gender", "male", { shouldValidate: true });
-        form.setValue("applicant.maritalStatus", "single", { shouldValidate: true });
-        form.setValue("applicant.mobilePhone", "0812345678", { shouldValidate: true });
-
-        // Address
-        form.setValue("applicant.currentAddress.houseNo", "123/45", { shouldValidate: true });
-        form.setValue("applicant.currentAddress.moo", "1", { shouldValidate: true });
-        form.setValue("applicant.currentAddress.street", "วิภาวดีรังสิต", { shouldValidate: true });
-        form.setValue("applicant.currentAddress.subDistrict", "จอมพล", { shouldValidate: true });
-        form.setValue("applicant.currentAddress.district", "จตุจักร", { shouldValidate: true });
-        form.setValue("applicant.currentAddress.province", "กรุงเทพมหานคร", { shouldValidate: true });
-        form.setValue("applicant.currentAddress.postalCode", "10900", { shouldValidate: true });
-
-        form.setValue("applicant.isPermanentAddressSame", true, { shouldValidate: true });
-        form.setValue("applicant.permanentAddress.houseNo", "123/45", { shouldValidate: true });
-        form.setValue("applicant.permanentAddress.moo", "1", { shouldValidate: true });
-        form.setValue("applicant.permanentAddress.street", "วิภาวดีรังสิต", { shouldValidate: true });
-        form.setValue("applicant.permanentAddress.subDistrict", "จอมพล", { shouldValidate: true });
-        form.setValue("applicant.permanentAddress.district", "จตุจักร", { shouldValidate: true });
-        form.setValue("applicant.permanentAddress.province", "กรุงเทพมหานคร", { shouldValidate: true });
-        form.setValue("applicant.permanentAddress.postalCode", "10900", { shouldValidate: true });
-
-        form.setValue("applicant.residenceType", "own", { shouldValidate: true });
-        form.setValue("applicant.militaryStatus", "exempt", { shouldValidate: true });
-
-        // Application Details
-        form.setValue("applicationDetails.position", "พนักงานขับรถ", { shouldValidate: true });
-        form.setValue("applicationDetails.applicationDate", new Date(), { shouldValidate: true });
-        form.setValue("applicationDetails.criminalRecord", "no", { shouldValidate: true });
-        form.setValue("applicationDetails.emergencyContact.firstName", "สมหญิง", { shouldValidate: true });
-        form.setValue("applicationDetails.emergencyContact.lastName", "ใจดี", { shouldValidate: true });
-        form.setValue("applicationDetails.emergencyContact.relation", "ภรรยา", { shouldValidate: true });
-        form.setValue("applicationDetails.emergencyContact.occupation", "ค้าขาย", { shouldValidate: true });
-        form.setValue("applicationDetails.emergencyContact.mobilePhone", "0898765432", { shouldValidate: true });
-
-        // Vehicle
-        form.setValue("vehicle.type", "four-wheel", { shouldValidate: true });
-        setTimeout(() => {
-            form.setValue("vehicle.brand", "Toyota", { shouldValidate: true });
-            setTimeout(() => {
-                form.setValue("vehicle.model", "Hilux Revo", { shouldValidate: true });
-            }, 50);
-        }, 50);
-        form.setValue("vehicle.year", 2022, { shouldValidate: true });
-        form.setValue("vehicle.plateNo", "1กข-1234", { shouldValidate: true });
-        form.setValue("vehicle.color", "ขาว", { shouldValidate: true });
-
-        // Guarantor
-        form.setValue("guarantor.firstName", "สมหมาย", { shouldValidate: true });
-        form.setValue("guarantor.lastName", "มีทรัพย์", { shouldValidate: true });
-        form.setValue("guarantor.nationalId", "9876543210123", { shouldValidate: true });
-        form.setValue("guarantor.address.houseNo", "99/9", { shouldValidate: true });
-        form.setValue("guarantor.address.moo", "2", { shouldValidate: true });
-        form.setValue("guarantor.address.street", "พหลโยธิน", { shouldValidate: true });
-        form.setValue("guarantor.address.subDistrict", "อนุสาวรีย์", { shouldValidate: true });
-        form.setValue("guarantor.address.district", "บางเขน", { shouldValidate: true });
-        form.setValue("guarantor.address.province", "กรุงเทพมหานคร", { shouldValidate: true });
-        form.setValue("guarantor.address.postalCode", "10220", { shouldValidate: true });
-
-        // Mock Documents
-        const dummyFile = new File(["dummy content"], "mock-document.jpg", { type: "image/jpeg" });
-        const documents = form.getValues("documents");
-        if (documents) {
-            documents.forEach((_, index) => {
-                form.setValue(`documents.${index}.upload`, {
-                    status: 'selected',
-                    progress: 0,
-                    file: dummyFile,
-                    fileName: "mock-document.jpg",
-                    errorMessage: undefined
-                }, { shouldValidate: true });
-            });
-        }
-
-        // Signature (Dummy white dot 1x1 png base64)
-        form.setValue("signature", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNiAAAABgDNjd8YNAAAAABJRU5ErkJggg==", { shouldValidate: true });
-        form.setValue("guarantorSignature", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNiAAAABgDNjd8YNAAAAABJRU5ErkJggg==", { shouldValidate: true });
     };
 
     const onInvalid = (errors: any) => {
@@ -1253,18 +1250,21 @@ export function ApplicationForm() {
                                 />
                                 <FormField
                                     control={form.control}
-                                    name="applicant.currentAddress.subDistrict"
+                                    name="applicant.currentAddress.province"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">*</span></FormLabel>
+                                            <FormLabel>จังหวัด<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <SearchableSelect
                                                     ref={field.ref}
-                                                    options={getSubDistrictOptions(watchCurrentProvince, watchCurrentDistrict)}
+                                                    options={provinceOptions}
                                                     value={field.value ?? undefined}
-                                                    onChange={(val) => field.onChange(val)}
-                                                    placeholder={watchCurrentDistrict ? "เลือกตำบล/แขวง..." : "เลือกอำเภอ/เขตก่อน"}
-                                                    disabled={!watchCurrentDistrict}
+                                                    onChange={(val) => {
+                                                        field.onChange(val);
+                                                        form.setValue('applicant.currentAddress.district', '');
+                                                        form.setValue('applicant.currentAddress.subDistrict', '');
+                                                    }}
+                                                    placeholder="เลือกจังหวัด..."
                                                     allowClear
                                                 />
                                             </FormControl>
@@ -1298,21 +1298,18 @@ export function ApplicationForm() {
                                 />
                                 <FormField
                                     control={form.control}
-                                    name="applicant.currentAddress.province"
+                                    name="applicant.currentAddress.subDistrict"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>จังหวัด<span className="text-destructive ml-1">*</span></FormLabel>
+                                            <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">*</span></FormLabel>
                                             <FormControl>
                                                 <SearchableSelect
                                                     ref={field.ref}
-                                                    options={provinceOptions}
+                                                    options={getSubDistrictOptions(watchCurrentProvince, watchCurrentDistrict)}
                                                     value={field.value ?? undefined}
-                                                    onChange={(val) => {
-                                                        field.onChange(val);
-                                                        form.setValue('applicant.currentAddress.district', '');
-                                                        form.setValue('applicant.currentAddress.subDistrict', '');
-                                                    }}
-                                                    placeholder="เลือกจังหวัด..."
+                                                    onChange={(val) => field.onChange(val)}
+                                                    placeholder={watchCurrentDistrict ? "เลือกตำบล/แขวง..." : "เลือกอำเภอ/เขตก่อน"}
+                                                    disabled={!watchCurrentDistrict}
                                                     allowClear
                                                 />
                                             </FormControl>
@@ -1409,18 +1406,21 @@ export function ApplicationForm() {
                                     />
                                     <FormField
                                         control={form.control}
-                                        name="applicant.permanentAddress.subDistrict"
+                                        name="applicant.permanentAddress.province"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">*</span></FormLabel>
+                                                <FormLabel>จังหวัด<span className="text-destructive ml-1">*</span></FormLabel>
                                                 <FormControl>
                                                     <SearchableSelect
                                                         ref={field.ref}
-                                                        options={getSubDistrictOptions(watchPermanentProvince, watchPermanentDistrict)}
+                                                        options={provinceOptions}
                                                         value={field.value ?? undefined}
-                                                        onChange={(val) => field.onChange(val)}
-                                                        placeholder={watchPermanentDistrict ? "เลือกตำบล/แขวง..." : "เลือกอำเภอ/เขตก่อน"}
-                                                        disabled={!watchPermanentDistrict}
+                                                        onChange={(val) => {
+                                                            field.onChange(val);
+                                                            form.setValue('applicant.permanentAddress.district', '');
+                                                            form.setValue('applicant.permanentAddress.subDistrict', '');
+                                                        }}
+                                                        placeholder="เลือกจังหวัด..."
                                                         allowClear
                                                     />
                                                 </FormControl>
@@ -1454,21 +1454,18 @@ export function ApplicationForm() {
                                     />
                                     <FormField
                                         control={form.control}
-                                        name="applicant.permanentAddress.province"
+                                        name="applicant.permanentAddress.subDistrict"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>จังหวัด<span className="text-destructive ml-1">*</span></FormLabel>
+                                                <FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">*</span></FormLabel>
                                                 <FormControl>
                                                     <SearchableSelect
                                                         ref={field.ref}
-                                                        options={provinceOptions}
+                                                        options={getSubDistrictOptions(watchPermanentProvince, watchPermanentDistrict)}
                                                         value={field.value ?? undefined}
-                                                        onChange={(val) => {
-                                                            field.onChange(val);
-                                                            form.setValue('applicant.permanentAddress.district', '');
-                                                            form.setValue('applicant.permanentAddress.subDistrict', '');
-                                                        }}
-                                                        placeholder="เลือกจังหวัด..."
+                                                        onChange={(val) => field.onChange(val)}
+                                                        placeholder={watchPermanentDistrict ? "เลือกตำบล/แขวง..." : "เลือกอำเภอ/เขตก่อน"}
+                                                        disabled={!watchPermanentDistrict}
                                                         allowClear
                                                     />
                                                 </FormControl>
@@ -2002,16 +1999,34 @@ export function ApplicationForm() {
                             )} />
                         </div>
                         <div className="space-y-4 pt-4">
-                            <h4 className="text-sm font-semibold">ที่อยู่ผู้ค้ำประกัน</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="guarantor.address.houseNo" render={({ field }) => (<FormItem><FormLabel>บ้านเลขที่<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. 123/45" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.moo" render={({ field }) => (<FormItem><FormLabel>หมู่ที่<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. 1" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.street" render={({ field }) => (<FormItem><FormLabel>ถนน<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. วิภาวดีรังสิต" /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.subDistrict" render={({ field }) => (<FormItem><FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">*</span></FormLabel><FormControl><SearchableSelect ref={field.ref} options={getSubDistrictOptions(watchGuarantorProvince, watchGuarantorDistrict)} value={field.value ?? undefined} onChange={(val) => field.onChange(val)} disabled={!watchGuarantorDistrict} allowClear placeholder={watchGuarantorDistrict ? "เลือกตำบล/แขวง..." : "เลือกอำเภอ/เขตก่อน"} /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.district" render={({ field }) => (<FormItem><FormLabel>อำเภอ/เขต<span className="text-destructive ml-1">*</span></FormLabel><FormControl><SearchableSelect ref={field.ref} options={getDistrictOptions(watchGuarantorProvince)} value={field.value ?? undefined} onChange={(val) => { field.onChange(val); form.setValue('guarantor.address.subDistrict', ''); }} disabled={!watchGuarantorProvince} allowClear placeholder={watchGuarantorProvince ? "เลือกอำเภอ/เขต..." : "เลือกจังหวัดก่อน"} /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.province" render={({ field }) => (<FormItem><FormLabel>จังหวัด<span className="text-destructive ml-1">*</span></FormLabel><FormControl><SearchableSelect ref={field.ref} options={provinceOptions} value={field.value ?? undefined} onChange={(val) => { field.onChange(val); form.setValue('guarantor.address.district', ''); form.setValue('guarantor.address.subDistrict', ''); }} allowClear placeholder="เลือกจังหวัด..." /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="guarantor.address.postalCode" render={({ field }) => (<FormItem><FormLabel>รหัสไปรษณีย์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} maxLength={5} placeholder="ex. 10900" /></FormControl><FormMessage /></FormItem>)} />
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-semibold">ที่อยู่ผู้ค้ำประกัน</h4>
+                                <FormField
+                                    control={form.control}
+                                    name="guarantor.isAddressSameAsApplicantCurrent"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                            <FormControl>
+                                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                            </FormControl>
+                                            <div className="space-y-1 leading-none">
+                                                <FormLabel>ใช้ที่อยู่เดียวกับที่อยู่ปัจจุบันของผู้สมัคร</FormLabel>
+                                            </div>
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
+                            {!watchGuarantorAddressSame && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="guarantor.address.houseNo" render={({ field }) => (<FormItem><FormLabel>บ้านเลขที่<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. 123/45" /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="guarantor.address.moo" render={({ field }) => (<FormItem><FormLabel>หมู่ที่<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. 1" /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="guarantor.address.street" render={({ field }) => (<FormItem><FormLabel>ถนน<span className="text-muted-foreground ml-1 font-normal">(ถ้ามี)</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder="ex. วิภาวดีรังสิต" /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="guarantor.address.province" render={({ field }) => (<FormItem><FormLabel>จังหวัด<span className="text-destructive ml-1">*</span></FormLabel><FormControl><SearchableSelect ref={field.ref} options={provinceOptions} value={field.value ?? undefined} onChange={(val) => { field.onChange(val); form.setValue('guarantor.address.district', ''); form.setValue('guarantor.address.subDistrict', ''); }} allowClear placeholder="เลือกจังหวัด..." /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="guarantor.address.district" render={({ field }) => (<FormItem><FormLabel>อำเภอ/เขต<span className="text-destructive ml-1">*</span></FormLabel><FormControl><SearchableSelect ref={field.ref} options={getDistrictOptions(watchGuarantorProvince)} value={field.value ?? undefined} onChange={(val) => { field.onChange(val); form.setValue('guarantor.address.subDistrict', ''); }} disabled={!watchGuarantorProvince} allowClear placeholder={watchGuarantorProvince ? "เลือกอำเภอ/เขต..." : "เลือกจังหวัดก่อน"} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="guarantor.address.subDistrict" render={({ field }) => (<FormItem><FormLabel>ตำบล/แขวง<span className="text-destructive ml-1">*</span></FormLabel><FormControl><SearchableSelect ref={field.ref} options={getSubDistrictOptions(watchGuarantorProvince, watchGuarantorDistrict)} value={field.value ?? undefined} onChange={(val) => field.onChange(val)} disabled={!watchGuarantorDistrict} allowClear placeholder={watchGuarantorDistrict ? "เลือกตำบล/แขวง..." : "เลือกอำเภอ/เขตก่อน"} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={form.control} name="guarantor.address.postalCode" render={({ field }) => (<FormItem><FormLabel>รหัสไปรษณีย์<span className="text-destructive ml-1">*</span></FormLabel><FormControl><Input {...field} value={field.value ?? ''} maxLength={5} placeholder="ex. 10900" /></FormControl><FormMessage /></FormItem>)} />
+                                </div>
+                            )}
                         </div>
 
 
@@ -2161,9 +2176,6 @@ export function ApplicationForm() {
                             </div>
                         )}
                         <div className="flex gap-4 w-full justify-end">
-                            {user && (
-                                <Button type="button" variant="outline" onClick={handleMockData}>Mock Data</Button>
-                            )}
                             <Button type="submit" size="lg" disabled={isSubmitting}>
                                 {isSubmitting ? (
                                     <>

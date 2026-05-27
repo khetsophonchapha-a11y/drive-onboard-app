@@ -31,8 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = { user, login, logout, loading };
 
-  // next-auth handles redirection via middleware, so we don't need the manual checks here.
-  // We can still show a loading spinner for a better UX.
+  // Route protection is handled in server layouts/pages.
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen w-full">

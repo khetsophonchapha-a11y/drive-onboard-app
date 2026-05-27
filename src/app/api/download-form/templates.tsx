@@ -30,7 +30,12 @@ type ManifestWithSignatures = Manifest & {
     signatures?: {
         applicant?: string | null;
         guarantor?: string | null;
-    }
+    };
+    pdfAssets?: {
+        logoDataUrl?: string | null;
+        regularFontDataUrl?: string | null;
+        boldFontDataUrl?: string | null;
+    };
 };
 
 // Styling Constants
@@ -39,20 +44,67 @@ const pageStyle: React.CSSProperties = {
     padding: '0',
     margin: '0 auto',
     boxSizing: 'border-box',
-    fontFamily: '"Sarabun", "Arial", sans-serif',
+    fontFamily: '"TH Sarabun New", "THSarabunNew", "Sarabun", "Arial", sans-serif',
     fontSize: '9pt',
     color: '#000',
     lineHeight: 1.5,
 };
 
+const COMPANY_NAME_TH = 'บริษัท เบิกฟ้ากรุ๊ป จำกัด';
+const COMPANY_NAME_EN = 'BOEKFAH GROUP CO.,LTD.';
+const COMPANY_ADDRESS = 'เลขที่ 202/357 ซอยเคหะร่มเกล้า 27 ถนนเคหะร่มเกล้า แขวงคลองสองต้นนุ่น';
+const COMPANY_LOCATION = 'เขตลาดกระบัง กรุงเทพมหานคร 10520 โทรศัพท์-แฟ็กซ์ 02-047-7979';
+
 // Font loader style to be injected
-const FontLoader = () => (
+const FontLoader = ({ data }: { data: ManifestWithSignatures }) => (
     <style dangerouslySetInnerHTML={{
         __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif !important; }
+        ${data.pdfAssets?.regularFontDataUrl ? `
+        @font-face {
+            font-family: 'TH Sarabun New';
+            src: url('${data.pdfAssets.regularFontDataUrl}') format('truetype');
+            font-style: normal;
+            font-weight: 400;
+        }
+        ` : ''}
+        ${data.pdfAssets?.boldFontDataUrl ? `
+        @font-face {
+            font-family: 'TH Sarabun New';
+            src: url('${data.pdfAssets.boldFontDataUrl}') format('truetype');
+            font-style: normal;
+            font-weight: 700;
+        }
+        ` : ''}
+        body, div, span, p, h1, h2, h3, h4, h5, h6, table, td, th, label, strong {
+            font-family: 'TH Sarabun New', 'THSarabunNew', 'Sarabun', Arial, sans-serif !important;
+        }
         `
     }} />
+);
+
+const CompanyHeader = ({ data }: { data: ManifestWithSignatures }) => (
+    <div style={{ marginBottom: '12px' }}>
+        <div style={{ textAlign: 'center' }}>
+            {data.pdfAssets?.logoDataUrl ? (
+                <img
+                    src={data.pdfAssets.logoDataUrl}
+                    alt="Boekfah Group Logo"
+                    style={{
+                        display: 'block',
+                        width: '92px',
+                        height: '92px',
+                        objectFit: 'contain',
+                        margin: '0 auto 8px auto',
+                    }}
+                />
+            ) : null}
+            <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#cc0000', lineHeight: 1.1 }}>{COMPANY_NAME_TH}</div>
+            <div style={{ fontSize: '12pt', fontWeight: 'bold', lineHeight: 1.1 }}>{COMPANY_NAME_EN}</div>
+            <div style={{ fontSize: '9pt', lineHeight: 1.2 }}>{COMPANY_ADDRESS}</div>
+            <div style={{ fontSize: '9pt', lineHeight: 1.2 }}>{COMPANY_LOCATION}</div>
+        </div>
+        <div style={{ borderBottom: '2px solid black', marginTop: '10px' }} />
+    </div>
 );
 
 const h1Style: React.CSSProperties = {
@@ -151,12 +203,8 @@ export const ApplicationFormTemplate = ({ data }: { data: ManifestWithSignatures
 
     return (
         <div style={pageStyle}>
-            <FontLoader />
-            {/* Header */}
-            <div style={{ marginBottom: '5px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12pt', fontWeight: 'bold' }}>บริษัทเบิกฟ้ากรุ๊ปจำกัด</div>
-                <div style={{ fontSize: '9pt' }}>202/357 ซ.เคหะร่มเกล้า 27 ถ.เคหะร่มเกล้า แขวงคลองสองต้นนุ่น เขตลาดกระบัง กทม. 10520 โทร 02-047-7979</div>
-            </div>
+            <FontLoader data={data} />
+            <CompanyHeader data={data} />
 
             <div style={{ ...h1Style, fontSize: '14pt' }}>ใบสมัครงาน</div>
 
@@ -476,15 +524,8 @@ export const TransportContractTemplate = ({ data }: { data: ManifestWithSignatur
 
     return (
         <div style={pageStyle}>
-            <FontLoader />
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                {/* Logo Placeholder - Text based for now, essentially standard header */}
-                <h2 style={{ fontSize: '18pt', fontWeight: 'bold', margin: 0, color: '#cc0000' }}>บริษัท เบิกฟ้ากรุ๊ป จำกัด</h2>
-                <h3 style={{ fontSize: '14pt', fontWeight: 'bold', margin: 0 }}>BOEKFAH GROUP CO.,LTD.</h3>
-                <p style={{ fontSize: '10pt', margin: 0 }}>เลขที่ 202/357 ซอยเคหะร่มเกล้า 27 ถนนเคหะร่มเกล้า แขวงคลองสองต้นนุ่น</p>
-                <p style={{ fontSize: '10pt', margin: 0 }}>เขตลาดกระบัง กรุงเทพมหานคร 10520 โทรศัพท์-แฟ็กซ์ 02-047-7979</p>
-                <div style={{ borderBottom: '2px solid black', marginTop: '10px' }}></div>
-            </div>
+            <FontLoader data={data} />
+            <CompanyHeader data={data} />
 
             <h1 style={{ ...h1Style, marginTop: '20px' }}>สัญญาจ้างขนส่ง</h1>
             <div style={{ marginBottom: '15px' }}>
@@ -659,14 +700,8 @@ export const GuaranteeContractTemplate = ({ data }: { data: ManifestWithSignatur
 
     return (
         <div style={pageStyle}>
-            <FontLoader />
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <h2 style={{ fontSize: '18pt', fontWeight: 'bold', margin: 0, color: '#cc0000' }}>บริษัท เบิกฟ้ากรุ๊ป จำกัด</h2>
-                <h3 style={{ fontSize: '14pt', fontWeight: 'bold', margin: 0 }}>BOEKFAH GROUP CO.,LTD.</h3>
-                <p style={{ fontSize: '10pt', margin: 0 }}>เลขที่ 202/357 ซอยเคหะร่มเกล้า 27 ถนนเคหะร่มเกล้า แขวงคลองสองต้นนุ่น</p>
-                <p style={{ fontSize: '10pt', margin: 0 }}>เขตลาดกระบัง กรุงเทพมหานคร 10520 โทรศัพท์-แฟ็กซ์ 02-047-7979</p>
-                <div style={{ borderBottom: '2px solid black', marginTop: '10px' }}></div>
-            </div>
+            <FontLoader data={data} />
+            <CompanyHeader data={data} />
 
             <h1 style={{ ...h1Style, marginTop: '20px' }}>สัญญาค้ำประกันบุคคลเข้าทำงาน</h1>
             <div style={{ ...fieldStyle }}>

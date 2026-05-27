@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { listApplicationSummaries } from "@/lib/applications";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+
 export const fetchCache = "force-no-store";
 export const revalidate = 0;
 

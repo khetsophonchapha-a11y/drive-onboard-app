@@ -1,13 +1,17 @@
 import { createHmac } from "crypto";
 
-const WORKER_URL = process.env.WORKER_URL || "http://localhost:8787";
+const WORKER_URL = process.env.WORKER_URL;
 const WORKER_SECRET = process.env.WORKER_SECRET || "dev-secret-token"; // Must match wrangler.toml [vars] Secret
+
+type WorkerFileUrlOptions = {
+    origin?: string;
+};
 
 /**
  * Generates a signed URL for accessing a file via the Worker Proxy.
  * @param r2Key The R2 object key (can contain Thai characters)
  */
-export function getWorkerFileUrl(r2Key: string): string {
+export function getWorkerFileUrl(r2Key: string, options: WorkerFileUrlOptions = {}): string {
     // 1. Construct the path
     // Since Worker expects /files/<key>, and R2 keys can have slashes,
     // we need to be careful.
@@ -23,7 +27,6 @@ export function getWorkerFileUrl(r2Key: string): string {
 
     // Robust approach: Ensure we construct a valid URL object and sign looking at its pathname.
     const path = `/files/${encodeURI(r2Key)}`; // Use encodeURI to keep slashes but encode Thai
-    const fullUrl = new URL(path, WORKER_URL);
 
     // 2. Generate Signature
     // Worker verifies: verifyHmac(decodedKey, signature, secret)
@@ -33,6 +36,12 @@ export function getWorkerFileUrl(r2Key: string): string {
         .update(r2Key)
         .digest("hex");
 
+    const baseUrl = options.origin || WORKER_URL;
+    if (!baseUrl) {
+        return `${path}?signature=${signature}`;
+    }
+
+    const fullUrl = new URL(path, baseUrl);
     fullUrl.searchParams.set("signature", signature);
 
     return fullUrl.toString();

@@ -1,8 +1,9 @@
 // src/app/api/download-form/route.tsx
-export const runtime = 'nodejs'; // Use Node.js runtime
+ // Use Node.js runtime
 
 import { NextRequest, NextResponse } from 'next/server';
 import type { Manifest } from '@/lib/types';
+import { resolvePublicOrigin } from "@/lib/public-url";
 import { getR2Binding } from "@/lib/r2/binding";
 
 // Import aot templates 
@@ -12,7 +13,47 @@ import {
   GuaranteeContractTemplate
 } from './templates';
 
+export const runtime = 'nodejs';
+
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-K0rRj8ibF1aasEOo2jBPWDq765Nm5doz9LePYfzz3ZoPoqUTEXEEKJxLqVKhRHOu/exec";
+
+type TemplateAssets = {
+  logoDataUrl: string | null;
+  regularFontDataUrl: string | null;
+  boldFontDataUrl: string | null;
+};
+
+function getFallbackMimeType(assetPath: string) {
+  if (assetPath.endsWith('.png')) return 'image/png';
+  if (assetPath.endsWith('.jpg') || assetPath.endsWith('.jpeg')) return 'image/jpeg';
+  if (assetPath.endsWith('.webp')) return 'image/webp';
+  if (assetPath.endsWith('.ttf')) return 'font/ttf';
+  if (assetPath.endsWith('.otf')) return 'font/otf';
+  return 'application/octet-stream';
+}
+
+async function fetchPublicAssetAsDataUrl(req: NextRequest, assetPath: string): Promise<string | null> {
+  try {
+    const assetUrl = new URL(assetPath, resolvePublicOrigin(req) ?? req.nextUrl.origin);
+    const response = await fetch(assetUrl.toString(), {
+      headers: {
+        'x-pdf-asset-request': '1',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Asset request failed with status ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const mimeType = response.headers.get('content-type') || getFallbackMimeType(assetPath);
+    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    console.error(`Failed to fetch public asset ${assetPath}:`, error);
+    return null;
+  }
+}
 
 // Helper: Fetch image from R2 and convert to Base64
 async function fetchImageBase64(r2Key: string): Promise<string | null> {
@@ -34,13 +75,33 @@ async function fetchImageBase64(r2Key: string): Promise<string | null> {
   }
 }
 
-async function getHtmlTemplate(filename: string, data: Manifest, signatures?: { applicant?: string | null, guarantor?: string | null }): Promise<string> {
+async function loadTemplateAssets(req: NextRequest): Promise<TemplateAssets> {
+  const [logoDataUrl, regularFontDataUrl, boldFontDataUrl] = await Promise.all([
+    fetchPublicAssetAsDataUrl(req, '/images/boekfah-logo.png'),
+    fetchPublicAssetAsDataUrl(req, '/fonts/Sarabun-Regular.ttf'),
+    fetchPublicAssetAsDataUrl(req, '/fonts/Sarabun-Bold.ttf'),
+  ]);
+
+  return {
+    logoDataUrl,
+    regularFontDataUrl,
+    boldFontDataUrl,
+  };
+}
+
+async function getHtmlTemplate(
+  filename: string,
+  data: Manifest,
+  assets: TemplateAssets,
+  signatures?: { applicant?: string | null, guarantor?: string | null }
+): Promise<string> {
   let template;
 
   // Inject signatures into data 
   const dataWithSignatures = {
     ...data,
-    signatures: signatures
+    signatures,
+    pdfAssets: assets,
   };
 
   if (filename.includes('application-form') || filename.includes('ใบสมัครงาน')) {
@@ -80,8 +141,10 @@ export async function POST(req: NextRequest) {
       guarantorSigBase64 = await fetchImageBase64(data.docs.guarantorSignature.r2Key);
     }
 
+    const assets = await loadTemplateAssets(req);
+
     // 1. สร้าง HTML string จาก React template พร้อมลายเซ็น
-    const htmlContent = await getHtmlTemplate(filename, data, {
+    const htmlContent = await getHtmlTemplate(filename, data, assets, {
       applicant: applicantSigBase64,
       guarantor: guarantorSigBase64
     });
@@ -127,4 +190,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `PDF Generation Failed: ${message}` }, { status: 500 });
   }
 }
-
